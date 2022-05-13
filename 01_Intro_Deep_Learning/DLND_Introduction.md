@@ -28,8 +28,7 @@ Additionally, note that:
 		- Books to read
 	- Lesson 6: Jupyter Notebook
 	- Lesson 7: Matrix Math and Numpy Refresher
-2. Neural Networks
-	- Lesson 1: Introduction to Neural Networks
+
 
 # 1. Introduction to Deep Learning
 
@@ -126,43 +125,4 @@ Installation & Use: covered in `python_manual.txt`
 
 - Scalars, vectors, matrices, tensors: tensors can be 2+D matrices, an element in a matrix tensors could be a matrix/tensor itself
 - Numpy
-
-# 2. Neural Networks
-
-## Lesson 1: Introduction to Neural Networks
-
-The content is mostly recorded in the hand-written notes.
-There is overlap with the CVND = Udacity Computer Vision Nanodegree (overlap in videos, notebooks, etc.).
-
-List of concepts:
-
-- Classification
-- Perceptron
-- Perceptron as Logical Operators
-- Perceptron model optimization: Perceptron algorithm (mis-classified points added to the model parameters after scaling with learning rate)
-- Error
-- Discrete vs Continuous Outputs: We need to hava a continuous differentiable error
-- Sigmoid Function: continuous output compressed to `(0,1)`
-- Softmax Function: multi-class sigmoid
-- One-hot encoding
-- Maximum Likelyood: the best model has the highest maximum likelihood: products of the predicted data-point probabilities of the correct value; however, in practice the `log` is used to avoid products of small numbers!
-- Cross Entropy: a way of interpreting the cross-entropy loss is the maximum likelihood product computed as sums of `logs`.
-	- That way, the maximum likelihood is the probability of all the classes, and the cross-entropy is the error. The higher the probability, the lower the error!
-	- Another way of interpreting the cross-entropy is the distance error from a discrete vector to our continuous probabilities: `CE([1,1,0],[0.8,0.7,0.1]) = 0.69`
-- Error Function
-- Graident Descend
-- Comparison: Perceptron Algorithm vs Gradient descend
-- Nonlinear Models: Multi-layer Perceptrons = Neural Networks
-- Feedforward
-- Backpropagation
-
-Interesting Jupyter Notebooks: [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch)
-
-- `intro-neural-networks/GradientsDescend`: Gradient descend applied to the same dataset as before.
-- `intro-neural-networks/StudentAdmissions`
-	- Gradient descend applied to a linear model
-	- Dataset: student admission data: 3D data (test result, GPA, class rank percentile), converted to one-hot 6D
-	-One-hot encoding is done in pandas using 2 lines: Rank 0-4 -> rank_i 0/1 for i 1-4
-
-
 
