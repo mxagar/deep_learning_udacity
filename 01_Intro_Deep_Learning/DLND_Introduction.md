@@ -147,7 +147,7 @@ List of concepts:
 - One-hot encoding
 - Maximum Likelyood: the best model has the highest maximum likelihood: products of the predicted data-point probabilities of the correct value; however, in practice the `log` is used to avoid products of small numbers!
 - Cross Entropy: a way of interpreting the cross-entropy loss is the maximum likelihood product computed as sums of `logs`.
-	- That way, the maximim likelihood is the probability of all the classes, and the cross-entropy is the error. The higher the probability, the lower the error!
+	- That way, the maximum likelihood is the probability of all the classes, and the cross-entropy is the error. The higher the probability, the lower the error!
 	- Another way of interpreting the cross-entropy is the distance error from a discrete vector to our continuous probabilities: `CE([1,1,0],[0.8,0.7,0.1]) = 0.69`
 - Error Function
 - Graident Descend
