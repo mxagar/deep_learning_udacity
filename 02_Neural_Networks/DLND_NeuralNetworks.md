@@ -200,6 +200,164 @@ train_data, test_data = processed_data.iloc[sample], processed_data.drop(sample)
 
 ## Lesson 2: Implementing Gradient Descend
 
+This lesson introduces very few new concepts; instead, the math behind the gradient descend is reviewed and implemented in code. Note that until now the cross-entropy loss has been used (classification). In this lesson, the *squared sums* are introduced, more suited for regression problems.
+
+**Look at the handwritten nodes**. In them, backpropagation is derived. In the following, code examples are provided.
+
+### Gradient Descend in Numpy
+
+`w_k <- w_k + dw_k`  
+`dw_k = learning_rate * error_term * x_k`
+
+![Gradient Descend Formulas](./pics/gradient_descend_formulas.png)
+
+#### Example: One Perceptron, One Data-Point
+
+```python
+import numpy as np
+
+def sigmoid(x):
+    return 1/(1+np.exp(-x))
+
+def sigmoid_prime(x):
+    return sigmoid(x) * (1 - sigmoid(x))
+
+learnrate = 0.5
+x = np.array([1, 2, 3, 4])
+y = np.array(0.5)
+
+# Initial weights
+w = np.array([0.5, -0.5, 0.3, 0.1])
+
+# Calculate the node's linear combination of inputs and weights
+h = np.dot(w,x)
+
+# Calculate output of neural network
+nn_output = sigmoid(h)
+
+# Calculate error of neural network
+error = (y-nn_output)
+
+# Calculate the error term
+error_term = (y-nn_output)*sigmoid_prime(h)
+
+# Calculate change in weights
+del_w = learnrate*error_term*x
+```
+
+#### Example: One Perceptron, Several Data Points
+
+The dataset used is the one from `StudentAdmissions.ipynb`:
+
+```
+admit,gre,gpa,rank
+0,380,3.61,3
+1,660,3.67,3
+...
+```
+
+The rank is encoded as a one-hot variable and the test result and the score are scaled.
+
+```python
+import numpy as np
+import pandas as pd
+
+admissions = pd.read_csv('binary.csv')
+
+### -- Data Preparation
+
+# Make dummy variables for rank
+data = pd.concat([admissions, pd.get_dummies(admissions['rank'], prefix='rank')], axis=1)
+data = data.drop('rank', axis=1)
+
+# Standarize features
+for field in ['gre', 'gpa']:
+    mean, std = data[field].mean(), data[field].std()
+    data.loc[:,field] = (data[field]-mean)/std
+    
+# Split off random 10% of the data for testing
+np.random.seed(42)
+sample = np.random.choice(data.index, size=int(len(data)*0.9), replace=False)
+data, test_data = data.ix[sample], data.drop(sample)
+
+# Split into features and targets
+features, targets = data.drop('admit', axis=1), data['admit']
+features_test, targets_test = test_data.drop('admit', axis=1), test_data['admit']
+
+### -- Gradient Descend
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+def sigmoid_prime(x):
+    s = sigmoid(x)
+    return s*(1-s)
+    
+# Use to same seed to make debugging easier
+np.random.seed(42)
+
+n_records, n_features = features.shape
+last_loss = None
+
+# Initialize weights
+weights = np.random.normal(scale=1 / n_features**.5, size=n_features)
+
+# Neural Network hyperparameters
+epochs = 1000
+learnrate = 0.5
+
+for e in range(epochs):
+    del_w = np.zeros(weights.shape)
+    for x, y in zip(features.values, targets):
+        # Loop through all records, x is the input, y is the target
+
+        # Note: We haven't included the h variable from the previous
+        #       lesson. You can add it if you want, or you can calculate
+        #       the h together with the output
+
+        # Calculate the output
+        output = sigmoid(np.dot(weights, x))
+
+        # Calculate the error
+        error = y-output
+
+        # Calculate the error term
+        error_term = error*sigmoid_prime(x)
+
+        # Calculate the change in weights for this sample
+        # and add it to the total weight change
+        del_w += (learnrate/n_records)*error_term*x
+
+    # Update weights using the learning rate and the average change in weights
+    weights += del_w
+
+    # Printing out the mean square error on the training set
+    if e % (epochs / 10) == 0:
+        out = sigmoid(np.dot(features, weights))
+        loss = np.mean((out - targets) ** 2)
+        if last_loss and last_loss < loss:
+            print("Train loss: ", loss, "  WARNING - Loss Increasing")
+        else:
+            print("Train loss: ", loss)
+        last_loss = loss
+
+
+# Calculate accuracy on test data
+tes_out = sigmoid(np.dot(features_test, weights))
+predictions = tes_out > 0.5
+accuracy = np.mean(predictions == targets_test)
+print("Prediction accuracy: {:.3f}".format(accuracy))
+
+```
+
+### Interesting Links
+
+- [Why Momentum Really Works](https://distill.pub/2017/momentum/): Momentum is a possible solution to avoiding local minima.
+- [Yes, you should understand backprop; by Andrej Karpathy](https://karpathy.medium.com/yes-you-should-understand-backprop-e2f06eab496b#.vt3ax2kg9)
+- [Lecture on Backpropagation; by Andrej Karpathy](https://www.youtube.com/watch?v=59Hbtz7XgjM).
+- My notes on backprop from the Andrew Ng course: [Neural Networks](https://github.com/mxagar/machine_learning_coursera)/`03_NeuralNetworks/ML_NeuralNetworks.md`
+
+
 
 ## Lesson 3: Training Neural Networks
 
