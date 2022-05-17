@@ -204,14 +204,14 @@ This lesson introduces very few new concepts; instead, the math behind the gradi
 
 **Look at the handwritten nodes**. In them, backpropagation is derived. In the following, code examples are provided.
 
-### Gradient Descend in Numpy
+### Gradient Descend in Numpy: Basic Idea
 
 `w_k <- w_k + dw_k`  
 `dw_k = learning_rate * error_term * x_k`
 
 ![Gradient Descend Formulas](./pics/gradient_descend_formulas.png)
 
-#### Example: One Perceptron, One Data-Point
+### One Perceptron, One Data-Point
 
 ```python
 import numpy as np
@@ -245,7 +245,7 @@ error_term = (y-nn_output)*sigmoid_prime(h)
 del_w = learnrate*error_term*x
 ```
 
-#### Example: One Perceptron, Several Data Points
+### One Perceptron, Several Data Points
 
 The dataset used is the one from `StudentAdmissions.ipynb`:
 
@@ -256,7 +256,31 @@ admit,gre,gpa,rank
 ...
 ```
 
-The rank is encoded as a one-hot variable and the test result and the score are scaled.
+with:
+
+- `admit`: admission or not
+- `gre`: test score
+- `gpa`: grade point average
+- `rank`: rank quantile in class: `1, 2, 3, 4`
+
+The dataset can be downloaded from here:
+
+[http://www.ats.ucla.edu/stat/data/binary.csv)](http://www.ats.ucla.edu/stat/data/binary.csv))
+
+The rank is encoded as a one-hot variable and the test result and the score are scaled. The goal is to build a model that predicts admission.
+
+The basic gradient descend algorithm for one perceptron is:
+
+![Gradient Descend Algorithm](./pics/gradient_descend_algorithm.png)
+
+with
+
+- `E = MSE = 0.5 * m * sum(j = 1:m datapoints; (y(j) - y_pred(j))^2)`
+- `f(h) = sigmoid(h) = 1/(1 + exp(-h))`
+- `f'(h) = f(h)(1 - f(h))`, if `f` is the `sigmoid`
+- `h = sum(i = 1:n features; w_i * x_i)`
+
+This algorithm is implemented below.
 
 ```python
 import numpy as np
@@ -299,37 +323,40 @@ np.random.seed(42)
 n_records, n_features = features.shape
 last_loss = None
 
-# Initialize weights
+# Important: Initialize weights
+# We need to break symmetry and allow for weight divergence
+# Typical random values: N(0, 1/sqrt(num_features))
 weights = np.random.normal(scale=1 / n_features**.5, size=n_features)
 
 # Neural Network hyperparameters
-epochs = 1000
-learnrate = 0.5
+epochs = 500
+learnrate = 0.01
 
 for e in range(epochs):
+	# Weight change
     del_w = np.zeros(weights.shape)
+    # Loop through all records, x is the input, y is the target
     for x, y in zip(features.values, targets):
-        # Loop through all records, x is the input, y is the target
-
-        # Note: We haven't included the h variable from the previous
-        #       lesson. You can add it if you want, or you can calculate
-        #       the h together with the output
-
-        # Calculate the output
-        output = sigmoid(np.dot(weights, x))
+        # Calculate the output: y_pred
+        h = np.dot(weights, x)
+        output = sigmoid(h)
 
         # Calculate the error
         error = y-output
 
-        # Calculate the error term
+        # Calculate the error term: delta
         error_term = error*sigmoid_prime(x)
 
         # Calculate the change in weights for this sample
         # and add it to the total weight change
-        del_w += (learnrate/n_records)*error_term*x
+        del_w += error_term*x
 
-    # Update weights using the learning rate and the average change in weights
-    weights += del_w
+    # Update weights using the learning rate
+    # and the average change in weights
+    # Note that the weight change is `w_new = w_old - dE/dw`;
+    # however, the error term `delta` contains already the `-` sign,
+    # thus: `w_new = w_old + Dw; Dw = (lr/m)*sum(delta_j)`
+    weights += (learnrate/n_records)*del_w
 
     # Printing out the mean square error on the training set
     if e % (epochs / 10) == 0:
@@ -341,10 +368,246 @@ for e in range(epochs):
             print("Train loss: ", loss)
         last_loss = loss
 
-
 # Calculate accuracy on test data
 tes_out = sigmoid(np.dot(features_test, weights))
 predictions = tes_out > 0.5
+accuracy = np.mean(predictions == targets_test)
+print("Prediction accuracy: {:.3f}".format(accuracy))
+
+```
+
+Some notes:
+
+- Dummy variables for rank make sense because `rank = 2` is not `2x` `rank = 1`.
+- Scaling is fundamental also because the sigmoid function squashes large and small values: the gradient becomes `0`.
+- Taking the Mean Square Error (MSE) instead of the Sum of Square Error (SSE), makes the error and the learning rate to be in a known region independently of the size of the dataset.
+- Typical learning rates are in `[0.001, 0.01]`
+- Note that the weight change is `w_new = w_old - dE/dw`; however, the error term `delta` contains already the `-` sign, thus: `w_new = w_old + Dw; Dw = (lr/m)*sum(delta_j)`.
+- The final accuracy is very low: 0.5
+
+### Multiple Perceptrons (MLP), Several Data Points, One Forward Pass
+
+See handwritten notes for this case, since the matrix derivation and the notation used are important.
+
+A Multilayer Perceptron (MLP) should increase the accuracy.
+
+The following architecture is used:
+
+- Input layer with 3 units
+- Hidden layer with 2 units
+- Output layer with 1 unit
+
+![MLP Architecture](./pics/mlp_architecture.png)
+
+The unit `j` of the hidden layer is computed as follows:
+
+`h_j = sum(i; x_i * w_ij) = x_1 * w_1j + x_2 * w_2j + x_3 * w_3j`  
+`out_j = sigmoid(h_j)`
+
+And everything is packed in matrices, as follows:
+
+`[h_1, h_2] = [x_1, x_2, x3] x [[w_11, w_21, w_31]^T, [w_12, w_22, w_32]^T]`
+
+Or we can use the transpose version, with column vectors: `h (2x1) = W (2x3) x X (3x1)`.
+
+Note on transposing `numpy` arrays:
+
+```python
+# 1D: 1x3; shape = (3,), row vector
+x = np.array([ 0.49671415, -0.1382643 ,  0.64768854])
+# The transpose of 1D arrays is still a row vector!
+# However, this does not happen with matrices
+x.T # shape = (3,)
+# To obtain a column vector from a row vector:
+# 3x1
+x[:, None] # shape = (3,1)
+# Also, to obtain a column vector
+# we can use ndim
+# but the shape is different!
+np.array(x, ndmin=2).T # (1,3)
+```
+
+Example of **one forward pass**:
+
+```python
+import numpy as np
+
+def sigmoid(x):
+    return 1/(1+np.exp(-x))
+
+# Network size
+N_input = 4
+N_hidden = 3
+N_output = 2
+
+np.random.seed(42)
+# Some fake data: X, 1 x N_input or (N_input,)
+X = np.random.randn(4)
+
+# N_input x N_hidden
+weights_input_to_hidden = np.random.normal(
+	0,
+	scale=0.1,
+	size=(N_input, N_hidden))
+# N_hidden x N_output
+weights_hidden_to_output = np.random.normal(
+	0,
+	scale=0.1,
+	size=(N_hidden, N_output))
+
+# A forward pass through the network
+# X: 4 -> 4x1
+# w_in: 4x3 -> 3x4
+# w_in x X: 3x1
+# w_hidden: 3x2 -> 2x3
+hidden_layer_in = X[:,None] # (4,1)
+hidden_layer_out = sigmoid(np.matmul(weights_input_to_hidden.T, X)) # (3,4)x(4,1)
+
+print('Hidden-layer Output:')
+print(hidden_layer_out) # (3,1)
+
+output_layer_in = hidden_layer_out
+output_layer_out = sigmoid(
+	np.matmul(
+		weights_hidden_to_output.T,
+		output_layer_in)) # (2,3)x(3,1)
+
+print('Output-layer Output:')
+print(output_layer_out) # (2,1)
+```
+
+### Backpropagation: One Backward Pass
+
+See my handwritten notes and my notes after following the Machine Learning course by Andrew Ng at Coursera:
+
+[Neural Networks](https://github.com/mxagar/machine_learning_coursera)/`03_NeuralNetworks/ML_NeuralNetworks.md`
+
+The basic idea is that we propagate backwards the error in order to compute the error term `delta` of each unit. Note that the error terms are related to the neuron units; they are used to compute the weight updates.
+
+
+### Implementation of Backpropagation
+
+This section computes an MLP with 3 input units, 1 hidden layer with 2 units and an output layer with one unit. The dataset is the same as in previous examples.
+
+Have a look at my handwritten notes; the notation is slightly different to the one used by Udacity, but I think it is easier to understand:
+
+`./NeuralNetworks_Backpropagation_Training.pdf`
+
+Also, note that my handwritten notes consider the bias nodes; here there is no bias. That makes the coding more simple.
+
+For a nice implementation of the backpropagation algorithm, have a look at
+
+[Neural Networks](https://github.com/mxagar/machine_learning_coursera)/`03_NeuralNetworks/ML_NeuralNetworks.md`
+
+Implementation code.
+
+```python
+import numpy as np
+import pandas as pd
+
+admissions = pd.read_csv('binary.csv')
+
+### -- Data Preparation
+
+# Make dummy variables for rank
+data = pd.concat([admissions, pd.get_dummies(admissions['rank'], prefix='rank')], axis=1)
+data = data.drop('rank', axis=1)
+
+# Standarize features
+for field in ['gre', 'gpa']:
+    mean, std = data[field].mean(), data[field].std()
+    data.loc[:,field] = (data[field]-mean)/std
+    
+# Split off random 10% of the data for testing
+np.random.seed(42)
+sample = np.random.choice(data.index, size=int(len(data)*0.9), replace=False)
+data, test_data = data.ix[sample], data.drop(sample)
+
+# Split into features and targets
+features, targets = data.drop('admit', axis=1), data['admit']
+features_test, targets_test = test_data.drop('admit', axis=1), test_data['admit']
+
+### -- MLP Training with Backpropagation
+
+np.random.seed(21)
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+# Hyperparameters
+n_hidden = 2  # number of hidden units
+epochs = 900
+learnrate = 0.005
+
+n_records, n_features = features.shape
+last_loss = None
+# Initialize weights
+weights_input_hidden = np.random.normal(scale=1 / n_features ** .5,
+                                        size=(n_features, n_hidden))
+weights_hidden_output = np.random.normal(scale=1 / n_features ** .5,
+                                         size=n_hidden)
+
+for e in range(epochs):
+    del_w_input_hidden = np.zeros(weights_input_hidden.shape)
+    del_w_hidden_output = np.zeros(weights_hidden_output.shape)
+    for x, y in zip(features.values, targets):
+
+        ## Forward pass ##
+
+        # a(1) = x
+        # z(2) = hidden_input
+        hidden_input = np.dot(x, weights_input_hidden)
+        # a(2) = hidden_output
+        hidden_output = sigmoid(hidden_input)
+        # a(3) = output
+        output = sigmoid(np.dot(weights_hidden_output, hidden_output))
+
+        ## Backward pass ##
+
+        # Calculate the network's prediction error
+        error = y-output
+
+        # Calculate error term for the output unit
+        # delta(3)
+        output_error_term = error*output*(1-output)
+
+        # Propagate errors to hidden layer
+
+        # Calculate the hidden layer's contribution to the error
+        # delta(2) <- delta(3) * w(2)
+        hidden_error = np.dot(output_error_term, weights_hidden_output)
+        
+        # Calculate the error term for the hidden layer
+        # delta(2) <- delta(2) * f'(z(2)) = delta(2) * f(z(2))*(1-f(z(2))
+        hidden_error_term = hidden_error * hidden_output * (1 - hidden_output)
+        
+        # Update the change in weights
+        # W(2): DW(2) = delta(3)*a(2)
+        # W(1): DW(1) = delta(2)*a(1), a(1) = x
+        del_w_hidden_output += output_error_term*hidden_output
+        del_w_input_hidden += hidden_error_term*x[:,None]
+
+    # Update weights  (don't forget to division by n_records or number of samples)
+    weights_input_hidden += (learnrate/n_records)*del_w_input_hidden
+    weights_hidden_output += (learnrate/n_records)*del_w_hidden_output
+
+    # Printing out the mean square error on the training set
+    if e % (epochs / 10) == 0:
+        hidden_output = sigmoid(np.dot(x, weights_input_hidden))
+        out = sigmoid(np.dot(hidden_output,
+                             weights_hidden_output))
+        loss = np.mean((out - targets) ** 2)
+
+        if last_loss and last_loss < loss:
+            print("Train loss: ", loss, "  WARNING - Loss Increasing")
+        else:
+            print("Train loss: ", loss)
+        last_loss = loss
+
+# Calculate accuracy on test data
+hidden = sigmoid(np.dot(features_test, weights_input_hidden))
+out = sigmoid(np.dot(hidden, weights_hidden_output))
+predictions = out > 0.5
 accuracy = np.mean(predictions == targets_test)
 print("Prediction accuracy: {:.3f}".format(accuracy))
 
@@ -356,7 +619,6 @@ print("Prediction accuracy: {:.3f}".format(accuracy))
 - [Yes, you should understand backprop; by Andrej Karpathy](https://karpathy.medium.com/yes-you-should-understand-backprop-e2f06eab496b#.vt3ax2kg9)
 - [Lecture on Backpropagation; by Andrej Karpathy](https://www.youtube.com/watch?v=59Hbtz7XgjM).
 - My notes on backprop from the Andrew Ng course: [Neural Networks](https://github.com/mxagar/machine_learning_coursera)/`03_NeuralNetworks/ML_NeuralNetworks.md`
-
 
 
 ## Lesson 3: Training Neural Networks
