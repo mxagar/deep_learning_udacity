@@ -623,13 +623,90 @@ print("Prediction accuracy: {:.3f}".format(accuracy))
 
 ## Lesson 3: Training Neural Networks
 
+Same videos (thus, also concepts) as in the Computer Vision Nanodegree (CVND) are treated. Have a look at here:
+
+[computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity)
+
+The goal of the section is to explain how to improve training. In the following, I summarize the most important concepts. For more information, see the handwritten notes in the CVND related to these topics (pages 20-24).
+
+- Complexity of Architectures: select medium complex and prevent overfitting
+- Training and Test Splits: the test split tells us how generalizable our model is.
+- Overfitting & Underfitting
+	- Underfitting: error due to bias; too simplistic model
+	- Overfitting: error due to variance; we learn the noise; too complex model
+- Methods to prevent overfitting
+	- Early Stopping: we track the error metric of both the training and test splits during training epochs - when the error of the test splits starts increasing, we stop.
+	- Regularization (L1 & L2): we penalize the weights so that they become smaller; smaller weights have lead to smoother sigmoids, which are more uncertain models, thus, with less curvy regions.
+		- L1: sum absolute weights: small weights become 0, good for feature selection
+		- L2: sum of squared weights: more homogeneous and small weights 
+	- Dropout: we shut down weight update with a probability; thus, we prevent large weights to dominate the training
+- Random Restart to avoid falling in Local Minima
+- Other activation functions that avoid the vanishing gradient issue: `tanh`, `relu`
+	- This is motivated by the small tangent of the sigmoid as we input larger magnitudes
+	- Note that we can have a regression model if we leave the `relu` activation at the end 
+- Stochastic batch gradient descend: optimization step for each each (mini) batch, not the whole dataset
+	- I think originally batch referred to the whole dataset. Here, it is meant mini-batch; however, it has become so popular that "mini" is dropped.
+	- The (mini) batches are selected randomly; hence, "stochastic"
+- Learning rate: select a small one, decrease as epochs increase
+- Momentum (`beta`), to avoid local minima
+	- `beta in [0,1)`
+	- The effect of using `beta` is that we avoid local minima
+	- When the weight update equation is developed with the momentum, it is as if we would consider the previous gradient vectors, multiplied by `beta` powered to the number of epochs/optimization steps before the current one
 
 ## Lesson 4: GPU Workspaces Demo
 
+GPU workspace sessions are available: connections from my browser to a remote server.
+
+Each student has limited number of GPU hours allocated.
+
+Only 3Gb data can be stored in workspace home.
+
+Enable/Disable GPU to use it. **`DISABLE` it actively to avoid runnig out of GPU hours!**. Always save before switching to GPU or back.
+
+Workspaces automatically disconnected after 30 mins of inactivity. If we need to, eg., train, longer, use the `workspace_utils.py` utility:
+
+```python
+from workspace_utils import active_session
+
+with active_session():
+    # do long-running work here
+```
+
+The file `workspace_utils.py` shoud be in th workspace, but I downloaded a copy to `./lab/`.
+
+Submitting a project: either
+
+- click on "Submit Project" on Notebook workspace, if available
+- or download all files and submit them in classroom
+
+Terminals: available in Jupyter workspace: `New > Terminal`
+
+- we can install things! or use workspace terminal as normally is done;
+- toggle Jupyter logo to go back to notebook / workspace viewer.
+
+Menu button:
+
+- Reset data: workspace is deleted and a new ne created; if we dont do that, our workspace data should be saved between different sessions
+- Download a copy of our data before doing that!
+- Actually, usually you dont need to do that...
 
 ## Lesson 5: Sentiment Analysis
 
+Sentiment Analysis with Andrew Trask: NLP PhD Student at Oxford, author of Grokking Deep Learning.
 
-## Project: Predicting Bike Sharing Patterns
+This section is divided in 6 mini-projects. There are 4 files in the repository:
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch)`/sentiment-analysis-network`:
+
+- `Sentiment_Classification_Projects.ipynb`: the mini-projects are implemented here
+- `Sentiment_Classification_Solutions.ipynb`: solutions
+- `reviews.txt`: 25 thousand movie reviews
+- `labels.txt`: positive/negative sentiment labels for the reviews
+
+## Project: Predicting Bike Sharing Patterns (Lesson 6)
+
+
+## Lesson 7: Deep Learning with Pytorch
+
 
 
