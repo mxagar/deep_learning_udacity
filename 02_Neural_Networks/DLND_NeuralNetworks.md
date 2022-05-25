@@ -692,9 +692,15 @@ Menu button:
 
 ## Lesson 5: Sentiment Analysis
 
-Sentiment Analysis with Andrew Trask: NLP PhD Student at Oxford, author of Grokking Deep Learning.
+Sentiment Analysis with [Andrew Trask](http://iamtrask.github.io): NLP PhD Student at Oxford, author of Grokking Deep Learning.
 
-This section is divided in 6 mini-projects. There are 4 files in the repository:
+This section is divided in 6 mini-projects which build a sentiment predictor for movie reviews:
+
+- Mini-Project 1: Create a Vocabulary of Words with Associated Sentiment Values
+- Mini-Project 2: A Vocabulary Is Built + Mappings Word <-> Index + Text Vectorizer
+
+
+There are 4 files in the repository:
 
 [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch)`/sentiment-analysis-network`:
 
@@ -703,8 +709,143 @@ This section is divided in 6 mini-projects. There are 4 files in the repository:
 - `reviews.txt`: 25 thousand movie reviews
 - `labels.txt`: positive/negative sentiment labels for the reviews
 
-## Project: Predicting Bike Sharing Patterns (Lesson 6)
+### Mini-Project 1: Create a Vocabulary of Words with Associated Sentiment Values
 
+Review texts and labels (positive/negative) are loaded. A simple inspection shows that some words are predictive of the label.
+
+A sentiment predictor (positive/negative) for movie review texts is going to be built from the scratch.
+
+In this section, a vocabulary is created with `collections.Counter` and a sentiment value is assigned to each word. The sentiment value is computed as the `log` of the ratio between the count of a word in positive or negative reviews.
+
+```python
+
+### -- Load dataset
+
+def pretty_print_review_and_label(i):
+    print(labels[i] + "\t:\t" + reviews[i][:80] + "...")
+
+g = open('reviews.txt','r') # What we know!
+reviews = list(map(lambda x:x[:-1],g.readlines()))
+g.close()
+
+g = open('labels.txt','r') # What we WANT to know!
+labels = list(map(lambda x:x[:-1].upper(),g.readlines()))
+g.close()
+
+# Access data points
+reviews[0]
+labels[0]
+
+### -- Sentiment Value
+
+from collections import Counter
+import numpy as np
+
+# Create three Counter objects to store positive, negative and total counts
+positive_counts = Counter()
+negative_counts = Counter()
+total_counts = Counter()
+
+# Loop over all the words in all the reviews and increment the counts in the appropriate counter objects
+for i in range(len(reviews)):
+    if labels[i] == "POSITIVE":
+        for word in reviews[i].split(" "):
+            positive_counts[word] += 1
+            total_counts[word] += 1
+    else:
+        for word in reviews[i].split(" "):
+            negative_counts[word] += 1
+            total_counts[word] += 1
+
+# Create Counter object to store positive/negative ratios
+pos_neg_ratios = Counter()
+
+# Calculate the ratios of positive and negative uses of the most common words
+# Consider words to be "common" if they've been used at least 100 times
+for word, count in positive_counts.most_common():
+    if count > 100:
+        pos_neg_ratios[word] = positive_counts[word] / float(negative_counts[word]+1)
+
+# Convert ratios to logs
+# A value of 1.0 means the word appears equal number of times in both +/-
+# log(1) = 0; then, rest of ratios is similarly mapped to (-inf,0] and [0,inf) 
+for word, ratio in pos_neg_ratios.most_common():
+    pos_neg_ratios[word] = np.log(ratio)
+
+# Words most frequently seen in a review with a "POSITIVE" label
+pos_neg_ratios.most_common()
+
+# Words most frequently seen in a review with a "NEGATIVE" label
+list(reversed(pos_neg_ratios.most_common()))[0:30]
+
+```
+
+### Mini-Project 2: A Vocabulary Is Built + Mappings Word <-> Index + Text Vectorizer
+
+A vocabulary object is created which maps word <-> index. Then, functions that vectorize the reviews and the labels are defined. Note that I provide here my solution; in the solution notebook, another approach is taken with sets.
+
+```python
+# Create a vocabulary with word <-> index mappings
+vocab_dict = {} # map word -> index
+vocab_list = [] # map index -> word
+i = 0
+for review in reviews:
+    for word in review.split(" "):
+        if word not in vocab_dict:
+            vocab_dict[word] = i
+            vocab_list.append(word)
+            i += 1
+
+# Initialize vector of words in a review
+layer_0 = np.zeros((1,len(vocab_list)))
+
+def update_input_layer(review):
+    """ Modify the global layer_0 to represent the vector form of review.
+    The element at a given index of layer_0 should represent \
+    how many times the given word occurs in the review.
+    Args:
+        review(string) - the string of the review
+    Returns:
+        None
+    """
+    global layer_0
+    # Clear out previous state, reset the layer to be all 0s
+    layer_0 *= 0
+    # Iterate through words and fill in layer_0
+    # following the word-index structure created in vocab_
+    for word in review.split(" "):
+        i = vocab_dict.get(word,-2)
+        if i > -1:
+            layer_0[0,i] += 1
+
+def get_target_for_label(label):
+    """Convert a label to `0` or `1`.
+    Args:
+        label(string) - Either "POSITIVE" or "NEGATIVE".
+    Returns:
+        `0` or `1`.
+    """
+    if label == "POSITIVE":
+        return 1
+    else:
+        return 0
+
+```
+
+### Mini-Project 3: A Neural Network Class for Sentiment Analysis Is Created
+
+Very interesting mini-project: A class for a neural network is implemented with all the necessary building blocks: layers, training (with forward and backward passes), etc.
+
+I am here!
+
+### Mini-Project 4
+
+### Mini-Project 5
+
+### Mini-Project 6
+
+
+## Project: Predicting Bike Sharing Patterns (Lesson 6)
 
 ## Lesson 7: Deep Learning with Pytorch
 
