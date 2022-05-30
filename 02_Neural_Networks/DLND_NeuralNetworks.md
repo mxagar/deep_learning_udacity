@@ -613,6 +613,57 @@ print("Prediction accuracy: {:.3f}".format(accuracy))
 
 ```
 
+### Notes on Matricial Operations
+
+I copied these notes on how to doeal with matricial operations in `numpy` from my repository on the Machine Learning course by Andrew Ng (Coursera):
+
+[machine_learning_coursera](https://github.com/mxagar/machine_learning_coursera)
+
+Important operations shown:
+
+- Definition of matrices/tensors as arrays
+- Dot/matricial products
+- Adding a dimension to arrays
+- Concatenation
+
+
+```python
+
+########
+# Working with Vector and Matrices
+# The implementation with python would be done using `numpy`.
+# The following are some particular properties of `numpy` we should bear in mind
+
+import numpy as np
+
+# Array / vector: no rows/columns, just length!
+x = np.array([1, 2, 3])
+
+# Matrix
+np.array([[1, 2, 3], [4, 5, 6]])
+
+# Scalar product between vectors
+np.dot(x, x)
+
+# Matrix multiplication
+# X: m x n
+# y: vector length m
+np.dot(y, X) # y considered 1 x m
+np.dot(X, y) # y considered m x 1
+
+# Vectors can be promoted to matrices
+y = np.array([1, 2, 3]) # length 3
+y[None, :] # 1 x 3
+y[:, None] # 3 x 1
+
+# Get matrix sizes
+m, n = X.shape
+
+# Extend matrix with a column of ones
+X = np.concatenate([np.ones((m, 1)), X], axis=1)
+```
+
+
 ### Interesting Links
 
 - [Why Momentum Really Works](https://distill.pub/2017/momentum/): Momentum is a possible solution to avoiding local minima.
@@ -843,9 +894,12 @@ Note that weight initlialization is very important: we should initialize the wei
 
 Important remarks I learned:
 
-- Weight matrix initialization is ver important: we should initialize the weights correctly, as explained above.
+- Weight matrix initialization is very important: we should initialize the weights correctly, as explained above.
 - The official solution does not normalize the gradient with the number of examples; I did it, however.
-- The weight update can happen after each backward pass or after a complete epoch; the official solution does it after each example pass, and it seems to work much better. I did it that way. In understand that if we update the weights after one epoch, we need to run many epochs.
+- The weight update can happen after each backward pass or after a complete epoch; the official solution does it after each example pass, and it seems to work much better. I did it that way. In understand that if we update the weights after one epoch, we need to run many epochs. The adopted approach seems to be stochastic gradient descend with mini-batch size of 1.
+- Note that if the weights are updated after each example, not so many epochs are required; additionally, the accumulation of weight changes is not necessary; however, if we update after a mini-batch, I understand it is necessary.
+
+The first version of the network reaches an accuracy of `65-70%` with a learning rate of around `0.001` after training an epoch (in less than 20 seconds).
 
 See the scanned architecture drawing I made: `SentimentAnalysis_Architecture_Training.pdf`.
 
@@ -886,6 +940,7 @@ class SentimentNetwork:
         #       using "split(' ')" instead of "split()".
         for review in reviews:
             for word in review.lower().split(" "):
+            #for word in review.split(" "):
                 review_vocab.add(word)
         
         # Convert the vocabulary set to a list so we can access words via indices
@@ -956,6 +1011,7 @@ class SentimentNetwork:
         #       For example, replace "layer_0 *= 0" with "self.layer_0 *= 0"
         self.layer_0 *= 0
         for word in review.lower().split(" "):
+        #for word in review.split(" "):
             if word in self.word2index:
                 self.layer_0[0][self.word2index[word]] += 1
                 
@@ -985,9 +1041,11 @@ class SentimentNetwork:
         # Remember when we started for printing time statistics
         start = time.time()
 
-        # Initialize 
-        dW_0 = np.zeros((self.hidden_nodes, self.input_nodes))
-        dW_1 = np.zeros((self.output_nodes, self.hidden_nodes))
+        # Initialize dW: Not necessary if we update weights after each example
+        # dW is accumulated per example if weights are updated after an epoch
+        # but not if we update the weights after each example
+        #dW_0 = np.zeros((self.hidden_nodes, self.input_nodes))
+        #dW_1 = np.zeros((self.output_nodes, self.hidden_nodes))
         
         # loop through all the given reviews and run a forward and backward pass,
         # updating weights for every item
@@ -1007,10 +1065,8 @@ class SentimentNetwork:
             #       but use the sigmoid activation function for the output layer.
             self.update_input_layer(review) # a_0 = x = self.layer_0
             a_0 = self.layer_0
-            #z_1 = np.matmul(a_0, self.weights_0_1.T) # a_0 * W_0^T: (1, hidden_nodes)
             z_1 = a_0.dot(self.weights_0_1.T) # a_0 * W_0^T: (1, hidden_nodes)
             a_1 = z_1 # no activation function
-            #z_2 = np.matmul(a_1, self.weights_1_2.T) # a_1 * W_1^T: (1,1)
             z_2 = a_1.dot(self.weights_1_2.T) # a_1 * W_1^T: (1,1)
             a_2 = self.sigmoid(z_2)
             h = a_2
@@ -1024,18 +1080,17 @@ class SentimentNetwork:
             #       learned in class.
             target = self.get_target_for_label(label) # y
             e_2 = (target-h)
-            #e_2 = (h-target)
             d_2 = e_2*self.sigmoid_output_2_derivative(a_2) # (1,1)
-            #d_1 = np.matmul(self.weights_1_2.T,d_2) # (hidden_nodes,1)
             e_1 = (self.weights_1_2.T).dot(d_2)
             d_1 = e_1 # (hidden_nodes,1); f(x)=x, f' = 1 === no nonlinearity
-            dW_0 += d_1.dot(a_0) # (hidden_nodes,1)x(1,input_nodes) = (hidden_nodes,input_nodes)
-            dW_1 += d_2.dot(a_1) # (1,1)x(1,hidden_nodes) = (1,hidden_nodes)
+            # dW is accumulated only if we updat weights after an epoch
+            dW_0 = d_1.dot(a_0) # (hidden_nodes,1)x(1,input_nodes) = (hidden_nodes,input_nodes)
+            dW_1 = d_2.dot(a_1) # (1,1)x(1,hidden_nodes) = (1,hidden_nodes)
             # Update weights
-            self.weights_0_1 += (self.learning_rate/len(training_reviews))*dW_0
-            self.weights_1_2 += (self.learning_rate/len(training_reviews))*dW_1
-            #self.weights_0_1 += (self.learning_rate)*dW_0
-            #self.weights_1_2 += (self.learning_rate)*dW_1
+            # Note: We scale with the number of examples
+            # only if the weights are updated after each epoch
+            self.weights_0_1 += (self.learning_rate)*dW_0
+            self.weights_1_2 += (self.learning_rate)*dW_1
             
             # TODO: Keep track of correct predictions. To determine if the prediction was
             #       correct, check that the absolute value of the output error 
@@ -1104,10 +1159,8 @@ class SentimentNetwork:
         #             to lower case prior to using it.        
         self.update_input_layer(review.lower()) # a_0 = x = self.layer_0
         a_0 = self.layer_0
-        #z_1 = np.matmul(a_0, self.weights_0_1.T) # a_0 * W_0^T: (1, hidden_nodes)
         z_1 = a_0.dot(self.weights_0_1.T) # a_0 * W_0^T: (1, hidden_nodes)
         a_1 = z_1 # no activation function
-        #z_2 = np.matmul(a_1, self.weights_1_2.T) # a_1 * W_1^T: (1,1)
         z_2 = a_1.dot(self.weights_1_2.T) # a_1 * W_1^T: (1,1)
         a_2 = self.sigmoid(z_2)
         h = a_2
@@ -1120,15 +1173,471 @@ class SentimentNetwork:
         else:
             return "NEGATIVE"
 
+```
+
+### Mini-Project 4: Reducing the Noise Fed to the Network by Inpunting Word Detection, not Count
+
+We are feeding the neural net with a lot of noise: useless words that don't affect the sentiment of the text; for instance: `of`, `the`, `in`, ` `, `.`, ...
+
+Additionally, those useless words appear many times, so the bag of words vector has large values in useless words.
+
+In order to avoid that large overstated influence, instead of counting words, we input ifa word is present or not. Thus the function `update_input_layer` is modified to detect word presence, and not to count words.
+
+That elevates the accuracy to `85%`.
+
+```python
+    def update_input_layer(self,review):
+        self.layer_0 *= 0
+        for word in review.lower().split(" "):
+            if word in self.word2index:
+                #self.layer_0[0][self.word2index[word]] += 1
+                self.layer_0[0][self.word2index[word]] = 1 # detect word presence, not count
+```
+
+### Mini-Project 5: Increasing the Speed by Replacing Matrix Multiplication in the First Layer
+
+The bags or words which detect the words in a text are very sparse:
+
+- Less than 300 words appear in a vocabulary of 74k
+- When a word appears, its input value is x = 1
+
+Since the matrix multiplication is a weighted sum, we could take note of the indices of the words that appear and simple sum their weights. That avoids a large sparse matrix multiplication!
+
+After applying the changes, in my case the training is 2x faster; in the instructor's case it was 10x faster. Maybe the `numpy` version I use is already optimized?
+
+The network is changed to apply those ideas; most of the changes are done in the `train()` function:
+
+```python
+def train(self, training_reviews_raw, training_labels):
+    
+    assert(len(training_reviews_raw) == len(training_labels))
+    
+    correct_so_far = 0
+        
+    # Convert raw texts to word indices
+    # training_reviews contais a list of lists
+    # elements in training_reviews: number of reviews
+    # each element is a list of word indices in the associated review
+    # training_reviews = [[3, 6, ...], [4, 10, ...], ...]
+    training_reviews = []
+    for review in training_reviews_raw:
+        review_indices = set()
+        for word in review.lower().split(" "):
+            if word in self.word2index.keys():
+                review_indices.add(self.word2index[word])
+        training_reviews.append(list(review_indices))
+    
+    for i in range(len(training_reviews)):
+        
+        review = training_reviews[i]
+        label = training_labels[i]
+        
+        # Forward pass
+
+        # Old
+        #self.update_input_layer(review) # a_0 = x = self.layer_0
+        #a_0 = self.layer_0
+        #z_1 = a_0.dot(self.weights_0_1.T) # a_0 * W_0^T: (1, hidden_nodes)
+        # New: more efficient, because layer 0 is very sparse
+        # self.layer_0 is not used anymore
+        self.layer_1 *= 0
+        z_1 = self.layer_1
+        for index in review:
+            z_1[0,:] += self.weights_0_1[:,index]
+        a_1 = z_1 # no activation function
+        z_2 = a_1.dot(self.weights_1_2.T) # a_1 * W_1^T: (1,1)
+        a_2 = self.sigmoid(z_2)
+        h = a_2
+        
+        # Backward pass
+        target = self.get_target_for_label(label) # y
+        e_2 = (target-h)
+        d_2 = e_2*self.sigmoid_output_2_derivative(a_2) # (1,1)
+        e_1 = (self.weights_1_2.T).dot(d_2)
+        d_1 = e_1 # (hidden_nodes,1); f(x)=x, f' = 1 === no nonlinearity
+        # Old
+        #dW_0 = d_1.dot(a_0) # (hidden_nodes,1)x(1,input_nodes) = (hidden_nodes,input_nodes)
+        # New
+        for index in review:
+            dW_0_index = d_1[:,0] # (1,hidden_nodes)
+            self.weights_0_1[:,index] += (self.learning_rate)*dW_0_index
+        dW_1 = d_2.dot(a_1) # (1,1)x(1,hidden_nodes) = (1,hidden_nodes)
+        # Update weights
+        #self.weights_0_1 += (self.learning_rate)*dW_0
+        self.weights_1_2 += (self.learning_rate)*dW_1
+        
+        if h >= 0.5 and target == 1:
+            correct_so_far += 1
+        elif h < 0.5 and target == 0:
+            correct_so_far += 1
 
 ```
 
-### Mini-Project 4
+### Mini-Project 6: Reducing the Noise Input to the Network with a Vocabulary of Significant Words
 
-### Mini-Project 5
+In this mini-project, the following words are filtered out in teh vocabulary generation:
 
-### Mini-Project 6
+1. words that don't appear much, and
+2. words that have a low positive to negative ratio
 
+As a result, depending on the threshold value chosen:
+
+- The accuracy can increase slightly, because we remove the noise
+- The speed increases considerably, because the vocabulary size decreases
+
+If the vocabulary decreases much, the accuracy decreases some points; BUT: the goal is to find a fast and accurate enough network! In fact, the Word2Vec approach uses that principle: the vocabulary is compressed, so that the traiing becomes much faster and the network is able to train with more data. The more data improves again the accuracy.
+
+
+```python
+import time
+import sys
+import numpy as np
+from collections import Counter
+
+# Encapsulate our neural network in a class
+class SentimentNetwork:
+    def __init__(self, reviews, labels, hidden_nodes = 10, min_count=20, polarity_cutoff=0.05, learning_rate = 0.1):
+        """Create a SentimenNetwork with the given settings
+        Args:
+            reviews(list) - List of reviews used for training
+            labels(list) - List of POSITIVE/NEGATIVE labels associated with the given reviews
+            hidden_nodes(int) - Number of nodes to create in the hidden layer
+            learning_rate(float) - Learning rate to use while training
+        
+        """
+        # Assign a seed to our random number generator to ensure we get
+        # reproducable results during development 
+        np.random.seed(1)
+
+        # Minimum number of times a word needs to appear
+        # to be added into the vocabulary
+        self.min_count = min_count
+        # Minimum positive to negative sentiment ratio
+        # to be added to the vocabulary (absolute value)
+        self.polarity_cutoff = polarity_cutoff
+        
+        # Pre-process the reviews and their associated labels so that everything
+        # is ready for training
+        self.pre_process_data(reviews, labels)
+        
+        # Build the network to have the number of hidden nodes and the learning rate that
+        # were passed into this initializer. Make the same number of input nodes as
+        # there are vocabulary words and create a single output node.
+        self.init_network(len(self.review_vocab), hidden_nodes, 1, learning_rate)
+
+    def pre_process_data(self, reviews, labels):
+        
+        #review_vocab = set()
+        #for review in reviews:
+        #    for word in review.lower().split(" "):
+        #        review_vocab.add(word)
+                
+        # Count the number of times a word appears in pos/neg review
+        positive_counts = Counter()
+        negative_counts = Counter()
+        total_counts = Counter()
+        for i in range(len(reviews)):
+            if labels[i] == "POSITIVE":
+                for word in reviews[i].lower().split(" "):
+                    positive_counts[word] += 1
+                    total_counts[word] += 1
+            else:
+                for word in reviews[i].split(" "):
+                    negative_counts[word] += 1
+                    total_counts[word] += 1
+        
+        # Create vocabulary taking into account min_count and polarity_cutoff
+        review_vocab = set()
+        for word, count in list(positive_counts.most_common()):
+            if count >= self.min_count:
+                pos_neg_ratio = np.log(positive_counts[word] / float(negative_counts[word]+1))
+                if abs(pos_neg_ratio) >= self.polarity_cutoff:
+                    review_vocab.add(word)
+                
+        # Convert the vocabulary set to a list so we can access words via indices
+        self.review_vocab = list(review_vocab)
+        
+        label_vocab = set()
+        # TODO: populate label_vocab with all of the words in the given labels.
+        #       There is no need to split the labels because each one is a single word.
+        for label in labels:
+            label_vocab.add(label)
+        
+        # Convert the label vocabulary set to a list so we can access labels via indices
+        self.label_vocab = list(label_vocab)
+        
+        # Store the sizes of the review and label vocabularies.
+        self.review_vocab_size = len(self.review_vocab)
+        print(f"Vocabulary size: {self.review_vocab_size}")
+        self.label_vocab_size = len(self.label_vocab)
+        
+        # Create a dictionary of words in the vocabulary mapped to index positions
+        self.word2index = {}
+        # TODO: populate self.word2index with indices for all the words in self.review_vocab
+        #       like you saw earlier in the notebook
+        for i, word in enumerate(self.review_vocab):
+            self.word2index[word] = i
+        
+        # Create a dictionary of labels mapped to index positions
+        self.label2index = {}
+        # TODO: do the same thing you did for self.word2index and self.review_vocab, 
+        #       but for self.label2index and self.label_vocab instead
+        for i, label in enumerate(self.label_vocab):
+            self.label2index[label] = i
+        
+    def init_network(self, input_nodes, hidden_nodes, output_nodes, learning_rate):
+        # Store the number of nodes in input, hidden, and output layers.
+        self.input_nodes = input_nodes
+        self.hidden_nodes = hidden_nodes
+        self.output_nodes = output_nodes
+
+        # Store the learning rate
+        self.learning_rate = learning_rate
+
+        # Initialize weights
+        
+        # TODO: initialize self.weights_0_1 as a matrix of zeros. These are the weights between
+        #       the input layer and the hidden layer.
+        # (hidden_nodes, input_nodes)
+        #self.weights_0_1 = np.zeros((self.hidden_nodes, self.input_nodes))
+        self.weights_0_1 = np.random.normal(scale=1 / self.input_nodes**.5,
+                                            size=(self.hidden_nodes, self.input_nodes))
+        
+        # TODO: initialize self.weights_1_2 as a matrix of random values. 
+        #       These are the weights between the hidden layer and the output layer.
+        # (1,hidden_nodes)
+        self.weights_1_2 = np.random.normal(scale=1 / self.hidden_nodes**.5,
+                                            size=(self.output_nodes,self.hidden_nodes))
+        
+        # Hidden layer
+        self.layer_1 = np.zeros((1, self.hidden_nodes))
+                
+    def get_target_for_label(self,label):
+        # TODO: Copy the code you wrote for get_target_for_label 
+        #       earlier in this notebook. 
+        return self.label2index[label]
+        
+    def sigmoid(self,x):
+        # TODO: Return the result of calculating the sigmoid activation function
+        #       shown in the lectures
+        return 1.0 / (1.0+np.exp(-x))
+    
+    def sigmoid_output_2_derivative(self,output):
+        # TODO: Return the derivative of the sigmoid activation function, 
+        #       where "output" is the original output from the sigmoid function 
+        return output*(1-output)
+
+    def train(self, training_reviews_raw, training_labels):
+        
+        # make sure we have a matching number of reviews and labels
+        assert(len(training_reviews_raw) == len(training_labels))
+        
+        # Keep track of correct predictions to display accuracy during training 
+        correct_so_far = 0
+        
+        # Remember when we started for printing time statistics
+        start = time.time()
+        
+        # Convert raw texts to word indices
+        # training_reviews contais a list of lists
+        # elements in training_reviews: number of reviews
+        # each element is a list of word indices in the associated review
+        # training_reviews = [[3, 6, ...], [4, 10, ...], ...]
+        training_reviews = []
+        for review in training_reviews_raw:
+            review_indices = set()
+            for word in review.lower().split(" "):
+                if word in self.word2index.keys():
+                    review_indices.add(self.word2index[word])
+            training_reviews.append(list(review_indices))
+        
+        # Initialize dW: Not necessary if we update weights after each example
+        # dW is accumulated per example if weights are updated after an epoch
+        # but not if we update the weights after each example
+        #dW_0 = np.zeros((self.hidden_nodes, self.input_nodes))
+        #dW_1 = np.zeros((self.output_nodes, self.hidden_nodes))
+        
+        # loop through all the given reviews and run a forward and backward pass,
+        # updating weights for every item
+        for i in range(len(training_reviews)):
+            
+            # TODO: Get the next review and its correct label
+            review = training_reviews[i]
+            label = training_labels[i]
+            
+            # Forward pass
+            # TODO: Implement the forward pass through the network. 
+            #       That means use the given review to update the input layer, 
+            #       then calculate values for the hidden layer,
+            #       and finally calculate the output layer.
+            # 
+            #       Do not use an activation function for the hidden layer,
+            #       but use the sigmoid activation function for the output layer.
+            # Old
+            #self.update_input_layer(review) # a_0 = x = self.layer_0
+            #a_0 = self.layer_0
+            #z_1 = a_0.dot(self.weights_0_1.T) # a_0 * W_0^T: (1, hidden_nodes)
+            # New: more efficient, because layer 0 is very sparse
+            self.layer_1 *= 0
+            z_1 = self.layer_1
+            for index in review:
+                z_1[0,:] += self.weights_0_1[:,index]
+            a_1 = z_1 # no activation function
+            z_2 = a_1.dot(self.weights_1_2.T) # a_1 * W_1^T: (1,1)
+            a_2 = self.sigmoid(z_2)
+            h = a_2
+            
+            # Backward pass
+            # TODO: Implement the back propagation pass here. 
+            #       That means calculate the error for the forward pass's prediction
+            #       and update the weights in the network according to their
+            #       contributions toward the error, as calculated via the
+            #       gradient descent and back propagation algorithms you 
+            #       learned in class.
+            target = self.get_target_for_label(label) # y
+            e_2 = (target-h)
+            d_2 = e_2*self.sigmoid_output_2_derivative(a_2) # (1,1)
+            e_1 = (self.weights_1_2.T).dot(d_2)
+            d_1 = e_1 # (hidden_nodes,1); f(x)=x, f' = 1 === no nonlinearity
+            # dW is accumulated only if we updat weights after an epoch
+            # Old
+            #dW_0 = d_1.dot(a_0) # (hidden_nodes,1)x(1,input_nodes) = (hidden_nodes,input_nodes)
+            # New
+            #dW_0 = np.zeros((self.hidden_nodes, self.input_nodes))
+            for index in review:
+                dW_0_index = d_1[:,0] # (1,hidden_nodes)
+                self.weights_0_1[:,index] += (self.learning_rate)*dW_0_index
+            dW_1 = d_2.dot(a_1) # (1,1)x(1,hidden_nodes) = (1,hidden_nodes)
+            # Update weights
+            # Note: We scale with the number of examples
+            # only if the weights are updated after each epoch
+            #self.weights_0_1 += (self.learning_rate)*dW_0
+            self.weights_1_2 += (self.learning_rate)*dW_1
+            
+            # TODO: Keep track of correct predictions. To determine if the prediction was
+            #       correct, check that the absolute value of the output error 
+            #       is less than 0.5. If so, add one to the correct_so_far count.
+            
+            # For debug purposes, print out our prediction accuracy and speed 
+            # throughout the training process. 
+            #correct_so_far += int(int(h > 0.5) == target)
+            if h >= 0.5 and target == 1:
+                correct_so_far += 1
+            elif h < 0.5 and target == 0:
+                correct_so_far += 1
+
+            elapsed_time = float(time.time() - start)
+            reviews_per_second = i / elapsed_time if elapsed_time > 0 else 0
+            
+            sys.stdout.write("\rProgress:" + str(100 * i/float(len(training_reviews)))[:4] \
+                             + "% Speed(reviews/sec):" + str(reviews_per_second)[0:5] \
+                             + " #Correct:" + str(correct_so_far) + " #Trained:" + str(i+1) \
+                             + " Training Accuracy:" + str(correct_so_far * 100 / float(i+1))[:4] + "%")
+            if(i % 2500 == 0):
+                print("")
+
+        
+    def test(self, testing_reviews, testing_labels):
+        """
+        Attempts to predict the labels for the given testing_reviews,
+        and uses the test_labels to calculate the accuracy of those predictions.
+        """
+        
+        # keep track of how many correct predictions we make
+        correct = 0
+
+        # we'll time how many predictions per second we make
+        start = time.time()
+
+        # Loop through each of the given reviews and call run to predict
+        # its label. 
+        for i in range(len(testing_reviews)):
+            pred = self.run(testing_reviews[i])
+            if(pred == testing_labels[i]):
+                correct += 1
+            
+            # For debug purposes, print out our prediction accuracy and speed 
+            # throughout the prediction process. 
+
+            elapsed_time = float(time.time() - start)
+            reviews_per_second = i / elapsed_time if elapsed_time > 0 else 0
+            
+            sys.stdout.write("\rProgress:" + str(100 * i/float(len(testing_reviews)))[:4] \
+                             + "% Speed(reviews/sec):" + str(reviews_per_second)[0:5] \
+                             + " #Correct:" + str(correct) + " #Tested:" + str(i+1) \
+                             + " Testing Accuracy:" + str(correct * 100 / float(i+1))[:4] + "%")
+    
+    def run(self, review):
+        """
+        Returns a POSITIVE or NEGATIVE prediction for the given review.
+        """
+        # TODO: Run a forward pass through the network, like you did in the
+        #       "train" function. That means use the given review to 
+        #       update the input layer, then calculate values for the hidden layer,
+        #       and finally calculate the output layer.
+        #
+        #       Note: The review passed into this function for prediction 
+        #             might come from anywhere, so you should convert it 
+        #             to lower case prior to using it.
+        
+        # Convert raw texts to word indices
+        review_indices = set()
+        for word in review.lower().split(" "):
+            if word in self.word2index:
+                review_indices.add(self.word2index[word])
+            
+        # Old
+        #self.update_input_layer(review) # a_0 = x = self.layer_0
+        #a_0 = self.layer_0
+        #z_1 = a_0.dot(self.weights_0_1.T) # a_0 * W_0^T: (1, hidden_nodes)
+        # New: more efficient, because layer 0 is very sparse
+        self.layer_1 *= 0
+        z_1 = self.layer_1
+        for index in list(review_indices):
+            z_1[0,:] += self.weights_0_1[:,index]
+        a_1 = z_1 # no activation function
+        z_2 = a_1.dot(self.weights_1_2.T) # a_1 * W_1^T: (1,1)
+        a_2 = self.sigmoid(z_2)
+        h = a_2
+            
+        # TODO: The output layer should now contain a prediction. 
+        #       Return `POSITIVE` for predictions greater-than-or-equal-to `0.5`, 
+        #       and `NEGATIVE` otherwise.
+        if h > 0.5:
+            return "POSITIVE"
+        else:
+            return "NEGATIVE"
+    
+```
+
+### (Mini-Project 7): Network Analysis
+
+This last part is very interesting: due to the architecture we have used, once the network is trained, we can obtain which are the most similar words of a given word just by computing the dot products between the columns of the weight matrix of the first layer.
+
+In the final section, TSNE is applied to the words: these are compressed to two dimensions and colored depending on their sentiment.
+
+It is very interesting the fact that NLP allows to perform clustering under the hood. In understand that's because each word is a unique element input to the network. With images, that's more complicated?
+
+```python
+# Since similar words in the input layer should produce the same output
+# two similar words should have similar weights coming out from them
+# to the hidden layer; thus, the largest dot products between the columns of W_0
+# are the most similar words!
+# In this function, a word is passed and the dot products of its weights vector against all other vectors
+# is computed; then, these are ordered.
+# Thus, we obtain the most similar words for a given word.
+def get_most_similar_words(focus = "horrible"):
+    most_similar = Counter()
+
+    for word in mlp_full.word2index.keys():
+        most_similar[word] = np.dot(mlp_full.weights_0_1[:,mlp_full.word2index[word]],
+                                    mlp_full.weights_0_1[:,mlp_full.word2index[focus]])
+    
+    return most_similar.most_common()
+
+get_most_similar_words("excellent")
+get_most_similar_words("terrible")
+```
 
 ## Project: Predicting Bike Sharing Patterns (Lesson 6)
 
