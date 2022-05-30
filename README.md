@@ -5,7 +5,7 @@ These are my personal notes taken while following the [Udacity Deep Learning Nan
 The nanodegree is composed of six modules:
 
 1. Introduction to Deep Learning
-2. Neural Networks
+2. Neural Networks and Pytorch Guide
 3. Convolutonal Neural Networks (CNN)
 4. Recurrent Neural Networks (RNN)
 5. Generative Adversarial Networks (GAN)
@@ -33,5 +33,5 @@ cd ~/git_repositories/deep-learning-v2-pytorch
 pip install -r requirements.txt
 ```
 
-Mikel Sagardia, 2022.
+Mikel Sagardia, 2022.  
 No guarantees.

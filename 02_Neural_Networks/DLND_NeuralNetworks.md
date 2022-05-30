@@ -5,7 +5,7 @@ These are my personal notes taken while following the [Udacity Deep Learning Nan
 The nanodegree is composed of six modules:
 
 1. Introduction to Deep Learning
-2. Neural Networks
+2. Neural Networks and Pytorch Guide
 3. Convolutonal Neural Networks (CNN)
 4. Recurrent Neural Networks (RNN)
 5. Generative Adversarial Networks (GAN)
@@ -25,10 +25,26 @@ Additionally, note that:
 		- Notebook: `GradientsDescend.ipynb`	
 		- Notebook: `StudentAdmissions.ipynb`
 	- Lesson 2: Implementing Gradient Descend
+		- Gradient Descend in Numpy: Basic Idea
+		- One Perceptron, One Data-Point
+		- One Perceptron, Several Data Points
+		- Multiple Perceptrons (MLP), Several Data Points, One Forward Pass
+		- Backpropagation: One Backward Pass
+		- Implementation of Backpropagation
+		- Notes on Matricial Operations
+		- Interesting Links
 	- Lesson 3: Training Neural Networks
 	- Lesson 4: GPU Workspaces Demo
 	- Lesson 5: Sentiment Analysis
-	- Project: Predicting Bike Sharing Patterns
+		- Mini-Project 1: Create a Vocabulary of Words with Associated Sentiment Values
+		- Mini-Project 2: A Vocabulary Is Built + Mappings Word <-> Index + Text Vectorizer
+		- Mini-Project 3: A Neural Network Class for Sentiment Analysis Is Created
+		- Mini-Project 4: Reducing the Noise Fed to the Network by Inpunting Word Detection, not Count
+		- Mini-Project 5: Increasing the Speed by Replacing Matrix Multiplication in the First Layer
+		- Mini-Project 6: Reducing the Noise Input to the Network with a Vocabulary of Significant Words
+		- (Mini-Project 7): Network Analysis
+	- Project: Predicting Bike Sharing Patterns (Lesson 6): [bike_sharing_udacity](https://github.com/mxagar/bike_sharing_udacity)
+	- Lesson 7: Deep Learning with Pytorch: `./03_Pytorch_Guide/DL_Pytorch_Guide.md`
 
 
 # 2. Neural Networks
@@ -1641,7 +1657,19 @@ get_most_similar_words("terrible")
 
 ## Project: Predicting Bike Sharing Patterns (Lesson 6)
 
+See my dedicated repository for the project:
+
+[bike_sharing_udacity](https://github.com/mxagar/bike_sharing_udacity)
+
 ## Lesson 7: Deep Learning with Pytorch
 
+This section also appears in the CVND as elective (pre-requisite).
 
+The notes of this lesson can be accessed in `./03_Pytorch_Guide/DL_Pytorch_Guide.md`.
 
+It uses notebooks that are present in two repositories (both updated):
+
+- [DL_PyTorch](https://github.com/mxagar/DL_PyTorch), referenced in the CVND
+- [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch), the one used in the DLND
+
+Additionally, my aforementioned dedicated folder contains some extra notebooks which summarize the use of Pytorch, primarily for computer vision applications.
