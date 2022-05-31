@@ -1668,9 +1668,9 @@ This section also appears in the CVND as elective (pre-requisite).
 
 The notes of this lesson can be accessed in `./03_Pytorch_Guide/DL_Pytorch_Guide.md`.
 
-It uses notebooks that are present in two repositories (both updated):
+It uses notebooks that are present in two repositories (both updated, but the second more advanced):
 
 - [DL_PyTorch](https://github.com/mxagar/DL_PyTorch), referenced in the CVND
-- [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch), the one used in the DLND
+- [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/intpo-to-pytorch/`, the one used in the DLND
 
 Additionally, my aforementioned dedicated folder contains some extra notebooks which summarize the use of Pytorch, primarily for computer vision applications.
