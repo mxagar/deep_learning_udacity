@@ -24,3 +24,58 @@ Additionally, in this particular folder, I also collect some examples and summar
 
 ## Overview of Contents
 
+1. Introduction
+2. Tensors: `Part 1 - Tensors in Pytorch.ipynb`
+3. Neural Networks: `Part 2 - Tensors in Pytorch.ipynb`
+4. Training Neural Networks: `Part 3 - Training Neural Networks.ipynb`
+5. Fashion-MNIST Example: `Part 4 - Fashion-MNIST.ipynb`
+6. Inference and Validation: `Part 5 - Inference and Validation.ipynb`
+7. Saving and Loading Models: `Part 6 - Saving and Loading Models.ipynb`
+8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`
+9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
+
+## 1. Introduction
+
+Primarily developed by Facebook AI Research (FAIR).  
+Released in 2017.  
+Open Source, BSD.  
+Very intuitive: similar to Numpy and DL concepts integrate din a more natural way; more intuitive than TensorFlow or Keras.  
+Caffe2 was integrated to PyTorch in 2018.  
+Main intefarce: Python - it's very Pythonic; C++ interface is available too.  
+Main class: Tensors = multidimensional arrays, similar to Numpy's, but they can be operated on CUDA GPUs.  
+Automatic differentiation used (autodiff?): derivative used in backpropagation computed in feedforward pass.  
+
+Very interesting Tutorial: [DEEP LEARNING WITH PYTORCH: A 60 MINUTE BLITZ](https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html)
+
+## 2. Tensors: `Part 1 - Tensors in Pytorch.ipynb`
+
+
+
+## 3. Neural Networks: `Part 2 - Tensors in Pytorch.ipynb`
+
+
+
+## 4. Training Neural Networks: `Part 3 - Training Neural Networks.ipynb`
+
+
+
+## 5. Fashion-MNIST Example: `Part 4 - Fashion-MNIST.ipynb`
+
+
+
+## 6. Inference and Validation: `Part 5 - Inference and Validation.ipynb`
+
+
+
+## 7. Saving and Loading Models: `Part 6 - Saving and Loading Models.ipynb`
+
+
+
+## 8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`
+
+
+
+## 9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
+
+
+
