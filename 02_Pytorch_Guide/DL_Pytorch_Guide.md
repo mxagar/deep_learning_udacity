@@ -34,7 +34,7 @@ Additionally, in this particular folder, I also collect some examples and summar
 8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`
 9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
 
-## 1. Introduction
+## 1. Introduction and Summary
 
 Primarily developed by Facebook AI Research (FAIR).  
 Released in 2017.  
@@ -51,6 +51,218 @@ Installation:
 
 ```bash
 conda install pytorch torchvision -c pytorch
+```
+
+The rest of the sections show how to perform image classification with Pytorch; the typical steps are covered: dataset loading, network architecture definition, training and inference. There are two additional files in the repository folder which summarize the complete knowledge of the Udacity lesson:
+
+- `fc_model.py`: the definition of a fully connected `Network` class, with a `train()` and `validation()` function. This is the definitive example we should use as blueprint; the content of the file is build step by step in the notebooks `Part 1 - Part 5`.
+- `helper.py`: a helper module mainly with visualization functionalities.
+
+### File: `helper.py`:
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+from torch import nn, optim
+from torch.autograd import Variable
+
+
+def test_network(net, trainloader):
+
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(net.parameters(), lr=0.001)
+
+    dataiter = iter(trainloader)
+    images, labels = dataiter.next()
+
+    # Create Variables for the inputs and targets
+    inputs = Variable(images)
+    targets = Variable(images)
+
+    # Clear the gradients from all Variables
+    optimizer.zero_grad()
+
+    # Forward pass, then backward pass, then update weights
+    output = net.forward(inputs)
+    loss = criterion(output, targets)
+    loss.backward()
+    optimizer.step()
+
+    return True
+
+
+def imshow(image, ax=None, title=None, normalize=True):
+    """Imshow for Tensor."""
+    if ax is None:
+        fig, ax = plt.subplots()
+    image = image.numpy().transpose((1, 2, 0))
+
+    if normalize:
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        image = std * image + mean
+        image = np.clip(image, 0, 1)
+
+    ax.imshow(image)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.tick_params(axis='both', length=0)
+    ax.set_xticklabels('')
+    ax.set_yticklabels('')
+
+    return ax
+
+
+def view_recon(img, recon):
+    ''' Function for displaying an image (as a PyTorch Tensor) and its
+        reconstruction also a PyTorch Tensor
+    '''
+
+    fig, axes = plt.subplots(ncols=2, sharex=True, sharey=True)
+    axes[0].imshow(img.numpy().squeeze())
+    axes[1].imshow(recon.data.numpy().squeeze())
+    for ax in axes:
+        ax.axis('off')
+        ax.set_adjustable('box-forced')
+
+def view_classify(img, ps, version="MNIST"):
+    ''' Function for viewing an image and it's predicted classes.
+    '''
+    ps = ps.data.numpy().squeeze()
+
+    fig, (ax1, ax2) = plt.subplots(figsize=(6,9), ncols=2)
+    ax1.imshow(img.resize_(1, 28, 28).numpy().squeeze())
+    ax1.axis('off')
+    ax2.barh(np.arange(10), ps)
+    ax2.set_aspect(0.1)
+    ax2.set_yticks(np.arange(10))
+    if version == "MNIST":
+        ax2.set_yticklabels(np.arange(10))
+    elif version == "Fashion":
+        ax2.set_yticklabels(['T-shirt/top',
+                            'Trouser',
+                            'Pullover',
+                            'Dress',
+                            'Coat',
+                            'Sandal',
+                            'Shirt',
+                            'Sneaker',
+                            'Bag',
+                            'Ankle Boot'], size='small');
+    ax2.set_title('Class Probability')
+    ax2.set_xlim(0, 1.1)
+
+    plt.tight_layout()
+
+
+```
+
+### File `fc_model.py`
+
+```python
+import torch
+from torch import nn
+import torch.nn.functional as F
+
+
+class Network(nn.Module):
+    def __init__(self, input_size, output_size, hidden_layers, drop_p=0.5):
+        ''' Builds a feedforward network with arbitrary hidden layers.
+        
+            Arguments
+            ---------
+            input_size: integer, size of the input layer
+            output_size: integer, size of the output layer
+            hidden_layers: list of integers, the sizes of the hidden layers
+        
+        '''
+        super().__init__()
+        # Input to a hidden layer
+        self.hidden_layers = nn.ModuleList([nn.Linear(input_size, hidden_layers[0])])
+        
+        # Add a variable number of more hidden layers
+        layer_sizes = zip(hidden_layers[:-1], hidden_layers[1:])
+        self.hidden_layers.extend([nn.Linear(h1, h2) for h1, h2 in layer_sizes])
+        
+        self.output = nn.Linear(hidden_layers[-1], output_size)
+        
+        self.dropout = nn.Dropout(p=drop_p)
+        
+    def forward(self, x):
+        ''' Forward pass through the network, returns the output logits '''
+        
+        for each in self.hidden_layers:
+            x = F.relu(each(x))
+            x = self.dropout(x)
+        x = self.output(x)
+        
+        return F.log_softmax(x, dim=1)
+
+
+def validation(model, testloader, criterion):
+    accuracy = 0
+    test_loss = 0
+    for images, labels in testloader:
+
+        images = images.resize_(images.size()[0], 784)
+
+        output = model.forward(images)
+        test_loss += criterion(output, labels).item()
+
+        ## Calculating the accuracy 
+        # Model's output is log-softmax, take exponential to get the probabilities
+        ps = torch.exp(output)
+        # Class with highest probability is our predicted class, compare with true label
+        equality = (labels.data == ps.max(1)[1])
+        # Accuracy is number of correct predictions divided by all predictions, just take the mean
+        accuracy += equality.type_as(torch.FloatTensor()).mean()
+
+    return test_loss, accuracy
+
+
+def train(model, trainloader, testloader, criterion, optimizer, epochs=5, print_every=40):
+    
+    steps = 0
+    running_loss = 0
+    for e in range(epochs):
+        # Model in training mode, dropout is on
+        model.train()
+        for images, labels in trainloader:
+            steps += 1
+            
+            # Flatten images into a 784 long vector
+            images.resize_(images.size()[0], 784)
+            
+            optimizer.zero_grad()
+            
+            output = model.forward(images)
+            loss = criterion(output, labels)
+            loss.backward()
+            optimizer.step()
+            
+            running_loss += loss.item()
+
+            if steps % print_every == 0:
+                # Model in inference mode, dropout is off
+                model.eval()
+                
+                # Turn off gradients for validation, will speed up inference
+                with torch.no_grad():
+                    test_loss, accuracy = validation(model, testloader, criterion)
+                
+                print("Epoch: {}/{}.. ".format(e+1, epochs),
+                      "Training Loss: {:.3f}.. ".format(running_loss/print_every),
+                      "Test Loss: {:.3f}.. ".format(test_loss/len(testloader)),
+                      "Test Accuracy: {:.3f}".format(accuracy/len(testloader)))
+                
+                running_loss = 0
+                
+                # Make sure dropout and grads are on for training
+                model.train()
+
+
 ```
 
 ## 2. Tensors: `Part 1 - Tensors in Pytorch.ipynb`
@@ -496,6 +708,12 @@ for e in range(epochs):
     # Print the loss after each epoch
     print(f"Epoch {e+1} / {epochs}: Training loss: {running_loss/len(trainloader)}")
 
+# Epoch 1 / 5: Training loss: 1.9347652730657094
+# Epoch 2 / 5: Training loss: 0.8835022319862837
+# Epoch 3 / 5: Training loss: 0.5357787555405326
+# Epoch 4 / 5: Training loss: 0.42882247761622677
+# Epoch 5 / 5: Training loss: 0.3812579528641091
+
 ### -- 4. Inference
 
 %matplotlib inline
@@ -522,14 +740,415 @@ helper.view_classify(img.view(1, 28, 28), ps)
 
 ## 5. Fashion-MNIST Example: `Part 4 - Fashion-MNIST.ipynb`
 
+In this notebook, the implementation of the previous one is applied to the [Fashion-MNIST](https://github.com/zalandoresearch/fashion-mnist) dataset from Zalando. This dataset is more realistic than then MNIST.
 
+Almost no new things are introduced here, but it is a nice example; yet to be completed with validation.
+
+The following steps are covered (the same as in notebook 3)
+
+1. Load data
+2. Define network
+3. Training
+4. Inference
+
+```python
+
+### -- 1. Load data
+
+import torch
+from torch import nn
+import torch.nn.functional as F
+from torchvision import datasets, transforms
+import helper
+
+# Define a transform to normalize the data
+transform = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize((0.5,), (0.5,))])
+# Download and load the training data
+trainset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data/', download=True, train=True, transform=transform)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
+
+# Download and load the test data
+testset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data/', download=True, train=False, transform=transform)
+testloader = torch.utils.data.DataLoader(testset, batch_size=64, shuffle=True)
+
+# Visualize one image
+image, label = next(iter(trainloader))
+helper.imshow(image[0,:]);
+
+### -- 2. Define network
+
+# Fast method: Sequential
+model = nn.Sequential(nn.Linear(784, 128),
+                      nn.ReLU(),
+                      nn.Linear(128, 64),
+                      nn.ReLU(),
+                      nn.Linear(64, 10),
+                      nn.LogSoftmax(dim=1))
+
+# Alternative: network class definition
+class Classifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(784, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.fc4 = nn.Linear(64, 10)
+        
+    def forward(self, x):
+        # make sure input tensor is flattened
+        x = x.view(x.shape[0], -1)
+        
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = F.log_softmax(self.fc4(x), dim=1)
+        
+        return x
+
+model = Classifier()
+
+### -- 3. Training
+
+from torch import optim
+
+# Criterion = Loss
+criterion = nn.NLLLoss()
+
+# Optimizers require the parameters to optimize and a learning rate
+# Adam: https://pytorch.org/docs/master/generated/torch.optim.Adam.html#torch.optim.Adam
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+#optimizer = optim.SGD(model.parameters(), lr=0.01)
+
+# Training
+epochs = 10
+for e in range(epochs):
+    running_loss = 0
+    for images, labels in trainloader:
+        
+        # Flatten MNIST images into a 784 long vector
+        images = images.view(images.shape[0], -1)
+    
+        # Gradients are accumulated pass after pass
+        # Reset them always before a pass!
+        optimizer.zero_grad()
+        
+        # Forward pass
+        output = model(images)
+        
+        # Compute loss
+        loss = criterion(output, labels)
+        
+        # Compute gradients
+        # Even though we apply it to loss,
+        # the gradients of the weights are computed,
+        # because they are used to compute the output and the loss
+        loss.backward()
+        
+        # Optimization: update weights
+        optimizer.step()
+        
+        # Accumulated loss for printing after each epoch
+        running_loss += loss.item()
+    
+    # Print the loss after each epoch
+    print(f"Epoch {e+1} / {epochs}: Training loss: {running_loss/len(trainloader)}")
+
+# Epoch 1 / 10: Training loss: 0.3848758656650718
+# Epoch 2 / 10: Training loss: 0.37357360132531064
+# Epoch 3 / 10: Training loss: 0.3789872529981995
+# Epoch 4 / 10: Training loss: 0.3728540780574782
+# Epoch 5 / 10: Training loss: 0.36859081310631114
+# Epoch 6 / 10: Training loss: 0.35351983534057
+# Epoch 7 / 10: Training loss: 0.35748081701174217
+# Epoch 8 / 10: Training loss: 0.35502494146018776
+# Epoch 9 / 10: Training loss: 0.3526441021038017
+# Epoch 10 / 10: Training loss: 0.3492871415036828
+
+### -- 4. Inference
+
+%matplotlib inline
+%config InlineBackend.figure_format = 'retina'
+
+import helper
+
+# Create iterator
+dataiter = iter(trainloader)
+# Get a batch
+images, labels = next(dataiter)
+
+# Flatten first image of the batch
+img = images[0].view(1, 784)
+# Turn off gradients to speed up this part
+with torch.no_grad():
+    logps = model(img)
+
+# Output of the network are log-probabilities (LogSoftmax),
+# need to take exponential for probabilities
+ps = torch.exp(logps)
+# Visualize with helper module: image and probabilities
+helper.view_classify(img.resize_(1, 28, 28), ps, version='Fashion')
+
+```
 
 ## 6. Inference and Validation: `Part 5 - Inference and Validation.ipynb`
 
+This notebook introduces two important concepts to the network define in the previous notebook, using the Fashion-MNIST dataset:
 
+- A cross-validation split is tested after every epoch
+- Dropout is added after every layer in order to prevent overfitting
+
+The cross-validation test allows to check whether the model is overfitting: when the training split loss decreases while the test split losss increases, we are overfitting.
+
+Note that when dropout is added it needs to be turned off for the cross-validation test or the final inference; that is done with `model.eval() - model.train()`:
+
+- `model.eval()`: evaluation or inference mode, dropout off
+- `model.train()`: training mode, dropout on
+
+Another method to prevent overfitting is regularization.
+
+Usual metrics to see how the model performs (to be checked with the test split) are: accuracy, precission, recall, F1, top-5 error rate.
+
+In the following, the notebook is summarized in these steps:
+
+1. Load datasets: train and test split (set correct flag)
+2. Model definition with dropout
+3. Model training with dropout and cross-validation pass after each epoch
+4. Inference (turn-off autograd & dropout) 
+
+```python
+
+### -- 1. Load datasets: train and test split (set correct flag)
+
+import torch
+from torchvision import datasets, transforms
+
+# Define a transform to normalize the data
+transform = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize((0.5,), (0.5,))])
+# Download and load the training data
+trainset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data/', download=True, train=True, transform=transform)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
+
+# Download and load the test data: Set train=False
+testset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data/', download=True, train=False, transform=transform)
+testloader = torch.utils.data.DataLoader(testset, batch_size=64, shuffle=True)
+
+### -- 2. Model definition with dropout
+
+from torch import nn, optim
+import torch.nn.functional as F
+
+class Classifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(784, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.fc4 = nn.Linear(64, 10)
+
+        # Dropout module with 0.2 drop probability
+        # Watch out: deactivate/activate it for cross-validation with
+        # model.eval() & model.train
+        self.dropout = nn.Dropout(p=0.2)
+
+    def forward(self, x):
+        # make sure input tensor is flattened
+        x = x.view(x.shape[0], -1)
+
+        # Now with dropout
+        x = self.dropout(F.relu(self.fc1(x)))
+        x = self.dropout(F.relu(self.fc2(x)))
+        x = self.dropout(F.relu(self.fc3(x)))
+
+        # output so no dropout here
+        x = F.log_softmax(self.fc4(x), dim=1)
+
+        return x
+
+
+### -- 3. Model training with dropout and cross-validation pass after each epoch
+
+model = Classifier()
+criterion = nn.NLLLoss(reduction='sum')
+optimizer = optim.Adam(model.parameters(), lr=0.003)
+
+epochs = 30
+
+train_losses, test_losses = [], []
+for e in range(epochs):
+    tot_train_loss = 0
+    for images, labels in trainloader:
+        optimizer.zero_grad()
+        
+        log_ps = model(images)
+        loss = criterion(log_ps, labels)
+        tot_train_loss += loss.item()
+        
+        loss.backward()
+        optimizer.step()
+    else:
+        tot_test_loss = 0
+        test_correct = 0  # Number of correct predictions on the test set
+        # Turn off dropout
+        model.eval()
+        # Turn off gradients for validation, saves memory and computations
+        with torch.no_grad():
+            for images, labels in testloader:
+                log_ps = model(images)
+                loss = criterion(log_ps, labels)
+                tot_test_loss += loss.item()
+
+                ps = torch.exp(log_ps)
+                top_p, top_class = ps.topk(1, dim=1)
+                equals = top_class == labels.view(*top_class.shape)
+                test_correct += equals.sum().item()
+                # Mean computation could also work like this:
+                # accuracy = torch.mean(equals.type(torch.FloatTensor))
+
+        # Turn on dropout back
+        model.train()
+        
+        # Get mean loss to enable comparison between train and test sets
+        # Filter the loss after each epoch taking the mean, else very noisy!
+        train_loss = tot_train_loss / len(trainloader.dataset)
+        test_loss = tot_test_loss / len(testloader.dataset)
+
+        # At completion of epoch
+        train_losses.append(train_loss)
+        test_losses.append(test_loss)
+
+        print("Epoch: {}/{}.. ".format(e+1, epochs),
+              "Training Loss: {:.3f}.. ".format(train_loss),
+              "Test Loss: {:.3f}.. ".format(test_loss),
+              "Test Accuracy: {:.3f}".format(test_correct / len(testloader.dataset)))
+
+# Plot the evolution of the training & test/cross-validation losses
+
+from matplotlib import pyplot as plt
+import numpy as np
+
+plt.plot(train_losses, label='Training loss')
+plt.plot(test_losses, label='Validation loss')
+plt.legend(frameon=False)
+
+### -- 4. Inference (turn-off autograd & dropout)
+
+# Import helper module
+import helper
+
+# Turn-off dropout!
+model.eval()
+
+dataiter = iter(testloader)
+images, labels = dataiter.next()
+img = images[0]
+# Flatten: Convert 2D image to 1D vector
+img = img.view(1, 784)
+
+# Calculate the class probabilities (softmax) for img
+# Turn off autograd for faster inference
+with torch.no_grad():
+    output = model.forward(img)
+
+ps = torch.exp(output)
+
+# Plot the image and probabilities
+helper.view_classify(img.view(1, 28, 28), ps, version='Fashion')
+
+```
 
 ## 7. Saving and Loading Models: `Part 6 - Saving and Loading Models.ipynb`
 
+This notebook makes use of the model definition module in `fc_model.py`.
+
+In the model class we have been working on, we can distinguish:
+
+- model architecture params: layer sizes: input, output, hidden
+- model state: weight and bias values after training
+
+We need to save all of these, because loading weights to a netwrok of another size won't work.
+
+We can play around to see whats' actually inside a model
+
+```python
+print("Our model: \n\n", model, '\n')
+print("The state dict keys: \n\n", model.state_dict().keys())
+```
+
+In practice, saving/loading can be summarized to two functions, defined below.
+
+```python
+
+%matplotlib inline
+%config InlineBackend.figure_format = 'retina'
+
+import matplotlib.pyplot as plt
+
+import torch
+from torch import nn
+from torch import optim
+import torch.nn.functional as F
+from torchvision import datasets, transforms
+
+import helper
+import fc_model # fully connected classifier
+
+### -- Load the dataset
+
+# Define a transform to normalize the data
+transform = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize((0.5,), (0.5,))])
+# Download and load the training data
+trainset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data/', download=True, train=True, transform=transform)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
+
+# Download and load the test data
+testset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data/', download=True, train=False, transform=transform)
+testloader = torch.utils.data.DataLoader(testset, batch_size=64, shuffle=True)
+
+### -- Create model
+
+input_size = 784
+output_size = 10
+hidden_sizes = [512, 256, 128]
+model = fc_model.Network(input_size, output_size, hidden_sizes)
+
+### -- Train
+
+criterion = nn.NLLLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+fc_model.train(model, trainloader, testloader, criterion, optimizer, epochs=2)
+
+### -- Save & Load
+
+# The model is saved in a dictionary that contains
+# (1) the model architecture definition
+# (2) the weights and biases
+
+def save_model(filepath, model, input_size, output_size, hidden_sizes):
+    # Convert model into a dict: architecture params (layer sizes) + state (weight & bias values)
+    checkpoint = {'input_size': input_size,
+                  'output_size': output_size,
+                  'hidden_layers': hidden_sizes,
+                  'state_dict': model.state_dict()}
+    torch.save(checkpoint, filepath)
+
+filepath = 'checkpoint.pth'
+save_model(filepath, model, input_size, output_size, hidden_sizes)
+
+def load_checkpoint(filepath):
+    checkpoint = torch.load(filepath)
+    model = fc_model.Network(checkpoint['input_size'],
+                             checkpoint['output_size'],
+                             checkpoint['hidden_layers'])
+    model.load_state_dict(checkpoint['state_dict'])
+    return model
+
+model = load_checkpoint('checkpoint.pth')
+print(model)
+```
 
 
 ## 8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`
