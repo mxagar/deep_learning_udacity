@@ -33,6 +33,8 @@ Additionally, in this particular folder, I also collect some examples and summar
 7. Saving and Loading Models: `Part 6 - Saving and Loading Models.ipynb`
 8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`
 9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
+10. Tips and Tricks
+11. Lab: Example Projects
 
 ## 1. Introduction and Summary
 
@@ -53,12 +55,16 @@ Installation:
 conda install pytorch torchvision -c pytorch
 ```
 
-The rest of the sections show how to perform image classification with Pytorch; the typical steps are covered: dataset loading, network architecture definition, training and inference. There are two additional files in the repository folder which summarize the complete knowledge of the Udacity lesson:
+The rest of the sections show how to perform image classification with Pytorch; the typical steps are covered: dataset loading, network architecture definition, training and inference. 
 
-- `fc_model.py`: the definition of a fully connected `Network` class, with a `train()` and `validation()` function. This is the definitive example we should use as blueprint; the content of the file is build step by step in the notebooks `Part 1 - Part 5`.
+### Summary: `helper.py`, `fc_model.py`
+
+There are two additional files in the repository folder which summarize the complete knowledge of the Udacity lesson on how to use Pytorch for deep learning:
+
+- `fc_model.py`: the definition of a fully connected `Network` class, with a `train()` and `validation()` function. This is the definitive example we should use as blueprint; the content of the file is build step by step in the notebooks `Part 1 - Part 5`. In adition, I copied the functions `save_model()` and `load_checkpoint()` to the module.
 - `helper.py`: a helper module mainly with visualization functionalities.
 
-### File: `helper.py`:
+#### File: `helper.py`:
 
 ```python
 import matplotlib.pyplot as plt
@@ -159,9 +165,66 @@ def view_classify(img, ps, version="MNIST"):
 
 ```
 
-### File `fc_model.py`
+#### File `fc_model.py`
 
 ```python
+'''Example of use:
+
+# IMPORTS
+import matplotlib.pyplot as plt
+import torch
+from torch import nn
+from torch import optim
+import torch.nn.functional as F
+from torchvision import datasets, transforms
+import helper # visualization utils
+import fc_model # model definition, traning, saving, loading
+
+# LOAD DATASET: example, Fashion-MNIST (28x28 pixels, 1 channel, 10 classes)
+transform = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize((0.5,), (0.5,))])
+trainset = datasets.FashionMNIST('F_MNIST_data/', download=True, train=True, transform=transform)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
+testset = datasets.FashionMNIST('F_MNIST_data/', download=True, train=False, transform=transform)
+testloader = torch.utils.data.DataLoader(testset, batch_size=64, shuffle=True)
+
+# CHECK DATSET
+image, label = next(iter(trainloader))
+print(trainset.classes)
+helper.imshow(image[0,:]);
+
+# CREATE NETWORK
+input_size = 1*28*28
+output_size = 10
+hidden_sizes = [512, 256, 128]
+model = fc_model.Network(input_size, output_size, hidden_sizes)
+criterion = nn.NLLLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# TRAIN (with cross-validation, but without early stopping)
+fc_model.train(model, trainloader, testloader, criterion, optimizer, epochs=2)
+
+# SAVE
+filename = 'my_model_checkpoint.pth'
+fc_model.save_model(filname, model, input_size, output_size, hidden_sizes)
+
+# LOAD
+model = fc_model.load_checkpoint('checkpoint.pth')
+print(model)
+
+# INFER & VISUALIZE
+model.eval()
+images, labels = next(iter(testloader))
+img = images[0]
+img = img.view(1, 28*28)
+with torch.no_grad():
+    output = model.forward(img)
+ps = torch.exp(output)
+helper.view_classify(img.view(1, 28, 28), ps, version='Fashion')
+
+'''
+
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -223,6 +286,10 @@ def validation(model, testloader, criterion):
 
 
 def train(model, trainloader, testloader, criterion, optimizer, epochs=5, print_every=40):
+
+    # Check if CUDA GPU available
+    #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #model.to(device)
     
     steps = 0
     running_loss = 0
@@ -232,8 +299,12 @@ def train(model, trainloader, testloader, criterion, optimizer, epochs=5, print_
         for images, labels in trainloader:
             steps += 1
             
-            # Flatten images into a 784 long vector
-            images.resize_(images.size()[0], 784)
+            # Transfer to CUDA device if available
+            #images, labels = images.to(device), labels.to(device)
+
+            # Flatten images into a channelsxrowsxcols long vector (784 in MNIST 28x28 case)
+            pixels = images.size()[1]*images.size()[2]*images.size()[3]
+            images.resize_(images.size()[0], pixels)
             
             optimizer.zero_grad()
             
@@ -262,7 +333,24 @@ def train(model, trainloader, testloader, criterion, optimizer, epochs=5, print_
                 # Make sure dropout and grads are on for training
                 model.train()
 
+                
+def save_model(filepath, model, input_size, output_size, hidden_sizes):
+    # Convert model into a dict: architecture params (layer sizes) + state (weight & bias values)
+    checkpoint = {'input_size': input_size,
+                  'output_size': output_size,
+                  'hidden_layers': hidden_sizes,
+                  'state_dict': model.state_dict()}
+    torch.save(checkpoint, filepath)
 
+    
+def load_checkpoint(filepath):
+    checkpoint = torch.load(filepath)
+    # Create a model with given architecture params (layer sizes) + model state (weight & bias values)
+    model = Network(checkpoint['input_size'],
+                    checkpoint['output_size'],
+                    checkpoint['hidden_layers'])
+    model.load_state_dict(checkpoint['state_dict'])
+    return model
 ```
 
 ## 2. Tensors: `Part 1 - Tensors in Pytorch.ipynb`
@@ -281,7 +369,15 @@ torch.manual_seed(7)
 x = torch.randn((5, 1)) # 5 rows, 1 cols
 b = torch.ones((1,1))
 w1 = torch.randn_like(x) # rand with same shape as x
-w2 = torch.randn_like(x.size()) # rand with same shape as x
+w2 = torch.randn(x.size()) # rand with same shape as x
+
+# Check size/shape
+# Resizing and checking the current size
+# is very common/necesssary
+x.shape
+x.size()
+# To resize:
+# .view() (just a view), .reshape(), .resize_()
 
 # Expected operations are possible, as in numpy
 z = torch.sum(w1*x) + b
@@ -1150,12 +1246,151 @@ model = load_checkpoint('checkpoint.pth')
 print(model)
 ```
 
-
 ## 8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`
 
+In this notebook a classification example is implemented using the [Dogs-vs-Cats](https://www.kaggle.com/c/dogs-vs-cats) dataset from Kaggle. We needd to create an account at Kaggle and download the dataset.
 
+The notebook shows how to structure a dataset of our own with `torchvision.datasets.ImageFolder`.
+
+First, the kaggle stuff:
+
+```
+Create account in kaggle
+    mxagar@gmail.com
+
+Kaggle API instructions
+    https://github.com/Kaggle/kaggle-api
+
+Short version
+    pip install kaggle
+    log in to Kaggle > account > create API key -> downloaded kaggle.json
+    mv ~/Downloads/kaggle.json ~/.kaggle/
+    chmod 600 ~/.kaggle/kaggle.json
+
+Go to dataset page: https://www.kaggle.com/c/dogs-vs-cats
+Data: Download command; download to 
+    kaggle competitions download -c dogs-vs-cats
+
+Unzip dogs-vs-cats.zip and its content.
+
+```
+
+The module `torchvision.datasets.ImageFolder` can be used to load our own datasets; however, the module requires the images to be in class folders:
+
+```
+.../root/class-1
+    pic1-1.jpg
+    pic1-2.jpg
+    ...
+.../root/class-2
+    pic2-1.jpg
+    pic2-2.jpg
+    ...
+.../root/class-3
+    ...
+```
+
+Unfortunately, the kaggle images are not sorted in class folders and inside the `train/` folder we need to make a train and test split. This could be one with a simple python script. However, Udacity provides an already sorted dataset located in `Cat_Dog_data/`, with the following structure:
+
+```
+Cat_Dog_data/
+    test/
+        cat/
+            cat16.jpg
+            cat22.jpg
+            ...
+        dog/
+            dog17.jpg
+            dog23.jpg
+            ...
+    train/
+        cat/
+            cat1.jpg
+            cat2.jpg
+            ...
+        dog/
+            dog1.jpg
+            dog2.jpg
+            ...   
+```
+
+Together with the dataset definition we need to pass the `transform` operations to the dataset images: [Pytorch Transforms](https://pytorch.org/vision/stable/transforms.html)
+
+The transforms have several goals:
+
+- Standardize all images: same size, all tensors, etc.
+- Normalize the images: the network efficiency improves if the pixel values are in `[-1,1]`
+- **Data augmentation**: we can add random rotations or similar, which generalize the network
+
+All in all, everything is summarized in the following:
+
+```python
+# Define image folder: inside data_dir, each class should have a subfolder, eg
+# path/train/dog, path/train/cat...
+data_dir = 'Cat_Dog_data'
+
+# Compose transforms: Select transformations to apply to dataset in a pipeline
+# ToTensor: convert into a pytorch tensor
+# Normalize: it consists in converting the pixel values to the range [-1,1] to improve
+# the network efficiency: input[channel] = (input[channel] - mean[channel]) / std[channel]
+# Notes on the normalization:
+# - Two tuples are passed: one is the mean, the second the std
+# - The elements of the tuple are the channels
+# - If the original pixel values are in [0,1], the normalization with mean=0.5 and std=0.5 maps them to [-1,1]
+# - Thus, a single channeled image with pixel values [0,1] has: transforms.Normalize((0.5,), (0.5,))
+# - Note that the pixel values are often in [0,255]
+# - Thus, a single channeled image with pixel values [0,255] would have: transforms.Normalize((0.5*255,), (0.5*255,))
+# - When we do transfer learning, we need to use the same normalization as in the trained network!
+# - Also, when we do transfer learning the size of the image must match with the size of the input layer!
+
+# Define transforms for the training data and testing data
+train_transforms = transforms.Compose([transforms.RandomRotation(30),
+                                       transforms.RandomResizedCrop(224),
+                                       transforms.RandomHorizontalFlip(),
+                                       transforms.ToTensor()]) 
+                                       #transforms.Normalize((0.5, 0.5, 0.5), 
+                                       #                     (0.5, 0.5, 0.5)])
+
+
+test_transforms = transforms.Compose([transforms.Resize(255),
+                                      transforms.CenterCrop(224),
+                                      transforms.ToTensor()])
+                                      #transforms.Normalize((0.5, 0.5, 0.5), 
+                                      #                     (0.5, 0.5, 0.5)])
+
+
+# Pass transforms in here, then run the next cell to see how the transforms look
+train_data = datasets.ImageFolder(data_dir + '/train', transform=train_transforms)
+test_data = datasets.ImageFolder(data_dir + '/test', transform=test_transforms)
+
+trainloader = torch.utils.data.DataLoader(train_data, batch_size=32, shuffle = True)
+testloader = torch.utils.data.DataLoader(test_data, batch_size=32, shuffle = True)
+
+
+# Visualize
+data_iter = iter(testloader)
+
+images, labels = next(data_iter)
+fig, axes = plt.subplots(figsize=(10,4), ncols=4)
+for ii in range(4):
+    ax = axes[ii]
+    helper.imshow(images[ii], ax=ax, normalize=False)
+```
 
 ## 9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
 
+We can use [Torchvision models](https://pytorch.org/docs/0.3.0/torchvision/models.html) for transfer learning. These models were trained with [Imagenet](https://image-net.org): 1 million labeled images in 1000 categories.
 
+For each chosen model, we need to take into account:
 
+- The size of the input image, usuall `224x224`.
+- The normalization used in the trained model.
+
+This notebook shows how to use the pre-trained [DenseNet](https://arxiv.org/pdf/1608.06993.pdf) model with transfer learning. Basically, we need to:
+
+- Append a classification layer to the pre-trained model
+- Train 
+
+```python
+
+```
