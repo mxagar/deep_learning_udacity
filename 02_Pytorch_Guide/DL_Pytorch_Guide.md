@@ -20,11 +20,22 @@ Here, I refence notebooks that are present in two repositories (both updated, bu
 - [DL_PyTorch](https://github.com/mxagar/DL_PyTorch), referenced in the CVND
 - [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/intpo-to-pytorch/`, the one used in the DLND
 
-Additionally, in this particular folder, I also collect some examples and summaries made by myself.
+## Summary and More Applications
+
+The following files in the current folder give a very nice overview/summary of how Pytorch is used for image classification:
+
+- `fc_model.py`: complete pipeline of a fully connected notebook for image classification
+- `helper.py`: visualization.
+- `Part 7 - Loading Image Data.ipynb`: dealing with custom datasets.
+- `Part 8 - Transfer Learning.ipynb`: transfer learning example with a CNN backbone for image classification.
+
+However, many applications go beyond those use cases. To that end, I will collect in the folder `./lab` more blueprints/examples of different applications.
+
+Please, go to the `./lab` folder are read the `README.md` there to get more information.
 
 ## Overview of Contents
 
-1. Introduction
+1. Introduction and Summary
 2. Tensors: `Part 1 - Tensors in Pytorch.ipynb`
 3. Neural Networks: `Part 2 - Neural Networks in PyTorch.ipynb`
 4. Training Neural Networks: `Part 3 - Training Neural Networks.ipynb`
@@ -33,8 +44,7 @@ Additionally, in this particular folder, I also collect some examples and summar
 7. Saving and Loading Models: `Part 6 - Saving and Loading Models.ipynb`
 8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`
 9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
-10. Tips and Tricks
-11. Lab: Example Projects
+10. Lab: Example Projects
 
 ## 1. Introduction and Summary
 
@@ -69,7 +79,7 @@ There are two additional files in the repository folder which summarize the comp
 - `Part 7 - Loading Image Data.ipynb`
 - `Part 8 - Transfer Learning.ipynb`
 
-However, they focus only on fully connected / linear networks; CNNs, RNNs, GANs & Co. are covered in dedicated modules.
+However, they focus only on fully connected / linear networks; CNNs, RNNs, GANs & Co. are covered in dedicated modules and with example projects in Section 10: [10. Lab: Example Projects](#10.-Lab:-Example-Projects).
 
 #### File: `helper.py`:
 
@@ -1343,6 +1353,7 @@ data_dir = 'Cat_Dog_data'
 # Notes on the normalization:
 # - Two tuples are passed: one is the mean, the second the std
 # - The elements of the tuple are the channels
+# - Note that transforms.ToTensor() maps the pixel values to [0,1]!
 # - If the original pixel values are in [0,1], the normalization with mean=0.5 and std=0.5 maps them to [-1,1]
 # - Thus, a single channeled image with pixel values [0,1] has: transforms.Normalize((0.5,), (0.5,))
 # - Note that the pixel values are often in [0,255]
@@ -1638,3 +1649,16 @@ ax2.set_xlim(0, 1.1)
 plt.tight_layout()
 
 ```
+
+10. Lab: Example Projects
+
+The following files give a very nice overview of how Pytorch is used for image classification:
+
+- `fc_model.py`: complete pipeline of a fully connected notebook for image classification
+- `helper.py`: visualization.
+- `Part 7 - Loading Image Data.ipynb`: dealing with custom datasets.
+- `Part 8 - Transfer Learning.ipynb`: transfer learning example with a CNN backbone for image classification.
+
+However, many applications go beyond those use cases. To that end, I will collect in the folder `./lab` more blueprints/examples of different applications.
+
+Please, go to the `./lab` folder are read the `README.md` there to get more information.
