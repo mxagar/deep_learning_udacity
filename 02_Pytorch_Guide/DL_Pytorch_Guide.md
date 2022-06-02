@@ -45,7 +45,7 @@ Very intuitive: similar to Numpy and DL concepts integrate din a more natural wa
 Caffe2 was integrated to PyTorch in 2018.  
 Main intefarce: Python - it's very Pythonic; C++ interface is available too.  
 Main class: Tensors = multidimensional arrays, similar to Numpy's, but they can be operated on CUDA GPUs.  
-Automatic differentiation used (autodiff?): derivative used in backpropagation computed in feedforward pass.  
+Automatic differentiation used (autograd?): derivative used in backpropagation computed in feedforward pass.  
 
 Very interesting Tutorial: [DEEP LEARNING WITH PYTORCH: A 60 MINUTE BLITZ](https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html)
 
@@ -63,6 +63,13 @@ There are two additional files in the repository folder which summarize the comp
 
 - `fc_model.py`: the definition of a fully connected `Network` class, with a `train()` and `validation()` function. This is the definitive example we should use as blueprint; the content of the file is build step by step in the notebooks `Part 1 - Part 5`. In adition, I copied the functions `save_model()` and `load_checkpoint()` to the module.
 - `helper.py`: a helper module mainly with visualization functionalities.
+
+**Those two files and the last two notebooks are a very good summary of how to use Pytorch**:
+
+- `Part 7 - Loading Image Data.ipynb`
+- `Part 8 - Transfer Learning.ipynb`
+
+However, they focus only on fully connected / linear networks; CNNs, RNNs, GANs & Co. are covered in dedicated modules.
 
 #### File: `helper.py`:
 
@@ -1379,18 +1386,255 @@ for ii in range(4):
 
 ## 9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
 
-We can use [Torchvision models](https://pytorch.org/docs/0.3.0/torchvision/models.html) for transfer learning. These models were trained with [Imagenet](https://image-net.org): 1 million labeled images in 1000 categories.
+This notebook shows how to perform transfer learning with state-of-the-art pre-trained models and how to leverage GPUs for faster trainings.
+
+We can use [Torchvision models](https://pytorch.org/docs/0.3.0/torchvision/models.html) for **transfer learning**. These models are usually trained with [Imagenet](https://image-net.org): 1 million labeled images in 1000 categories; however, they can generalize well to our applications.
 
 For each chosen model, we need to take into account:
 
 - The size of the input image, usuall `224x224`.
 - The normalization used in the trained model.
+- We need to replace the last layer of the model (the classifier) with our classifier and train it with the images of our application. The weights of the pre-trained network (the backbone) are frozen, not changed; only the weights of th elast classifier we add are optimized.
 
-This notebook shows how to use the pre-trained [DenseNet](https://arxiv.org/pdf/1608.06993.pdf) model with transfer learning. Basically, we need to:
+Available networks:
 
-- Append a classification layer to the pre-trained model
-- Train 
+- AlexNet
+- VGG
+- ResNet
+- SqueezeNet
+- Densenet
+- Inception v3
+
+This notebook shows how to use the pre-trained [DenseNet](https://arxiv.org/pdf/1608.06993.pdf) model with transfer learning. Basically, we need to: change its final layer with our own classifier that maps the last outputs to our class outputs.
+
+However, note that these pre-trained models are huge; training on CPUs takes forever. Due to that, we can use the workspace GPUs or our own GPUs.
+
+GPU usage: the training can speed up 500x! To that end, we need to transfer all the tensors to the GPU device, or vice versa. The following lines summarize how to use the GPU if we have a CUDA device and we can write a device agnostic model with it.
 
 ```python
+# Check if we have a CUDA device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Move images and labels to CUDA GPU - if already there, nothing happens
+device = 'cuda'
+model.to(device) # the model needs to be transferred once
+inputs, labels = inputs.to(device), labels.to(device) # each new batch needs to be transferred
+
+# Move images and labels back to CPU - if already there, nothing happens
+device = 'cpu'
+model.to(device)
+inputs, labels = inputs.to(device), labels.to(device)
+```
+
+If we get `RuntimeError: Expected object of type torch.FloatTensor but found type torch.cuda.FloatTensor`, then we are mixing tensors that are on different devices.
+
+Check the following file to see how to run python/jupyter via SSG on a Jetson Nano (with a CUDA GPU):
+
+`~/Dropbox/Documentation/howtos/jetson_nano_howto.txt`
+
+The following steps are carried out in the notebook:
+
+1. Load the dataset andd define the transforms
+2. Load the pre-trained network (DenseNet)
+3. Change the classifier of the pre-trained network
+4. Train the new classifier with the own dataset
+5. Check the accuracy with the test split
+6. Inference
+
+```python
+%matplotlib inline
+%config InlineBackend.figure_format = 'retina'
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import torch
+from torch import nn
+from torch import optim
+import torch.nn.functional as F
+from torchvision import datasets, transforms, models
+
+### -- 1. Load the dataset andd define the transforms
+
+data_dir = 'Cat_Dog_data'
+
+# TODO: Define transforms for the training data and testing data
+train_transforms = transforms.Compose([transforms.RandomRotation(30),
+                                       transforms.RandomResizedCrop(224),
+                                       transforms.RandomHorizontalFlip(),
+                                       transforms.ToTensor(),
+                                       transforms.Normalize([0.485, 0.456, 0.406],
+                                                            [0.229, 0.224, 0.225])])
+
+test_transforms = transforms.Compose([transforms.Resize(255),
+                                      transforms.CenterCrop(224),
+                                      transforms.ToTensor(),
+                                      transforms.Normalize([0.485, 0.456, 0.406],
+                                                           [0.229, 0.224, 0.225])])
+
+# Pass transforms in here, then run the next cell to see how the transforms look
+train_data = datasets.ImageFolder(data_dir + '/train', transform=train_transforms)
+test_data = datasets.ImageFolder(data_dir + '/test', transform=test_transforms)
+
+trainloader = torch.utils.data.DataLoader(train_data, batch_size=64, shuffle=True)
+testloader = torch.utils.data.DataLoader(test_data, batch_size=64)
+
+### -- 2. Load the pre-trained network (DenseNet)
+
+# Load pre-trained model
+# Check the sizes of the last classifier layer
+model = models.densenet121(pretrained=True)
+model
+
+### -- 3. Change the classifier of the pre-trained network
+
+# Freeze parameters of the pre-trained network
+# so we don't backprop through them
+for param in model.parameters():
+    param.requires_grad = False
+
+# Define our own last classifier layers
+# Our inputs must match with the ones
+# in the pre-trained network (in_features)
+# and REPLACE the model.classifier
+from collections import OrderedDict
+model.classifier = nn.Sequential(OrderedDict([
+                          ('fc1', nn.Linear(1024, 256)),
+                          ('relu1', nn.ReLU()),
+                          ('drop1', nn.Dropout(0.2)),
+                          ('fc2', nn.Linear(500, 2)),
+                          ('output', nn.LogSoftmax(dim=1))
+                          ]))
+
+# Loss: Classification + LogSoftmax -> NLLLoss
+criterion = nn.NLLLoss()
+
+# Optimization: Only train the classifier parameters,
+# feature parameters are frozen
+optimizer = optim.Adam(model.classifier.parameters(), lr=0.003)
+
+### -- 4. Train the new classifier with the own dataset
+
+# Training loop params
+epochs = 2
+steps = 0
+running_loss = 0
+print_every = 5
+
+# Use GPU if it's available: define device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Transfer all tensors to device:
+# model, images, labels
+model.to(device)
+
+# We can modularize this in a function: train()
+for epoch in range(epochs):
+    for inputs, labels in trainloader:
+        steps += 1
+        # Move input and label tensors to the default device
+        # NOTE: no resizing done, because the architecture does not require it
+        # Always check the input size of the architecture (particularly in transfer learning)
+        inputs, labels = inputs.to(device), labels.to(device)
+        
+        logps = model.forward(inputs) # forward pass
+        loss = criterion(logps, labels) # cmopute loss
+        
+        optimizer.zero_grad() # reset gradients
+        loss.backward() # compute gradient / backpropagation
+        optimizer.step() # update weights
+
+        running_loss += loss.item()
+        
+        if steps % print_every == 0:
+            # VALIDATION: test cros-validation split
+            # We can modularize this in a function: validate()
+            test_loss = 0
+            accuracy = 0
+            model.eval()
+            with torch.no_grad():
+                for inputs, labels in testloader:
+                    inputs, labels = inputs.to(device), labels.to(device)
+                    logps = model.forward(inputs)
+                    batch_loss = criterion(logps, labels)
+                    
+                    test_loss += batch_loss.item()
+                    
+                    # Calculate accuracy
+                    ps = torch.exp(logps)
+                    top_p, top_class = ps.topk(1, dim=1)
+                    equals = top_class == labels.view(*top_class.shape)
+                    accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
+                    
+            print(f"Epoch {epoch+1}/{epochs}.. "
+                  f"Train loss: {running_loss/print_every:.3f}.. "
+                  f"Test loss: {test_loss/len(testloader):.3f}.. "
+                  f"Test accuracy: {accuracy/len(testloader):.3f}")
+            running_loss = 0
+            model.train()
+
+### -- 5. Check the accuracy with the test split
+
+def check_accuracy_on_test(model, testloader, device):    
+    correct = 0
+    total = 0
+    # Change model to device - cuda if available
+    model.to(device)
+    with torch.no_grad():
+        for data in testloader:
+            images, labels = data
+            # Change images & labels to device - cuda if available
+            # NOTE: no resizing done, because the architecture does not require it
+            # Always check the input size of the architecture (particularly in transfer learning)
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    print('Accuracy of the network on the 10000 test images: %d %%' % (100 * correct / total))
+
+check_accuracy_on_test(model, testloader, device)
+# Accuracy of the network on the 10000 test images: 97 %
+
+### -- 6. Inference
+
+import numpy as np
+
+model.to(device)
+model.eval() # set evaluation/inference mode (no dropout, etc.)
+
+# Get next batch aand transfer it to device
+dataiter = iter(testloader)
+images, labels = dataiter.next()
+images, labels = images.to(device), labels.to(device)
+
+# Calculate the class probabilities (log softmax)
+with torch.no_grad():
+    output = model(images)
+
+# Get an image from batch
+img = images[2]
+out = output[2]
+# Probabilities
+ps = torch.exp(out)
+
+# Plot the image and probabilities
+# Note: due to the normalization transform
+# the pixel values are not nice to visualize,
+# we would need to undo the normalization
+ps = ps.data.numpy().squeeze() # convert to numpy
+fig, (ax1, ax2) = plt.subplots(figsize=(6,9), ncols=2)
+img = img.numpy().squeeze() # convert to numpy
+img = np.moveaxis(img, 0, -1) # move axes: (C,W,H) -> (W,H,C)
+ax1.imshow(img)
+ax1.axis('off')
+ax2.barh(np.arange(2), ps)
+ax2.set_aspect(0.2)
+ax2.set_yticks(np.arange(2))
+ax2.set_yticklabels(['cat',
+                    'dog'], size='small');
+ax2.set_title('Class Probability')
+ax2.set_xlim(0, 1.1)
+plt.tight_layout()
 
 ```
