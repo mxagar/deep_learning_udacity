@@ -1,19 +1,18 @@
-'''
-    This script organizes the image files into class folders.
-    Examplary dataset ../data/cat_dog_small is used, which is a reduced (100 samples) dataset from Kaggle.
-    All image files are in ../data/cat_dog_small/all and their labels (cat or dog) in ../data/cat_dog_small/cat_dog_small_annotations.xlsx
-    After executing this script, two things happen:
-    1. Class folders are created and files copied into there according to their labels
-        ../data/cat_dog_small/
-            train/cat/
-            train/dog/
-    2. Dataset is split in train and test groups.
-    For that, a fraction of the images already ordered in class forlders are moved
-    from ../data/cat_dog_small/train/ to ../data/cat_dog_small/test/
-    
-    Note: for reading XLSX files, pandas needs the correct xlrd version; if that's not possible
-    modify the code and use CSVs instead :)
-    (c) Mikel Sagardia, 2020.
+'''This script organizes image files into class folders.
+Examplary dataset ../data/cat_dog_small is used, which is a reduced (100 samples) dataset from Kaggle.
+All image files are in ../data/cat_dog_small/all and their labels (cat or dog) in ../data/cat_dog_small/cat_dog_small_annotations.xlsx
+After executing this script, two things happen:
+1. Class folders are created and files copied into there according to their labels
+    ../data/cat_dog_small/
+        train/cat/
+        train/dog/
+2. The dataset is split in train and test groups.
+For that, a fraction of the images already ordered in class forlders are moved
+from ../data/cat_dog_small/train/ to ../data/cat_dog_small/test/
+
+Note: for reading XLSX files, pandas needs the correct xlrd version; if that's not possible
+modify the code and use CSVs instead :)
+(c) Mikel Sagardia, 2020.
 '''
 
 import os
@@ -23,12 +22,11 @@ import random
 import math
 
 def reorganize_samples(dataset_dir = '../data/cat_dog_small/all', annotations = '../data/cat_dog_small/cat_dog_small_annotations.xlsx', num_samples = -1):
-    '''
-        This function re-organizes all sample files in a train/ folder into class folders.
-        If num_samples == -1, all samples are taken, else min(num_samples, total number of samples in dataset_dir)
-        An XLSX file contains the annotations to correctly locate the files.
-        Note that a sample could belong to several classes.
-        A suffix is added to the sample files; it denotes the classes they belong to.
+    '''This function re-organizes all sample files in a train/ folder into class folders.
+    If num_samples == -1, all samples are taken, else min(num_samples, total number of samples in dataset_dir)
+    An XLSX file contains the annotations to correctly locate the files.
+    Note that a sample could belong to several classes.
+    A suffix is added to the sample files; it denotes the classes they belong to.
     '''
     # List that needs to be modified if the dataset is changed
     class_names = ['Cat', 'Dog'] # modify this is dataset changes
@@ -101,22 +99,21 @@ def reorganize_samples(dataset_dir = '../data/cat_dog_small/all', annotations = 
     print('Samples in each class: ', samples_in_class)
 
 def split_dataset(trainpath, fraction=0.3):
-    '''
-        This function creates a 'test' folder which duplicates the directories (without files) in 'trainpath'.
-        'fraction' random files are moved from the subdirectories in 'trainpath' to 'test'.
-        Example:
-        split_dataset('./dataset/train', fraction=0.3)
-            dataset/
-                train/
-                    cats/
-                        1-fraction
-                    dogs/
-                        1-fraction
-                test/
-                    cats/
-                        fraction
-                    dogs/
-                        fraction
+    '''This function creates a `test` folder which duplicates the directories (without files) in `trainpath`.
+    `fraction` random files are moved from the subdirectories in `trainpath` to `test`.
+    Example:
+    split_dataset('./dataset/train', fraction=0.3)
+        dataset/
+            train/
+                cats/
+                    1-fraction
+                dogs/
+                    1-fraction
+            test/
+                cats/
+                    fraction
+                dogs/
+                    fraction
     '''
     # Extract all subdirectories in trainpath
     dirs = []

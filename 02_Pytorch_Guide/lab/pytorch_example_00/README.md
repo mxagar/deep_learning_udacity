@@ -1,8 +1,14 @@
 # Basic Usage of Pytorch
 
-This project collects the very basic functionalities of Pytorch.
+This project collects the very basic functionalities of Pytorch:
 
-A fully connected network is defined to classify the Fashion-MNIST dataset.
+- Basic tensor operarionst aare shown.
+- A fully connected network is defined to classify the Fashion-MNIST dataset.
+- Network definition is shown with classes and `Sequential`.
+- Custom dataset generation is shown.
+- Saving and loading networks is shown.
+- A CNN is manually defined.
+- Convolutional layers and activation maps are accessed and visualized.
 
 In order to use these examples, we need to install Pytorch in out environment (eg., by using Anaconda):
 

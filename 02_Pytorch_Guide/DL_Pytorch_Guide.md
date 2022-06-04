@@ -36,6 +36,8 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
 ## Overview of Contents
 
 1. Introduction and Summary
+    - File: `helper.py`
+    - File `fc_model.py`
 2. Tensors: `Part 1 - Tensors in Pytorch.ipynb`
 3. Neural Networks: `Part 2 - Neural Networks in PyTorch.ipynb`
 4. Training Neural Networks: `Part 3 - Training Neural Networks.ipynb`
@@ -79,9 +81,9 @@ There are two additional files in the repository folder which summarize the comp
 - `Part 7 - Loading Image Data.ipynb`
 - `Part 8 - Transfer Learning.ipynb`
 
-However, they focus only on fully connected / linear networks; CNNs, RNNs, GANs & Co. are covered in dedicated modules and with example projects in Section 10: [10. Lab: Example Projects](#10.-Lab:-Example-Projects).
+However, they focus only on fully connected / linear networks; CNNs, RNNs, GANs & Co. are covered in dedicated modules and with example projects in Section 10: "Lab: Example Projects".
 
-#### File: `helper.py`:
+#### File: `helper.py`
 
 ```python
 import matplotlib.pyplot as plt
@@ -1650,7 +1652,7 @@ plt.tight_layout()
 
 ```
 
-10. Lab: Example Projects
+## 10. Lab: Example Projects
 
 The following files give a very nice overview of how Pytorch is used for image classification:
 
