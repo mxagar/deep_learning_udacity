@@ -77,6 +77,8 @@ List of concepts:
 - Feedforward
 - Backpropagation
 
+History of Deep Learning: [AI, Deep Learning, and Machine Learning: A Primer | Frank Chen, a16z](https://www.youtube.com/watch?v=ht6fLrar91U)
+
 Interesting Jupyter Notebooks: [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch)
 
 - `intro-neural-networks/GradientsDescend.ipynb`: Gradient descend implemented with `numpy` to a 2D pointcloud with two classes. The line defined by the weights is plotted along the time/training epochs. The code is below.
@@ -1658,9 +1660,34 @@ get_most_similar_words("terrible")
 
 ## Project: Predicting Bike Sharing Patterns (Lesson 6)
 
-See my dedicated repository for the project:
+See my dedicated repository folder for the project:
 
-[bike_sharing_udacity](https://github.com/mxagar/bike_sharing_udacity)
+[deep-learning-v2-pytorch/project-bikesharing](https://github.com/mxagar/deep-learning-v2-pytorch/tree/master/project-bikesharing)
+
+There is a `README.md` in there with all the explanations.
+
+Some recommendations on hyperparameters:
+
+- Iterations:
+    - Increase if both train and validation losses are decreasing.
+    - Stop if validation loss has saturated.
+    - Decrease if validation loss starts increasing.
+- Learning_rate:
+    - Increase if train loss is not changing or decreasing fast enough.
+    - Decrease if train loss keeps fluctuating or starts increasing.
+- Hidden nodes:
+    - Increasing it makes it harder and longer for the model to train.
+    - Increase when train loss saturates at a high value.
+    - Decrease if train loss does not decreases very slowly or keeps fluctuating even after adjusting the learning_rate.
+
+
+After the project is accepted, the following links are provided for further understanding:
+
+- [Activation functions](https://cs231n.github.io/neural-networks-1/#actfun)
+- [Neural Networks Basics](http://jalammar.github.io/visual-interactive-guide-basics-neural-networks/)
+- [Number of nodes in the hidden layer](https://www.quora.com/How-do-I-decide-the-number-of-nodes-in-a-hidden-layer-of-a-neural-network-I-will-be-using-a-three-layer-model)
+- [Loss and learning rate](https://cs231n.github.io/neural-networks-3/#loss)
+- [Choosing the learning rate](https://www.quora.com/In-an-artificial-neural-network-algorithm-what-happens-if-my-learning-rate-is-wrong-too-high-or-too-low)
 
 ## Lesson 7: Deep Learning with Pytorch
 
