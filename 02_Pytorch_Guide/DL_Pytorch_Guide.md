@@ -308,7 +308,7 @@ def train(model, trainloader, testloader, criterion, optimizer, epochs=5, print_
 
     # Check if CUDA GPU available
     #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #model.to(device)
+    #model.to(device, dtype=torch.float)
     
     steps = 0
     running_loss = 0
@@ -319,7 +319,7 @@ def train(model, trainloader, testloader, criterion, optimizer, epochs=5, print_
             steps += 1
             
             # Transfer to CUDA device if available
-            #images, labels = images.to(device), labels.to(device)
+            #images, labels = images.to(device, dtype=torch.float), labels.to(device, dtype=torch.float)
 
             # Flatten images into a channelsxrowsxcols long vector (784 in MNIST 28x28 case)
             pixels = images.size()[1]*images.size()[2]*images.size()[3]
@@ -364,6 +364,8 @@ def save_model(filepath, model, input_size, output_size, hidden_sizes):
     
 def load_checkpoint(filepath):
     checkpoint = torch.load(filepath)
+    # If we saved the model in a CUDA device, we need to map it to CPU
+    # checkpoint = torch.load(filepath, map_location=torch.device('cpu'))
     # Create a model with given architecture params (layer sizes) + model state (weight & bias values)
     model = Network(checkpoint['input_size'],
                     checkpoint['output_size'],
@@ -1255,6 +1257,8 @@ save_model(filepath, model, input_size, output_size, hidden_sizes)
 
 def load_checkpoint(filepath):
     checkpoint = torch.load(filepath)
+    # If we saved the model in a CUDA device, we need to map it to CPU
+    # checkpoint = torch.load(filepath, map_location=torch.device('cpu'))    
     model = fc_model.Network(checkpoint['input_size'],
                              checkpoint['output_size'],
                              checkpoint['hidden_layers'])
@@ -1430,13 +1434,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Move images and labels to CUDA GPU - if already there, nothing happens
 device = 'cuda'
-model.to(device) # the model needs to be transferred once
-inputs, labels = inputs.to(device), labels.to(device) # each new batch needs to be transferred
+model.to(device, dtype=torch.float) # the model needs to be transferred once
+inputs, labels = inputs.to(device, dtype=torch.float), labels.to(device, dtype=torch.float) # each new batch needs to be transferred
 
 # Move images and labels back to CPU - if already there, nothing happens
 device = 'cpu'
-model.to(device)
-inputs, labels = inputs.to(device), labels.to(device)
+model.to(device, dtype=torch.float)
+inputs, labels = inputs.to(device, dtype=torch.float), labels.to(device, dtype=torch.float)
 ```
 
 If we get `RuntimeError: Expected object of type torch.FloatTensor but found type torch.cuda.FloatTensor`, then we are mixing tensors that are on different devices.
@@ -1539,7 +1543,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Transfer all tensors to device:
 # model, images, labels
-model.to(device)
+model.to(device, dtype=torch.float)
 
 # We can modularize this in a function: train()
 for epoch in range(epochs):
@@ -1548,7 +1552,7 @@ for epoch in range(epochs):
         # Move input and label tensors to the default device
         # NOTE: no resizing done, because the architecture does not require it
         # Always check the input size of the architecture (particularly in transfer learning)
-        inputs, labels = inputs.to(device), labels.to(device)
+        inputs, labels = inputs.to(device, dtype=torch.float), labels.to(device, dtype=torch.float)
         
         logps = model.forward(inputs) # forward pass
         loss = criterion(logps, labels) # cmopute loss
@@ -1567,7 +1571,7 @@ for epoch in range(epochs):
             model.eval()
             with torch.no_grad():
                 for inputs, labels in testloader:
-                    inputs, labels = inputs.to(device), labels.to(device)
+                    inputs, labels = inputs.to(device, dtype=torch.float), labels.to(device, dtype=torch.float)
                     logps = model.forward(inputs)
                     batch_loss = criterion(logps, labels)
                     
@@ -1592,14 +1596,14 @@ def check_accuracy_on_test(model, testloader, device):
     correct = 0
     total = 0
     # Change model to device - cuda if available
-    model.to(device)
+    model.to(device, dtype=torch.float)
     with torch.no_grad():
         for data in testloader:
             images, labels = data
             # Change images & labels to device - cuda if available
             # NOTE: no resizing done, because the architecture does not require it
             # Always check the input size of the architecture (particularly in transfer learning)
-            images, labels = images.to(device), labels.to(device)
+            images, labels = images.to(device, dtype=torch.float), labels.to(device, dtype=torch.float)
             outputs = model(images)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
@@ -1613,13 +1617,13 @@ check_accuracy_on_test(model, testloader, device)
 
 import numpy as np
 
-model.to(device)
+model.to(device, dtype=torch.float)
 model.eval() # set evaluation/inference mode (no dropout, etc.)
 
 # Get next batch aand transfer it to device
 dataiter = iter(testloader)
 images, labels = dataiter.next()
-images, labels = images.to(device), labels.to(device)
+images, labels = images.to(device, dtype=torch.float), labels.to(device, dtype=torch.float)
 
 # Calculate the class probabilities (log softmax)
 with torch.no_grad():

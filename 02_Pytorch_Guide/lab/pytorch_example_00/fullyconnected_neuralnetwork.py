@@ -232,6 +232,8 @@ def save_model(filename, model, input_size, output_size, hidden_sizes):
 def load_model(filepath):
     # Load saved dict
     checkpoint = torch.load(filepath)
+    # If we saved the model in a CUDA device, we need to map it to CPU
+    # checkpoint = torch.load(filepath, map_location=torch.device('cpu'))    
     # Crate a model with given architecture params (layer sizes) + model state (weight & bias values)
     model = Network(checkpoint['input_size'],
                     checkpoint['output_size'],
