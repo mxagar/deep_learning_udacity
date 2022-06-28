@@ -22,7 +22,7 @@ Additionally, note that:
 ## Overview of Contents
 
 1. Convolutional Neural Networks
-2. Cloud Computing (and GPU Workspaces)
+2. Cloud Computing (and GPU Workspaces): See the CVND
 3. Transfer Learning
 4. Weight Initialization
 5. Autoencoders
@@ -32,15 +32,178 @@ Additionally, note that:
 9. Jobs in Deep Learning
 10. Project: Optimize Your GitHub Profile
 
-
-
 ## 1. Convolutional Neural Networks
 
+Many of the concepts in this module are covered in the [Udacity Computer Vision Nanodegree](https://www.udacity.com/course/computer-vision-nanodegree--nd891). See my notes on it, especially the module 1: [Introduction to Computer Vision](https://github.com/mxagar/computer_vision_udacity).
+
+In the following, I very briefly collect the terms of known concepts and extend only in new material.
+
+### 1.1 Applications of CNNs
+
+Some applications and links:
+
+- [WaveNet](https://www.deepmind.com/blog/wavenet-a-generative-model-for-raw-audio): convolutions on the sound stream are applied to synthesize speech. It can be used to generate music, too.
+- Text classification; RNNs are more typical for text, though.
+- Image classification.
+- Reinforcement learning for playing games: Games can be learned from images.
+- AlphaGo also used CNNs underneath.
+- Traffic sign classification: [German Traffic Sign dataset in this project](https://benchmark.ini.rub.de/?section=gtsrb&subsection=dataset); check out this [Github repo](https://github.com/udacity/CarND-Traffic-Sign-Classifier-Project)
+- [Depth map prediction from a single image](https://cs.nyu.edu/~deigen/depth/).
+- [Convert images into 3D maps for blind people](https://www.businessinsider.com/3d-printed-works-of-art-for-the-blind-2016-1).
+- [Breast cancer detection](https://ai.googleblog.com/2017/03/assisting-pathologists-in-detecting.html).
+- [FaceApp](https://www.digitaltrends.com/photography/faceapp-neural-net-image-editing/): change your face expression.
+
+### 1.2 CNNs: Introductory Concepts
+
+Many of the concepts in this module are covered in the [Udacity Computer Vision Nanodegree](https://www.udacity.com/course/computer-vision-nanodegree--nd891). See my notes on it, especially the module 1: [Introduction to Computer Vision](https://github.com/mxagar/computer_vision_udacity). Here, I very briefly list the concepts discussed in this section:
+
+- MNIST dataset: what it is, sizes, etc.
+- Image normalization: from 255 to 1; it improves backpropagation.
+- Flattening of a 2D matrix to feed patches into fully connected networks that end up predicting class scores.
+- Hidden layers: google for papers that suggest concrete numbers.
+- Loss functions: Cross-Entropy loss for classification.
+- Softmax function: multi-class classification.
+- ReLU activation.
+- Train/Test split.
+- Pytorch: `CrossEntropy() == log_softmax() + NLLLoss()`.
+
+### 1.3 MNIST MLP Exercise
+
+The exercise notebooks are in here:
+
+[deep-learning-v2-pytorch/tree/master/convolutional-neural-networks/mnist-mlp](https://github.com/mxagar/deep-learning-v2-pytorch/tree/master/convolutional-neural-networks/mnist-mlp)
+
+Basically, an MLP is defined to classify MNIST digits; the code is very similar to the Section 3 in the `02_Pytorch_Guide` module of this repository.
+
+```python
+
+import torch.nn as nn
+import torch.nn.functional as F
+
+## Define the NN architecture
+class Net(nn.Module):
+    def __init__(self):
+        super(Net, self).__init__()
+        # Definition of hidden nodes
+        hidden_1 = 512
+        hidden_2 = 256
+
+        # Linear: W(input,output), B(1,output) -> x*W + B
+        # W: model.fc1.weight
+        # B: model.fc1.bias        
+        # First layer: input
+        # 28*28 -> hidden_1 hidden nodes
+        self.fc1 = nn.Linear(784, hidden_1)
+        
+        # Second layer: hidden
+        # hidden_1 -> hidden_2
+        self.fc2 = nn.Linear(hidden_1, hidden_2)
+
+        # Output layer: units = number of classes
+        # hidden_2 -> 10
+        self.fc3 = nn.Linear(hidden_2, 10)
+        
+        # dropout layer (p=0.2)
+        # dropout prevents overfitting of data
+        self.dropout = nn.Dropout(0.2)
+        
+    def forward(self, x):
+        # Pass the input tensor through each of our operations
+        # Flatten image input
+        x = x.view(-1, 28 * 28)
+        # Add hidden layer, with relu activation function
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        # add dropout layer
+        x = self.dropout(x)
+        x = self.fc3(x)
+        # Final tensor should have a size batch_size x units: 64 x 10
+        # dim=1: sum across columns for softmax
+        x = F.softmax(x, dim=1) # alternative: x = self.softmax(x)
+        
+        return x
+
+# initialize the NN
+model = Net()
+print(model)
+
+## Specify loss and optimization functions
+from torch import optim
+
+# specify loss function
+criterion = nn.NLLLoss()
+
+# specify optimizer
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+```
+
+### 1.4 Validation
+
+We should split out dataset in 3 exclusive groups:
+
+1. Training split: to train.
+2. Validation split: to test how well the model generalizes and to choose between hyperparameters.
+3. Test split: to evaluate the final model performance.
+
+The training is performed with the training split, while we continuously (e.g., after each epoch) check the validation loss of the model so far. If the model starts overfitting, the training loss will decrease while the validation loss will start increasing. The idea is to save the weights that yield the smallest validation loss. We can do it with early stopping or just saving the weights of the best epoch.
+
+![Cross-validation](./pics/cross_validation.png)
+
+Additionally, we can test different hyperparameters and architectures; in that case, we choose the architecture and set hyperparameters that yield the lowest validation loss.
+
+As we see, the final choice is influenced by teh validation split; thus, the model is balanced in favor of the validation split. That is why we need the last split, the test split: the real performance of our model needs to be validated by a dataset which has never been seen.
+
+I understand that the 3 splits start making sense when we try different hyperparameters and architectures; otherwise, 2 splits are quite common.
+
+Usually, the validation split is taken from the train split; especially, if we have already train and test splits. To that end, the `SubsetRandomSampler` can be used.
+
+```python
+from torchvision import datasets
+import torchvision.transforms as transforms
+from torch.utils.data.sampler import SubsetRandomSampler
+
+# number of subprocesses to use for data loading
+num_workers = 0
+# how many samples per batch to load
+batch_size = 20
+# percentage of training set to use as validation
+valid_size = 0.2
+
+# convert data to torch.FloatTensor
+transform = transforms.ToTensor()
+
+# choose the training and test datasets
+train_data = datasets.MNIST(root='data', train=True,
+                                   download=True, transform=transform)
+test_data = datasets.MNIST(root='data', train=False,
+                                  download=True, transform=transform)
+
+# obtain training indices that will be used for validation
+num_train = len(train_data)
+indices = list(range(num_train))
+np.random.shuffle(indices)
+split = int(np.floor(valid_size * num_train))
+train_idx, valid_idx = indices[split:], indices[:split]
+
+# define samplers for obtaining training and validation batches
+train_sampler = SubsetRandomSampler(train_idx)
+valid_sampler = SubsetRandomSampler(valid_idx)
+
+# prepare data loaders
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
+    sampler=train_sampler, num_workers=num_workers)
+valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, 
+    sampler=valid_sampler, num_workers=num_workers)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, 
+    num_workers=num_workers)
+```
 
 
 ## 2. Cloud Computing (and GPU Workspaces)
 
+See the repository of the [Udacity Computer Vision Nanodegree](https://www.udacity.com/course/computer-vision-nanodegree--nd891):
 
+[computer_vision_udacity(https://github.com/mxagar/computer_vision_udacity) / `02_Cloud_Computing`.
 
 ## 3. Transfer Learning
 
@@ -62,7 +225,7 @@ Additionally, note that:
 
 
 
-## 8. Deep Learning for Cander Detection
+## 8. Deep Learning for Cancer Detection
 
 ```
 # Intro

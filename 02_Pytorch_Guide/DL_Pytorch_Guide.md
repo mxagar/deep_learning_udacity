@@ -593,6 +593,9 @@ probabilities = a_2 # (64,10)
 # (equivalent to cross-entropy)
 
 # Inherit network class from nn.Module
+# NOTE: I imporved the accuracy from 72%->93% with two changes:
+# - add nn.Dropout(0.2) after fc2
+# - increase hidden nodes: 784->512->256->10
 class Network(nn.Module):
     def __init__(self):
         # Call init of upper class: nn.Module
@@ -1174,6 +1177,66 @@ ps = torch.exp(output)
 helper.view_classify(img.view(1, 28, 28), ps, version='Fashion')
 
 ```
+
+### 6.1 Three Splits: Train, Validation, Test
+
+In reality, we should split out dataset in 3 exclusive groups:
+
+1. Training split: to train.
+2. Validation split: to test how well the model generalizes and to choose between hyperparameters.
+3. Test split: to evaluate the final model performance.
+
+The training is performed with the training split, while we continuously (e.g., after each epoch) check the validation loss of the model so far. If the model starts overfitting, the training loss will decrease while the validation loss will start increasing. The idea is to save the weights that yield the smallest validation loss. We can do it with early stopping or just saving the weights of the best epoch.
+
+Additionally, we can test different hyperparameters and architectures; in that case, we choose the architecture and set hyperparameters that yield the lowest validation loss.
+
+As we see, the final choice is influenced by teh validation split; thus, the model is balanced in favor of the validation split. That is why we need the last split, the test split: the real performance of our model needs to be validated by a dataset which has never been seen.
+
+I understand that the 3 splits start making sense when we try different hyperparameters and architectures; otherwise, 2 splits are quite common.
+
+Usually, the validation split is taken from the train split; especially, if we have already train and test splits. To that end, the `SubsetRandomSampler` can be used.
+
+```python
+from torchvision import datasets
+import torchvision.transforms as transforms
+from torch.utils.data.sampler import SubsetRandomSampler
+
+# number of subprocesses to use for data loading
+num_workers = 0
+# how many samples per batch to load
+batch_size = 20
+# percentage of training set to use as validation
+valid_size = 0.2
+
+# convert data to torch.FloatTensor
+transform = transforms.ToTensor()
+
+# choose the training and test datasets
+train_data = datasets.MNIST(root='data', train=True,
+                                   download=True, transform=transform)
+test_data = datasets.MNIST(root='data', train=False,
+                                  download=True, transform=transform)
+
+# obtain training indices that will be used for validation
+num_train = len(train_data)
+indices = list(range(num_train))
+np.random.shuffle(indices)
+split = int(np.floor(valid_size * num_train))
+train_idx, valid_idx = indices[split:], indices[:split]
+
+# define samplers for obtaining training and validation batches
+train_sampler = SubsetRandomSampler(train_idx)
+valid_sampler = SubsetRandomSampler(valid_idx)
+
+# prepare data loaders
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
+    sampler=train_sampler, num_workers=num_workers)
+valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, 
+    sampler=valid_sampler, num_workers=num_workers)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, 
+    num_workers=num_workers)
+```
+
 
 ## 7. Saving and Loading Models: `Part 6 - Saving and Loading Models.ipynb`
 
