@@ -198,6 +198,43 @@ test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
     num_workers=num_workers)
 ```
 
+### 1.5 MLPs vs CNNs
+
+CNNs are in general much better suited for data arranged in 2D. The main reasons are:
+
+- MLPs need to flatten any 2D matrices and the 2D structural information is lost. Unlike MLPs, CNNs understand that pixels that are spatially close are more strongly related.
+- CNNs are more sparesely connected, so they have much less parameters. They are locally connected, not fully connected; that makes possible adding more hidden layers. More hidden nodes means the ability of discovering more complex patterns.
+
+CNNs work with **convolutional layers**, which process the image as a whole. See the notes in the [CVND](https://github.com/mxagar/computer_vision_udacity).
+
+### 1.6 Frequency in Images, Filters
+
+List of concepts covered:
+
+- Frequency in images: intensity changes.
+- Convolutions: kernels, weighted sums, edge ahndling: extending / padding / cropping.
+- High-pass filters: edge highlighting; kernel weights must sum up to 0.
+- Low-pass filters: edge supressing, blurring.
+- Custom filters with OpenCV.
+
+### 1.7 Convolutional Layers
+
+List of concepts covered:
+
+- Convolutional layers: a kernel has `K` filters; each filter generates a feature map, so that the output data has depth `K` or `K` channels. During learning, the weights of these kernels is optimized to obtain meaningful outputs. Note that if we start with a color image, each filter is 3 dimensional. Additionally, in successive layers, filters are usually 3D: they have the same depth as the output depth from the previous layer.
+- Nodes = filters; parameters: size (WxH), depth (K), stride.
+- Pooling layers: MaxPooling.
+
+The notebooks from `~/git_repositories/deep-learning-v2-pytorch/convolutional-neural-networks` in the the repo [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) are used.
+
+![Convolution](./pics/convolution.png)
+
+![Convolutional layers](./pics/conv_layer.gif)
+
+### 1.8 Capsule Networks
+
+
+
 
 ## 2. Cloud Computing (and GPU Workspaces)
 
