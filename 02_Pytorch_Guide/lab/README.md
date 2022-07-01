@@ -10,8 +10,9 @@ List of examples (they usually build up on the previous):
 
 - Image Classification
 
-    - `pytorch_example_00`: Fashion-MNIST, manual network (FC & CNN), training-validation-inference, save & load.
-    - `pytorch_example_01`: Transfer learning with DenseNet-121, custom dataset handling (subset of dogs-vs-cats), training-validation-inference, save & load.
+    - `pytorch_example_00`: Fashion-MNIST (28x28x1), manual network (FC MLP & simple CNN), training-validation-inference, layer visualization, save & load.
+    - `pytorch_example_01`: Transfer learning with DenseNet-121, custom dataset handling (subset of dogs-vs-cats from Kaggle, RGB), training-validation-inference, save & load.
+    - `pytorch_example_02`: CIFAR-10 (32x32x3) with a manually defined CNN. The example is similar to `pytorch_example_00`, but with a more complex dataset and use case in general.
 
 - Image Object Detection
 

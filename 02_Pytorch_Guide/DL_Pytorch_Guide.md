@@ -46,7 +46,13 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
 7. Saving and Loading Models: `Part 6 - Saving and Loading Models.ipynb`
 8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`
 9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
-10. Lab: Example Projects
+    - Notes on Fine Tuning
+10. Convolutional Neural Networks (CNN)
+11. Weight Initialization
+
+Appendices:
+
+- Lab: Example Projects
 
 ## 1. Introduction and Summary
 
@@ -1508,7 +1514,7 @@ inputs, labels = inputs.to(device, dtype=torch.float), labels.to(device, dtype=t
 
 If we get `RuntimeError: Expected object of type torch.FloatTensor but found type torch.cuda.FloatTensor`, then we are mixing tensors that are on different devices.
 
-Check the following file to see how to run python/jupyter via SSG on a Jetson Nano (with a CUDA GPU):
+Check the following file to see how to run python/jupyter via SSH on a Jetson Nano (with a CUDA GPU):
 
 `~/Dropbox/Documentation/howtos/jetson_nano_howto.txt`
 
@@ -1563,6 +1569,7 @@ testloader = torch.utils.data.DataLoader(test_data, batch_size=64)
 
 # Load pre-trained model
 # Check the sizes of the last classifier layer
+# Note that we can access the layers and layer groups: model.classifier ...
 model = models.densenet121(pretrained=True)
 model
 
@@ -1719,7 +1726,213 @@ plt.tight_layout()
 
 ```
 
-## 10. Lab: Example Projects
+### Notes on Fine Tuning
+
+Transfer learning with a frozed backbone pre-trained network can generalize to our applications well if
+
+- we have few classes (size)
+- and the features of our classes are similar to those in the images of ImageNet (similarity).
+
+In general, depending on how the **size** and **similarity** factors are, we should follow different approaches, sketched in this matrix:
+
+![Transfer learning approach](./pics/transfer_learning_matrix.png)
+
+Note that Small datasets (approx. 2k images) risk overfitting; the solution consists in freezing the pre-trained weights, no matter at which depth we cut the backbone network.
+
+Summary of approaches:
+
+1. Small dataset, similar features: Transfer learning with complete backbone
+    - Remove last classification linear layers
+    - Freeze pre-trained weights
+    - Add new linear layers with random weights for classification, which end up in the desired class nodes
+    - Train new classification layers
+2. Small dataset, different features: Transfer learning with initial part of the backbone
+    - Slice off near the begining of the pre-trained network
+    - Freeze pre-trained weights
+    - Add new linear layers with random weights for classification, which end up in the desired class nodes; do not add convolutional layers, instead use the low level features!
+    - Train new classification layers
+3. Large dataset, similar features: Fine tune
+    - Like case 1, but we don't freeze the backbone weights, but start training from their pre-trained state.
+4. Large dataset, different features: Fine tune or Re-train
+    - Remove the last fully connected layer and replace with a layer matching the number of classes in the new data set.
+    - Re-train the network from the scratch with random weights.
+    - Or: perform as in case 3.
+
+## 10. Convolutional Neural Networks (CNNs)
+
+The two most important layers in CNNs are [Conv2d](https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html) and [MaxPool2d](https://pytorch.org/docs/stable/generated/torch.nn.MaxPool2d.html). When we instantiate them, we need to take into account their default parameters!
+
+```python
+import torch.nn as nn
+
+# Sizes, padding, stride can be tuples!
+# Look at default values!
+nn.Conv2d(in_channels=1,
+          out_channels=32,
+          kernel_size=5)
+          #stride=1,
+          #padding=0,
+          #dilation=1,
+          #bias=True,
+          #padding_mode='zeros',
+          #...
+
+# Sizes, padding, stride can be tuples!
+# Look at default values!
+nn.MaxPool2d(kernel_size=2,
+             stride=2)
+             #passing=0,
+             #...
+```
+
+### `Conv2d`
+
+The **channels** refer to the depth of the filter. Notes:
+
+- A grayscale image will have `in_channel = 1` in the first `Conv2d`.
+- A color image will have `in_channel = 3` in the first `Conv2d`.
+- **The filter depths usually increase in sequence like this: 16 -> 32 -> 64**.
+
+**Padding** is a very important argument in `Conv2d`, because with it we can control the size (WxH) of the output feature maps. Padding consists in adding a border of pixels around an image. In PyTorch, you specify the size of this border.
+
+The simplified formula for the output size is (`dilation=1`):
+
+`W_out = (W_in + 2P - F)/S + 1`
+
+- `W_in`:
+- `P`: padding width, **default is 0**
+- `F`: kernel/filter size, usually odd numbers; twice 3 is better than once 5, because less parameters and same result!
+- `S`: stride, usually left in the **default 1**
+
+Usually, **preserving the sizes leads to better results**! That way, we don't loose information that we would have lost without padding. Thus, we need to:
+
+- Use an odd kernel size: 3, 5, etc.; better 3 than 5.
+- Define the padding as the border around the anchor pixel of the kernel: 3->1, 5->2
+
+Since the default padding method is `'zeros'`, the added border is just zeros.
+
+Additionally, after a `Conv2d`, a `relu()` activation is applied!
+
+Which is the number of parameters in a convolutional layer?
+
+`W_out*F*F*W_in + W_out`
+
+- The last term `W_out` is active when we have biases: we have a bias for each output feature map.
+- The first term is the pixel area of a filter x `in_channels` x `out_channels`; basically, we apply a convolution `out_channels` times.
+
+### `MaxPool2d`
+
+Usually a `MaxPool2d` that halvens the size is chosen, i.e.:
+
+- `kernel_size = 2`
+- `stride = 2`
+
+A `MaxPool2d` can be defined once and used several times; it comes after the `relu(Conv2d(x))`.
+
+### Linear Layer and Flattening
+
+After the convolutional layers, the 3D feature maps need to be reshaped to a 1D feature vector to enter into a linear layer. If padding has been applied so that the size of the feature maps is preserved after each `Conv2d`, we only need to compute the final size taking into account the effects of the applied `MaxPool2d` reductions and the final depth; otherwise, the convolution resizing formmula needs to be applied carefully step by step.
+
+Once we have the size, we compute the number of pixels in the final set of feature maps:
+
+`N = W x H x D`
+
+The linear layer after the last convolutional layer is defined as follows:
+
+```python
+nn.Linear(N, linear_out)
+# linear_out is the number of nodes we want after the linear layer
+# it could be the number of classes
+# if this is the last linear layer
+```
+
+In the `forward()` function, the flattening is simpler, because we can query the size of the vector:
+
+```python
+x = x.view(x.size(0), -1)
+# x.size(0): batch size
+# -1: deduce how many pixels after dividing all items by the batch size, ie.: W x H x D
+```
+
+### Example of a Simple Architecture
+
+```python
+import torch.nn as nn
+import torch.nn.functional as F
+
+# One convolutional layer applied an 12x12 image for a regression
+# - input_size = 12
+# - grayscale image: in_channles = 1
+# - regression of variable n_classes
+
+# Note: x has this shape: batch_size x n_channels x width x height
+# Usually, the batch_size is ignored in the comments, but it is x.size(0)!
+
+class Net(nn.Module):
+
+    def __init__(self, n_classes):
+        super(Net, self).__init__()
+
+        # 1 input image channel (grayscale)
+        # 32 output channels/feature maps
+        # 5x5 square convolution kernel
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out: (input_size + 2*0 - 5)/1 + 1 = 8
+        # WATCH OUT: default padding = 0!
+        self.conv1 = nn.Conv2d(1, 32, 5)
+
+        # maxpool layer
+        # pool with kernel_size=2, stride=2
+        # output size: 4
+        # Note: there is no relu after MaxPool2d!
+        self.pool = nn.MaxPool2d(2, 2)
+
+        # fully-connected layer
+        # 32*4 input size to account for the downsampled image size after pooling
+        # num_classes outputs (for n_classes of image data)
+        self.fc1 = nn.Linear(32*4, n_classes)
+
+    # define the feedforward behavior
+    def forward(self, x):
+        # one conv/relu + pool layers
+        x = self.pool(F.relu(self.conv1(x)))
+
+        # prep for linear layer by flattening the feature maps into feature vectors
+        x = x.view(x.size(0), -1)
+        # linear layer 
+        x = F.relu(self.fc1(x))
+
+        # final output
+        return x
+
+# instantiate and print your Net
+n_classes = 20 # example number of classes
+net = Net(n_classes)
+print(net)
+
+```
+
+### Summary of Guidelines
+
+- Usual architecture: 2-4 `Conv2d` with `MaxPool2d`in-between so that the size is halved; at the end 1-3 fully connected layers with dropout in-between to avoid overfitting.
+- Recall that an image has the shape `B x W x H x D`. The bacth size `B` is usually not used during the network programming, but it's there, even though we feed one image per batch!
+- In the convolutions:
+    - Prefer small 3x3 filters; use odd numbers in any case.
+    - Use padding so that the size of the image is preserved! That means taking `padding=floor(F/2)`.
+    - Recall the size change formula: `W_out = (W_in + 2P - F)/S + 1`.
+- Use `relu()` activation after each convolution, but not after max-pooling.
+- If we use a unique decreasing factor in `MaxPool2d`, it's enough defining a unique `MaxPool2d`.
+- The typical max-pooling is the one which halvens the size: `MaxPool2d(2,2)`.
+- Before entering the fully connected or linear layer, we need to flatten the feature map:
+    - In the definition of `Linear()`: we need to compute the final volume of the last feature map set. If we preserved the sized with padding it's easy; if not, we need to apply the formula above step by step.
+    - In the `forward()` method: `x = x.view(x.size(0), -1)`; `x.size(0)`is the batch size, `-1` is the rest. 
+- If we use `CrossEntropyLoss()`, we need to return the `relu()` output; if we return the `log_softmax()`, we need to use the `NLLLoss()`. `CrossEntropy() == log_softmax() + NLLLoss()`.
+
+
+## 11. Weight Initialization
+
+
+## Appendix: Lab - Example Projects
 
 The following files give a very nice overview of how Pytorch is used for image classification:
 
