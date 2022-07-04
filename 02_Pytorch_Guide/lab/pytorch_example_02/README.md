@@ -64,4 +64,4 @@ The notebook has the following sections:
 Mikel Sagardia, 2022.  
 No guarantees.
 
-You are free to copy and re-use my code, I'd appreciate if you'd reference my authorship and the sources I have used.
+You are free to copy and re-use my code; please, reference my authorship and, especially, the sources I have used.

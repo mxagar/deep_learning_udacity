@@ -49,4 +49,4 @@ For a more detailed guide on Deep Learning and its implementation and use with P
 Mikel Sagardia, 2021.  
 No guarantees.
 
-You are free to copy and re-use my code, I'd appreciate if you'd reference my authorship and the sources I have used.
+You are free to copy and re-use my code; please, reference my authorship and, especially, the sources I have used.
