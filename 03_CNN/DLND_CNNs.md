@@ -902,11 +902,62 @@ Reference DenseNet: DenseNet-121.
 See the related section in my notes on the [CVND](https://github.com/mxagar/computer_vision_udacity).
 
 
-## 2. Cloud Computing (and GPU Workspaces)
+## 2. Cloud Computing and Edge Devices
 
 See the repository of the [Udacity Computer Vision Nanodegree](https://www.udacity.com/course/computer-vision-nanodegree--nd891):
 
 [computer_vision_udacity(https://github.com/mxagar/computer_vision_udacity) / `02_Cloud_Computing`.
+
+### 2.1 Excurs: Jetson Nano
+
+The code in this notebook is ready to be executed on a CUDA device, like a Jetson Nano. In order to set up the Jetson Nano, we need to follow the steps in 
+
+    ~/Dropbox/Documentation/howtos/jetson_nano_howto.txt
+
+I created the guide following experimenting myself two very important links:
+
+- [Getting Started with Jetson Nano, Medium](https://medium.com/@heldenkombinat/getting-started-with-the-jetson-nano-37af65a07aab)
+- [Getting Started with Jetson Nano, NVIDIA](https://developer.nvidia.com/embedded/learn/get-started-jetson-nano-devkit#intro)
+
+In the following, a basic usage guide is provided; for setup, look at the howto file above.
+
+####  Summary of Installation Steps
+
+- Flash SD image
+- Create account in Jetson Ubuntu (18): mxagar, pw
+- Install basic software
+- Create python environment: `env`
+- Install DL packages in python environment: Pytorch, Torchvision, PIL, OpenCV, etc.
+
+####  How to Connect to Jetson via SSH
+
+    ssh mxagar@jetson-nano.com
+
+#### Connect to a Jupyter Notebook Run on the Jetson from Desktop
+
+
+Open new Terminal on Mac: start SSH tunneling and leave it open
+    
+    ssh -L 8000:localhost:8888 mxagar@jetson-nano.local
+
+Open new Terminal on Mac (or the same works also): connect to jetson-nano & start jupyter
+        
+    ssh mxagar@jetson-nano.local
+    source ~/python-envs/env/bin/activate
+    cd /your/path
+    jupyter notebook
+        or jupyter-lab
+        in both cases, look for token
+            http://localhost:8888/?token=XXX
+                
+Open new browser on Mac, go to
+     
+    http://localhost:8000
+    insert token XXX
+
+#### SFTP Access
+
+Currently, I cannot access via SFTP the Jetson Nano. Some configuration is needed, which I didn't have time to go through. As a workaround, I clone and pull/push the repositories to the Jetson directly after connecting via SSH.
 
 ## 3. Transfer Learning
 
