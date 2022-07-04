@@ -1931,6 +1931,63 @@ print(net)
 
 ## 11. Weight Initialization
 
+Weight initialization can affect dramatically the performance of the training.
+
+If we initialize to 0 all the weights, the backpropagation will have a very hard time to discern in which direction the weights should be optimized. Something similar happens if we initialize the weights with a constant value, say 1.
+
+There are two approachs in weight initialization:
+
+- Xavier Glorot initialization: initialize weights to `Uniform(-n,n)`, with `n = 1 / sqrt(in_nodes)`; i.e., a uniform distirbution in the range given by the number of input nodes in the layer (inverse square root).
+
+- Normal initialization: `Normal(mean=0, std=n)`, with `n = 1 / sqrt(in_nodes)`.
+
+The normal distribution tends to be more performant. We can leave the bias values to 0.
+
+Any time we instantiate a layer in Pytorch, a default Xavier Glorot initialization is applied in the background (we can check that in the code); bias values are also set to a unirform random value.
+
+If we want to train large models, we are encouraged to manually initialize the weights with a normal distribution. To that end, we should use the `apply()` method and loop every layer type to initialize their weights:
+
+```python
+# Xavier Glorot Initialization
+def weights_init_uniform(m):
+    classname = m.__class__.__name__
+    # For every Linear layer in a model..
+    # We would need to extend that to any type of layer!
+    if classname.find('Linear') != -1:
+        # get the number of the inputs
+        n = m.in_features
+        y = 1.0/np.sqrt(n)
+        m.weight.data.uniform_(-y, y)
+        m.bias.data.fill_(0)
+
+# Use
+model_unirform = Net()
+model_uniform.apply(weights_init_uniform)
+
+# Normal Initialization
+def weights_init_normal(m):
+    '''Takes in a module and initializes all linear layers with weight
+       values taken from a normal distribution.'''    
+    classname = m.__class__.__name__
+    # For every Linear layer in a model..
+    # We would need to extend that to any type of layer!
+    if classname.find('Linear') != -1:
+        # get the number of the inputs
+        n = m.in_features
+        s = 1.0/np.sqrt(n)
+        m.weight.data.normal_(0,std=s)
+        m.bias.data.fill_(0)    
+
+# Use
+model_normal = Net()
+model_normal.apply(weights_init_normal)
+```
+
+The notebooks in 
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch/) `/weight-initialization`
+
+show how to apply that on a simple MLP that classfies the Fashion-MNIST dataset. There is a helper script which compares models initialized in different ways. Small datasets like the Fashion-MNIST are often used because they are easy and fast to train; thus, we can quickly see how the models behave in few epochs.
 
 ## Appendix: Lab - Example Projects
 

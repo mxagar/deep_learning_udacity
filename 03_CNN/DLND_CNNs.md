@@ -444,7 +444,320 @@ print(net)
 
 ### 1.10 CIFAR CNN Example
 
+The notebooks in 
 
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/convolutional-neural-networks/cifar-cnn`
+
+contain an example of manually defined Convolutional Neural Network (CNN) which classifies images from the [CIFAR-10 dataset](https://www.cs.toronto.edu/~kriz/cifar.html). The CIFAR-10 dataset consists of 60000 32x32 colour images in 10 classes, with 6000 images per class. There are 50000 training images and 10000 test images.
+
+Additionally, **data augmentation** and **3 splits** are applied.
+
+In the following, the code of the notebook is added, divided in 6 sections:
+
+1. Load the Data
+2. Define the Network Architecture
+3. Train the Network
+4. Test the Trained Network
+5. Visualize Some Results
+
+```python
+import torch
+import numpy as np
+
+# check if CUDA is available
+train_on_gpu = torch.cuda.is_available()
+
+if not train_on_gpu:
+    print('CUDA is not available.  Training on CPU ...')
+else:
+    print('CUDA is available!  Training on GPU ...')
+
+### -- 1. Load the Data
+
+from torchvision import datasets
+import torchvision.transforms as transforms
+from torch.utils.data.sampler import SubsetRandomSampler
+
+# number of subprocesses to use for data loading
+num_workers = 0
+# how many samples per batch to load
+batch_size = 20
+# percentage of training set to use as validation
+valid_size = 0.2
+
+# convert data to a normalized torch.FloatTensor
+transform = transforms.Compose([
+    transforms.RandomHorizontalFlip(), # randomly flip and rotate
+    transforms.RandomRotation(10),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+
+# choose the training and test datasets
+train_data = datasets.CIFAR10('data', train=True,
+                              download=True, transform=transform)
+test_data = datasets.CIFAR10('data', train=False,
+                             download=True, transform=transform)
+
+# obtain training indices that will be used for validation
+num_train = len(train_data)
+indices = list(range(num_train))
+np.random.shuffle(indices)
+split = int(np.floor(valid_size * num_train))
+train_idx, valid_idx = indices[split:], indices[:split]
+
+# define samplers for obtaining training and validation batches
+train_sampler = SubsetRandomSampler(train_idx)
+valid_sampler = SubsetRandomSampler(valid_idx)
+
+# prepare data loaders (combine dataset and sampler)
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
+    sampler=train_sampler, num_workers=num_workers)
+valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, 
+    sampler=valid_sampler, num_workers=num_workers)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, 
+    num_workers=num_workers)
+
+# specify the image classes
+classes = ['airplane', 'automobile', 'bird', 'cat', 'deer',
+           'dog', 'frog', 'horse', 'ship', 'truck']
+
+
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+# helper function to un-normalize and display an image
+def imshow(img):
+    img = img / 2 + 0.5  # unnormalize
+    plt.imshow(np.transpose(img, (1, 2, 0)))  # convert from Tensor image
+
+# obtain one batch of training images
+dataiter = iter(train_loader)
+images, labels = dataiter.next()
+images = images.numpy() # convert images to numpy for display
+
+# plot the images in the batch, along with the corresponding labels
+fig = plt.figure(figsize=(25, 4))
+# display 20 images
+for idx in np.arange(20):
+    ax = fig.add_subplot(2, 20/2, idx+1, xticks=[], yticks=[])
+    imshow(images[idx])
+    ax.set_title(classes[labels[idx]])
+
+### -- 2. Define the Network Architecture
+
+import torch.nn as nn
+import torch.nn.functional as F
+
+# define the CNN architecture
+class Net(nn.Module):
+    def __init__(self, drop_p=0.5):
+        super(Net, self).__init__()
+        # convolutional layer 1: 32x32x3 -> 32x32x16 -> 16x16x16
+        # W_out = (W_in−F+2P)/S + 1
+        self.conv1 = nn.Conv2d(3, 16, 3, padding=1)
+        # convolutional layer 2: 16x16x16 -> 16x16x32 -> 8x8x32
+        self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
+        # dropout layer 1
+        self.dropout1 = nn.Dropout(p=drop_p)
+        # convolutional layer 3: 8x8x32 -> 8x8x64 -> 4x4x64
+        self.conv3 = nn.Conv2d(32, 64, 3, padding=1)
+        # dropout layer 2
+        self.dropout2 = nn.Dropout(p=drop_p)
+        # linear layer 1: 4x4x64 = 1024 -> 512
+        self.linear1 = nn.Linear(1024,512)
+        # dropout layer 3
+        self.dropout3 = nn.Dropout(p=drop_p)
+        # linear layer 2: 512 -> 10
+        self.linear2 = nn.Linear(512,10)
+
+       # max pooling layer
+        self.pool = nn.MaxPool2d(2, 2)
+
+    def forward(self, x):
+        # add sequence of convolutional and max pooling layers
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = self.dropout1(x)
+        x = self.pool(F.relu(self.conv3(x)))
+        x = self.dropout2(x)
+        # flatten
+        x = x.view(x.size(0),-1)
+        x = F.relu(self.linear1(x))
+        x = self.dropout3(x)
+        x = F.relu(self.linear2(x))
+        x = F.log_softmax(x,dim=1)
+        return x
+
+# create a complete CNN
+model = Net()
+print(model)
+
+# Net(
+#   (conv1): Conv2d(3, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (conv2): Conv2d(16, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (conv3): Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (pool): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+#   (fc1): Linear(in_features=1024, out_features=500, bias=True)
+#   (fc2): Linear(in_features=500, out_features=10, bias=True)
+#   (dropout): Dropout(p=0.25, inplace=False)
+# )
+
+# move tensors to GPU if CUDA is available
+if train_on_gpu:
+    model.cuda()
+
+import torch.optim as optim
+
+# specify loss function (categorical cross-entropy)
+criterion = nn.CrossEntropyLoss()
+
+# specify optimizer
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+
+### -- 3. Train the Network
+
+# number of epochs to train the model
+n_epochs = 30
+
+valid_loss_min = np.Inf # track change in validation loss
+
+for epoch in range(1, n_epochs+1):
+
+    # keep track of training and validation loss
+    train_loss = 0.0
+    valid_loss = 0.0
+    
+    ###################
+    # train the model #
+    ###################
+    model.train()
+    for batch_idx, (data, target) in enumerate(train_loader):
+        # move tensors to GPU if CUDA is available
+        if train_on_gpu:
+            data, target = data.cuda(), target.cuda()
+        # clear the gradients of all optimized variables
+        optimizer.zero_grad()
+        # forward pass: compute predicted outputs by passing inputs to the model
+        output = model(data)
+        # calculate the batch loss
+        loss = criterion(output, target)
+        # backward pass: compute gradient of the loss with respect to model parameters
+        loss.backward()
+        # perform a single optimization step (parameter update)
+        optimizer.step()
+        # update training loss
+        train_loss += loss.item()*data.size(0)
+        
+    ######################    
+    # validate the model #
+    ######################
+    model.eval()
+    for batch_idx, (data, target) in enumerate(valid_loader):
+        # move tensors to GPU if CUDA is available
+        if train_on_gpu:
+            data, target = data.cuda(), target.cuda()
+        # forward pass: compute predicted outputs by passing inputs to the model
+        output = model(data)
+        # calculate the batch loss
+        loss = criterion(output, target)
+        # update average validation loss 
+        valid_loss += loss.item()*data.size(0)
+    
+    # calculate average losses
+    train_loss = train_loss/len(train_loader.sampler)
+    valid_loss = valid_loss/len(valid_loader.sampler)
+        
+    # print training/validation statistics 
+    print('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
+        epoch, train_loss, valid_loss))
+    
+    # save model if validation loss has decreased
+    if valid_loss <= valid_loss_min:
+        print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
+        valid_loss_min,
+        valid_loss))
+        torch.save(model.state_dict(), 'model_augmented.pt')
+        valid_loss_min = valid_loss
+
+# Load the best model
+if train_on_gpu:
+    model.load_state_dict(torch.load('model_augmented.pt'))
+else:
+    model.load_state_dict(torch.load('model_augmented.pt',map_location=torch.device('cpu')))
+
+### -- 4. Test the Trained Network
+
+# track test loss
+test_loss = 0.0
+class_correct = list(0. for i in range(10))
+class_total = list(0. for i in range(10))
+
+model.eval()
+# iterate over test data
+for batch_idx, (data, target) in enumerate(test_loader):
+    # move tensors to GPU if CUDA is available
+    if train_on_gpu:
+        data, target = data.cuda(), target.cuda()
+    # forward pass: compute predicted outputs by passing inputs to the model
+    output = model(data)
+    # calculate the batch loss
+    loss = criterion(output, target)
+    # update test loss 
+    test_loss += loss.item()*data.size(0)
+    # convert output probabilities to predicted class
+    _, pred = torch.max(output, 1)    
+    # compare predictions to true label
+    correct_tensor = pred.eq(target.data.view_as(pred))
+    correct = np.squeeze(correct_tensor.numpy()) if not train_on_gpu else np.squeeze(correct_tensor.cpu().numpy())
+    # calculate test accuracy for each object class
+    for i in range(batch_size):
+        label = target.data[i]
+        class_correct[label] += correct[i].item()
+        class_total[label] += 1
+
+# average test loss
+test_loss = test_loss/len(test_loader.dataset)
+print('Test Loss: {:.6f}\n'.format(test_loss))
+
+for i in range(10):
+    if class_total[i] > 0:
+        print('Test Accuracy of %5s: %2d%% (%2d/%2d)' % (
+            classes[i], 100 * class_correct[i] / class_total[i],
+            np.sum(class_correct[i]), np.sum(class_total[i])))
+    else:
+        print('Test Accuracy of %5s: N/A (no training examples)' % (classes[i]))
+
+print('\nTest Accuracy (Overall): %2d%% (%2d/%2d)' % (
+    100. * np.sum(class_correct) / np.sum(class_total),
+    np.sum(class_correct), np.sum(class_total)))
+
+### -- 5. Visualize Some Results
+
+# obtain one batch of test images
+dataiter = iter(test_loader)
+images, labels = dataiter.next()
+images.numpy()
+
+# move model inputs to cuda, if GPU available
+if train_on_gpu:
+    images = images.cuda()
+
+# get sample outputs
+output = model(images)
+# convert output probabilities to predicted class
+_, preds_tensor = torch.max(output, 1)
+preds = np.squeeze(preds_tensor.numpy()) if not train_on_gpu else np.squeeze(preds_tensor.cpu().numpy())
+
+# plot the images in the batch, along with predicted and true labels
+fig = plt.figure(figsize=(25, 4))
+for idx in np.arange(20):
+    ax = fig.add_subplot(2, 20/2, idx+1, xticks=[], yticks=[])
+    imshow(images[idx] if not train_on_gpu else images[idx].cpu())
+    ax.set_title("{} ({})".format(classes[preds[idx]], classes[labels[idx]]),
+                 color=("green" if preds[idx]==labels[idx].item() else "red"))
+
+```
 
 ### 1.11 Data Augmentation
 
@@ -655,12 +968,336 @@ Summary of approaches:
 	- Re-train the network from the scratch with random weights.
 	- Or: perform as in case 3.
 
+More notes on transfer learning: [CS231n Stanford course notes](https://cs231n.github.io/transfer-learning/)
+
 ### 3.2 Flower Classification Example
 
+The notebooks in 
 
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/transfer-learning`
+
+contain an example of transfer learning in which the last layer of the VGG architecture is modified to classify 5 flower species.
+
+![VGG16 architecture](./pics/vgg_16_architecture.png)
+
+The dataset must be dowloaded and copied to the notebook folder:
+
+[Download flower dataset](https://s3.amazonaws.com/video.udacity-data.com/topher/2018/September/5baa60a0_flower-photos/flower-photos.zip).
+
+In the following, the code of the notebook is added, divided in 6 sections:
+
+1. Load and Transform our Data
+2. Data Loaders and Visualization
+3. **Define and Modify the Model**
+4. Training
+5. Testing
+6. Visualize Sample Test Results
+
+
+```python
+import os
+import numpy as np
+import torch
+
+import torchvision
+from torchvision import datasets, models, transforms
+import matplotlib.pyplot as plt
+
+%matplotlib inline
+
+# check if CUDA is available
+train_on_gpu = torch.cuda.is_available()
+
+if not train_on_gpu:
+    print('CUDA is not available.  Training on CPU ...')
+else:
+    print('CUDA is available!  Training on GPU ...')
+
+### -- 1. Load and Transform our Data
+
+# Download from:
+# https://s3.amazonaws.com/video.udacity-data.com/topher/2018/September/5baa60a0_flower-photos/flower-photos.zip
+# 
+# Copy the unzipped folder to the notebook folder: flower_photos
+# and make sure that inside there are train and test folders
+# each with 5 class subfolders:
+
+# root/class_1/xxx.png
+# root/class_1/xxy.png
+# root/class_1/xxz.png
+
+# root/class_2/123.png
+# root/class_2/nsdf3.png
+# root/class_2/asd932_.png
+
+# define training and test data directories
+data_dir = 'flower_photos/'
+train_dir = os.path.join(data_dir, 'train/')
+test_dir = os.path.join(data_dir, 'test/')
+
+# classes are folders in each directory with these names
+classes = ['daisy', 'dandelion', 'roses', 'sunflowers', 'tulips']
+
+# load and transform data using ImageFolder
+
+# VGG-16 Takes 224x224 images as input, so we resize all of them
+data_transform = transforms.Compose([transforms.RandomResizedCrop(224), 
+                                      transforms.ToTensor()])
+
+train_data = datasets.ImageFolder(train_dir, transform=data_transform)
+test_data = datasets.ImageFolder(test_dir, transform=data_transform)
+
+# print out some data stats
+print('Num training images: ', len(train_data))
+print('Num test images: ', len(test_data))
+
+### -- 2. Data Loaders and Visualization
+
+# define dataloader parameters
+batch_size = 20
+num_workers=0
+
+# prepare data loaders
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, 
+                                           num_workers=num_workers, shuffle=True)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, 
+                                          num_workers=num_workers, shuffle=True)
+
+# Visualize some sample data
+
+# obtain one batch of training images
+dataiter = iter(train_loader)
+images, labels = dataiter.next()
+images = images.numpy() # convert images to numpy for display
+
+# plot the images in the batch, along with the corresponding labels
+fig = plt.figure(figsize=(25, 4))
+for idx in np.arange(20):
+    ax = fig.add_subplot(2, 20/2, idx+1, xticks=[], yticks=[])
+    plt.imshow(np.transpose(images[idx], (1, 2, 0)))
+    ax.set_title(classes[labels[idx]])
+
+### -- 3. Define and Modify the Model
+
+# Load the pretrained model from pytorch
+vgg16 = models.vgg16(pretrained=True)
+
+# print out the model structure
+print(vgg16)
+
+print(vgg16.classifier[6].in_features) # 4096
+print(vgg16.classifier[6].out_features) # 1000
+
+# Freeze training for all "features" layers
+for param in vgg16.features.parameters():
+    param.requires_grad = False
+
+# Modify only last layer
+# Map to the number of classes we want to predict
+import torch.nn as nn
+
+n_inputs = vgg16.classifier[6].in_features
+
+# add last linear layer (n_inputs -> 5 flower classes)
+# new layers automatically have requires_grad = True
+last_layer = nn.Linear(n_inputs, len(classes))
+
+vgg16.classifier[6] = last_layer
+
+# if GPU is available, move the model to GPU
+if train_on_gpu:
+    vgg16.cuda()
+
+# check to see that your last layer produces the expected number of outputs
+print(vgg16.classifier[6].out_features)
+#print(vgg16)
+
+import torch.optim as optim
+
+# specify loss function: categorical cross-entropy
+# CrossEntropyLoss because the last layer has no activation
+criterion = nn.CrossEntropyLoss()
+
+# specify optimizer (stochastic gradient descent) and learning rate = 0.001
+# ONLY vgg16.classifier.parameters()
+optimizer = optim.SGD(vgg16.classifier.parameters(), lr=0.001)
+
+### -- 4. Training
+
+# Since we have the pre-trained model and we are training only the classifier,
+# probably not that much epochs are necessary.
+# However, these are a lot of parameters; thus, try to train on a CUDA.
+
+# number of epochs to train the model
+n_epochs = 2
+
+for epoch in range(1, n_epochs+1):
+
+    # keep track of training and validation loss
+    train_loss = 0.0
+    
+    ###################
+    # train the model #
+    ###################
+    # model by default is set to train
+    for batch_i, (data, target) in enumerate(train_loader):
+        # move tensors to GPU if CUDA is available
+        if train_on_gpu:
+            data, target = data.cuda(), target.cuda()
+        # clear the gradients of all optimized variables
+        optimizer.zero_grad()
+        # forward pass: compute predicted outputs by passing inputs to the model
+        output = vgg16(data)
+        # calculate the batch loss
+        loss = criterion(output, target)
+        # backward pass: compute gradient of the loss with respect to model parameters
+        loss.backward()
+        # perform a single optimization step (parameter update)
+        optimizer.step()
+        # update training loss 
+        train_loss += loss.item()
+        
+        if batch_i % 20 == 19:    # print training loss every specified number of mini-batches
+            print('Epoch %d, Batch %d loss: %.16f' %
+                  (epoch, batch_i + 1, train_loss / 20))
+            train_loss = 0.0
+
+### -- 5. Testing
+
+# track test loss 
+# over 5 flower classes
+test_loss = 0.0
+class_correct = list(0. for i in range(5))
+class_total = list(0. for i in range(5))
+
+vgg16.eval() # eval mode
+
+# iterate over test data
+for data, target in test_loader:
+    # move tensors to GPU if CUDA is available
+    if train_on_gpu:
+        data, target = data.cuda(), target.cuda()
+    # forward pass: compute predicted outputs by passing inputs to the model
+    output = vgg16(data)
+    # calculate the batch loss
+    loss = criterion(output, target)
+    # update  test loss 
+    test_loss += loss.item()*data.size(0)
+    # convert output probabilities to predicted class
+    _, pred = torch.max(output, 1)    
+    # compare predictions to true label
+    correct_tensor = pred.eq(target.data.view_as(pred))
+    correct = np.squeeze(correct_tensor.numpy()) if not train_on_gpu else np.squeeze(correct_tensor.cpu().numpy())
+    # calculate test accuracy for each object class
+    for i in range(batch_size):
+        label = target.data[i]
+        class_correct[label] += correct[i].item()
+        class_total[label] += 1
+
+# calculate avg test loss
+test_loss = test_loss/len(test_loader.dataset)
+print('Test Loss: {:.6f}\n'.format(test_loss))
+
+for i in range(5):
+    if class_total[i] > 0:
+        print('Test Accuracy of %5s: %2d%% (%2d/%2d)' % (
+            classes[i], 100 * class_correct[i] / class_total[i],
+            np.sum(class_correct[i]), np.sum(class_total[i])))
+    else:
+        print('Test Accuracy of %5s: N/A (no training examples)' % (classes[i]))
+
+print('\nTest Accuracy (Overall): %2d%% (%2d/%2d)' % (
+    100. * np.sum(class_correct) / np.sum(class_total),
+    np.sum(class_correct), np.sum(class_total)))
+
+# 74% overall accuracy
+
+### -- 6. Visualize Sample Test Results
+
+# obtain one batch of test images
+dataiter = iter(test_loader)
+images, labels = dataiter.next()
+images.numpy()
+
+# move model inputs to cuda, if GPU available
+if train_on_gpu:
+    images = images.cuda()
+
+# get sample outputs
+output = vgg16(images)
+# convert output probabilities to predicted class
+_, preds_tensor = torch.max(output, 1)
+preds = np.squeeze(preds_tensor.numpy()) if not train_on_gpu else np.squeeze(preds_tensor.cpu().numpy())
+
+# plot the images in the batch, along with predicted and true labels
+fig = plt.figure(figsize=(25, 4))
+for idx in np.arange(20):
+    ax = fig.add_subplot(2, 20/2, idx+1, xticks=[], yticks=[])
+    plt.imshow(np.transpose(images[idx], (1, 2, 0)))
+    ax.set_title("{} ({})".format(classes[preds[idx]], classes[labels[idx]]),
+                 color=("green" if preds[idx]==labels[idx].item() else "red"))
+
+```
 
 ## 4. Weight Initialization
 
+Weight initialization can affect dramatically the performance of the training.
+
+If we initialize to 0 all the weights, the backpropagation will have a very hard time to discern in which direction the weights should be optimized. Something similar happens if we initialize the weights with a constant value, say 1.
+
+There are two approachs in weight initialization:
+
+- Xavier Glorot initialization: initialize weights to `Uniform(-n,n)`, with `n = 1 / sqrt(in_nodes)`; i.e., a uniform distirbution in the range given by the number of input nodes in the layer (inverse square root).
+
+- Normal initialization: `Normal(mean=0, std=n)`, with `n = 1 / sqrt(in_nodes)`.
+
+The normal distribution tends to be more performant. We can leave the bias values to 0.
+
+Any time we instantiate a layer in Pytorch, a default Xavier Glorot initialization is applied in the background (we can check that in the code); bias values are also set to a unirform random value.
+
+If we want to train large models, we are encouraged to manually initialize the weights with a normal distribution. To that end, we should use the `apply()` method and loop every layer type to initialize their weights:
+
+```python
+# Xavier Glorot Initialization
+def weights_init_uniform(m):
+    classname = m.__class__.__name__
+    # For every Linear layer in a model..
+    # We would need to extend that to any type of layer!
+    if classname.find('Linear') != -1:
+        # get the number of the inputs
+        n = m.in_features
+        y = 1.0/np.sqrt(n)
+        m.weight.data.uniform_(-y, y)
+        m.bias.data.fill_(0)
+
+# Use
+model_unirform = Net()
+model_uniform.apply(weights_init_uniform)
+
+# Normal Initialization
+def weights_init_normal(m):
+    '''Takes in a module and initializes all linear layers with weight
+       values taken from a normal distribution.'''    
+    classname = m.__class__.__name__
+    # For every Linear layer in a model..
+    # We would need to extend that to any type of layer!
+    if classname.find('Linear') != -1:
+        # get the number of the inputs
+        n = m.in_features
+        s = 1.0/np.sqrt(n)
+        m.weight.data.normal_(0,std=s)
+        m.bias.data.fill_(0)    
+
+# Use
+model_normal = Net()
+model_normal.apply(weights_init_normal)
+```
+
+The notebooks in 
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch/) `/weight-initialization`
+
+show how to apply that on a simple MLP that classfies the Fashion-MNIST dataset. There is a helper script which compares models initialized in different ways. Small datasets like the Fashion-MNIST are often used because they are easy and fast to train; thus, we can quickly see how the models behave in few epochs.
 
 
 ## 5. Autoencoders

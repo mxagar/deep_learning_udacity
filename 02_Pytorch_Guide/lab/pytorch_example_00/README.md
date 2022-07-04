@@ -43,3 +43,10 @@ For a more detailed guide on Deep Learning and its implementation and use with P
     - `train` function
     - `save_model` function; `*.pth` file is saved, with architecture information & weight states
     - `load_model` function
+
+## Authorchip
+
+Mikel Sagardia, 2021.  
+No guarantees.
+
+You are free to copy and re-use my code, I'd appreciate if you'd reference my authorship and the sources I have used.

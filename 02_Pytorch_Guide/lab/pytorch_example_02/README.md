@@ -1,10 +1,12 @@
 # CIFAR-10 Dataset: Manual CNN & Transfer Learning on Jetson Nano (CUDA)
 
-This project performs classification on the [CIFAR-10 dataset](https://www.cs.toronto.edu/~kriz/cifar.html). The CIFAR-10 dataset consists of 60000 32x32 colour images in 10 classes, with 6000 images per class. There are 50000 training images and 10000 test images.
+This project performs classification on the [CIFAR-10 dataset](https://www.cs.toronto.edu/~kriz/cifar.html). The CIFAR-10 dataset consists of 60000 32x32 colour images divided into 10 classes, with 6000 images per class. There are 50000 training images and 10000 test images.
 
 The following concepts are explored:
 
 - Manual definition of a CNN similar to LeNet to test classification.
+- Data augmentation.
+- Three splits: train, validation and test.
 - Transfer learning for a better classification.
 - Training on a CUDA device, Jetson Nano per SSH.
 
@@ -35,3 +37,31 @@ I have used several source files to compile this project, mainly from Udacity:
 
 ## Files and content
 
+This repository contains all the code in one notebook:
+
+`cifar10_CNN_transfer_learning.ipynb`
+
+The notebook has the following sections:
+
+1. Imports and Test for CUDA
+2. Load and Augment the Data
+	- 2.1 Visualize the Dataset
+3. Define the CNN Manually
+	- 3.1 Loss Function and Optimizer
+4. Train the Network
+	- 4.1 Load the Best Network
+5. Evaluate the Network
+	- 5.1 Visualize Some Results
+6. Remote Execution on CUDA Device, Jetson Nano
+7. Transfer Learning
+	- 7.1 Load Backbone and Modify Classifier
+	- 7.2 Train
+	- 7.3 Evaluate
+	- 7.4 Visualize Some Results
+
+## Authorship
+
+Mikel Sagardia, 2022.  
+No guarantees.
+
+You are free to copy and re-use my code, I'd appreciate if you'd reference my authorship and the sources I have used.

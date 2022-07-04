@@ -37,4 +37,9 @@ For a more detailed guide on Deep Learning and its implementation and use with P
 - `inference_results.csv`: results of the inference performed in the example.
 - `densenet121_trained_cat_dog.pth`: weights and hyperparameters of the saved model.
 
+## Authorship
 
+Mikel Sagardia, 2021.  
+No guarantees.
+
+You are free to copy and re-use my code, I'd appreciate if you'd reference my authorship and the sources I have used.

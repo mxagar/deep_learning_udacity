@@ -22,3 +22,12 @@ EstevaThrun_CancerDetection_2017.pdf
 	Nature paper by Sebastian Thrun.
 	Fine-tuning is applied to the Inception v3 network to learn the detection of skin cancer.
 	Results on par with dermatologists.
+
+GlorotBengio_WeightInitialization_2010.pdf
+	The popular uniform weight initialization.
+
+He_Rectifiers_2015.pdf
+	ReLU and Co.: why they are important.
+
+IoffeSzegedy_BatchNormalization_2015.pdf
+	Batch normalization.
