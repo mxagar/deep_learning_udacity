@@ -17,3 +17,5 @@ List of examples (they usually build up on the previous):
 - Image Object Detection
 
 - Image Segmentation
+
+- Anomaly Detection

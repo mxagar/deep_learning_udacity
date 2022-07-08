@@ -1353,6 +1353,31 @@ show how to apply that on a simple MLP that classfies the Fashion-MNIST dataset.
 
 ## 5. Autoencoders
 
+One could think of a neural network of any kind (e.g., a CNN) as a compressor: the input signal (e.g., an image) is compressed to a feature vector with with a final layer infers a value.
+
+Autoencoders do this also, but instead of inferring directly from the feature vector, they expand it to the size of the original image. Thus, they have two parts:
+
+- an **encoder** which generates the compressed representation of the input, 
+- and a **decoder**, which inflates the compressed representation to the size of the input.
+
+In the middle, whe have the compressed representation layer.
+
+Autoencoders are trained so that the difference between the input and the output is minimized.
+
+![Autoencoders: main idea](./pics/autoencoder_idea.png)
+
+They have many applications, such as:
+
+- Denoising: since the network learns to menaingfully compress the input, we remain only with the relevant representative information, i.e., the noise is filtered out. Thus, when decoding, we can get the denoised input.
+- We can generate compressed representations and save them instead of the large raw inputs.
+- We can encode the inputs and map them to larger spaces, such as color images from grayscale ones, large resolution images from low resolution ones, etc.
+- ... and may more!
+
+### 5.1 Simple Linear Autoencoder with MNIST
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ autoencoders / linear-autoencoder`
+
+
 
 
 ## 6. Style Transfer
