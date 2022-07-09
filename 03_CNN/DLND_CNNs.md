@@ -21,12 +21,45 @@ Additionally, note that:
 
 ## Overview of Contents
 
-1. Convolutional Neural Networks
-2. Cloud Computing (and GPU Workspaces): See the CVND
-3. Transfer Learning
-4. Weight Initialization
-5. Autoencoders
-6. Style Transfer
+1. [Convolutional Neural Networks](#1.-Convolutional-Neural-Networks)
+	- 1.1 Applications of CNNs
+	- 1.2 CNNs: Introductory Concepts
+	- 1.3 MNIST MLP Exercise
+	- 1.4 Validation
+	- 1.5 MLPs vs CNNs
+	- 1.6 Frequency in Images, Filters
+	- 1.7 Convolutional Layers
+	- 1.8 Capsule Networks
+	- 1.9 Convolutional Layers in Pytorch
+		- `Conv2d`
+		- `MaxPool2d`
+		- Linear Layer and Flattening
+		- Example of a Simple Architecture
+		- Summary of Guidelines
+	- 1.10 CIFAR CNN Example
+	- 1.11 Data Augmentation
+	- 1.12 Popular Networks
+		- LeNet (1989-1998)
+		- AlexNet (2012)
+		- VGG-16 (2014)
+		- ResNet (2015)
+		- Inception v3 (2015)
+		- DenseNet (2018)
+	- 1.13 Visualization of CNN Feature Maps and Filters
+2. [Cloud Computing and Edge Devices](#2.-Cloud-Computing-and-Edge-Devices)
+	- AWS: See the CVND: [computer_vision_udacity(https://github.com/mxagar/computer_vision_udacity) / `02_Cloud_Computing`
+	- 2.1 Excurs: Jetson Nano
+3. [Transfer Learning](3.-Transfer-Learning)
+	- 3.1 Transfer Leearning vs. Fine-Tuning
+	- 3.2 Flower Classification Example
+4. [Weight Initialization](#4.-Weight-Initialization)
+5. [Autoencoders](#5.-Autoencoders)
+	- 5.1 Simple Linear Autoencoder with MNIST - `Simple_Autoencoder_Exercise.ipynb`
+	- 5.2 Autoencoders with CNNs: Upsampling for the Decoder
+		- Transpose Convolutional Layers
+	- 5.3 CNN Autoencoder with MNIST
+	- 5.4 CNN Denoising Autoencoder with MNIST
+6. [Style Transfer](#6.-Style-Transfer)
 7. Project: Dog-Breed Classifier
 8. Deep Learning for Cander Detection
 9. Jobs in Deep Learning
@@ -1369,15 +1402,579 @@ Autoencoders are trained so that the difference between the input and the output
 They have many applications, such as:
 
 - Denoising: since the network learns to menaingfully compress the input, we remain only with the relevant representative information, i.e., the noise is filtered out. Thus, when decoding, we can get the denoised input.
-- We can generate compressed representations and save them instead of the large raw inputs.
+- We can generate compressed representations and save them instead of the large raw inputs. Usually, if we want to compress to store, other approaches are used, though.
 - We can encode the inputs and map them to larger spaces, such as color images from grayscale ones, large resolution images from low resolution ones, etc.
 - ... and may more!
 
-### 5.1 Simple Linear Autoencoder with MNIST
+### 5.1 Simple Linear Autoencoder with MNIST - `Simple_Autoencoder_Exercise.ipynb`
+
+This section is carried out in a notebook from
 
 [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ autoencoders / linear-autoencoder`
 
+An autoencoder which compresses images from the MNIST dataset is created. The key part of the notebook is the definition of the architecture: nothing special needs to be done, just the layers are arranged so that they form an autoencoder: encode image to obtain a compressed representation and the decode it.
 
+The results seem astonishingly good: images are reconstructed very nicely! However, using CNNs with images should get even better results, at least not that blurry -- see next section.
+
+Basic steps in the notebook:
+
+1. Load the Dataset and Visualize Some Images
+2. Define a Very Simple Autoencoder with Linear Layers
+3. Training
+4. Check and Visualize the Results
+
+In the following, a summary of the notebook code:
+
+```python
+# The MNIST datasets are hosted on yann.lecun.com that has moved under CloudFlare protection
+# Run this script to enable the datasets download
+# Reference: https://github.com/pytorch/vision/issues/1938
+from six.moves import urllib
+opener = urllib.request.build_opener()
+opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+urllib.request.install_opener(opener)
+
+### -- 1. Load the Dataset and Visualize Some Images
+
+import torch
+import numpy as np
+from torchvision import datasets
+import torchvision.transforms as transforms
+
+# convert data to torch.FloatTensor
+transform = transforms.ToTensor()
+
+# load the training and test datasets
+train_data = datasets.MNIST(root='~/.pytorch/MNIST_data/', train=True,
+                                   download=True, transform=transform)
+test_data = datasets.MNIST(root='~/.pytorch/MNIST_data/', train=False,
+                                  download=True, transform=transform)
+
+# Create training and test dataloaders
+
+# number of subprocesses to use for data loading
+num_workers = 0
+# how many samples per batch to load
+batch_size = 20
+
+# prepare data loaders
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, num_workers=num_workers)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_workers=num_workers)
+
+import matplotlib.pyplot as plt
+%matplotlib inline
+    
+# obtain one batch of training images
+dataiter = iter(train_loader)
+images, labels = dataiter.next()
+images = images.numpy()
+
+# get one image from the batch
+img = np.squeeze(images[0])
+
+fig = plt.figure(figsize = (5,5)) 
+ax = fig.add_subplot(111)
+ax.imshow(img, cmap='gray')
+
+### -- 2. Define a Very Simple Autoencoder with Linear Layers
+
+import torch.nn as nn
+import torch.nn.functional as F
+
+# define the NN architecture
+class Autoencoder(nn.Module):
+    def __init__(self, encoding_dim):
+        super(Autoencoder, self).__init__()
+        ## encoder ##
+        # 784 -> encoding_dim
+        # The output of this layer of size endoding_dim
+        # will be the middle comprressed representation
+        self.fc1 = nn.Linear(28*28, encoding_dim)
+        
+        ## decoder ##
+        # encoding_dim -> 784
+        # We expand teh compressed representation
+        self.fc2 = nn.Linear(encoding_dim, 28*28)        
+
+    def forward(self, x):
+        # define feedforward behavior 
+        # and scale the *output* layer with a sigmoid activation function
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        # The last activation needs to be a sigmoid
+        # to get values in [0,1]
+        x = torch.sigmoid(x)
+        
+        return x
+
+# initialize the NN
+encoding_dim = 32
+model = Autoencoder(encoding_dim)
+print(model)
+# Autoencoder(
+#   (fc1): Linear(in_features=784, out_features=32, bias=True)
+#   (fc2): Linear(in_features=32, out_features=784, bias=True)
+# )
+
+### -- 3. Training
+
+# Specify loss function
+# MSE: difference of both images done, sum of squared differences, averaged
+criterion = nn.MSELoss()
+
+# specify loss function
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+# number of epochs to train the model
+n_epochs = 20
+
+# The training loss decreases fast and stops decreasing after around 5 epochs
+for epoch in range(1, n_epochs+1):
+    # monitor training loss
+    train_loss = 0.0
+    
+    ###################
+    # train the model #
+    ###################
+    for data in train_loader:
+        # _ stands in for labels, here
+        images, _ = data
+        # flatten images
+        images = images.view(images.size(0), -1)
+        # clear the gradients of all optimized variables
+        optimizer.zero_grad()
+        # forward pass: compute predicted outputs by passing inputs to the model
+        outputs = model(images)
+        # calculate the loss: in this case, it's not the labels which are checked
+        # but the images!
+        loss = criterion(outputs, images)
+        # backward pass: compute gradient of the loss with respect to model parameters
+        loss.backward()
+        # perform a single optimization step (parameter update)
+        optimizer.step()
+        # update running training loss
+        train_loss += loss.item()*images.size(0)
+            
+    # print avg training statistics 
+    train_loss = train_loss/len(train_loader)
+    print('Epoch: {} \tTraining Loss: {:.6f}'.format(
+        epoch, 
+        train_loss
+        ))
+
+### -- 4. Check and Visualize the Results
+
+# obtain one batch of test images
+dataiter = iter(test_loader)
+images, labels = dataiter.next()
+
+images_flatten = images.view(images.size(0), -1)
+# get sample outputs
+output = model(images_flatten)
+# prep images for display
+images = images.numpy()
+
+# output is resized into a batch of images
+output = output.view(batch_size, 1, 28, 28)
+# use detach when it's an output that requires_grad
+output = output.detach().numpy()
+
+# plot the first ten input images and then reconstructed images
+fig, axes = plt.subplots(nrows=2, ncols=10, sharex=True, sharey=True, figsize=(25,4))
+
+# input images on top row, reconstructions on bottom
+for images, row in zip([images, output], axes):
+    for img, ax in zip(images, row):
+        ax.imshow(np.squeeze(img), cmap='gray')
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+
+```
+
+### 5.2 Autoencoders with CNNs: Upsampling for the Decoder
+
+In order to build an Autoencoder for images, we should use CNNs, since they capture the spatial relationships much better. The **encoder** is built by a sequence of `Conv2d` and `MaxPool2d` layers. After several layers, we obtain the compressed representation of the image, which is downsampled.
+
+Then, we need to expand that compressed vector to the size of the image with the **decoder**. To that end, we need to perform some kind of **upsampling**.
+
+One way to achieve upsampling consists in using linear interpolation, such as nearest neighbors (i.e., nearest pixel values are copied); the result sometimes is not that good, because we loose variety in pixel values. Upsampling with linear interpolation is often combined with convolutions that do not decrease the image size (with proper padding) to modify the depth of the image.
+
+![Upsampling: Nearest neighbors](./pics/nearest_neighbors.png)
+
+Another way for getting upsampled images consists in **transpose convolutions**, which have filters with weights that are learned. These are sometimes called *deconvolutions*; but they are not inverse convelutions! They instead expand the image.
+
+#### Transpose Convolutional Layers
+
+With transose convolutions, the filter is set on the target pixel and multiplied by the weights; instead of summing them, the products are the output pixel values. Thus, we get a patch of pixels from one pixel. Then, we move the stride step in the new image and apply the same to the contiguous pixel in the old image. Depending on the stride, patches might overlap; in that case, the outputs are summed. Then, we can add or substract padding.
+
+![Transpose convolution](./pics/transpose_convolution.png)
+
+Typically, transpose convolutions have filters that are 2x2 and a stride of 2: that accomplishes doubling the size of the image without overlapping patches.
+
+![Transpose convolution](./pics/transpose_convolution_2by2.png)
+
+In summary, the weights of the transpose convolution layer are learned to expand from one pixel to a patch and using 2x2 filters witha stride of 2 doubles the image.
+
+In Pytorch, transpose convolutions are defined with `ConvTranspose2d`:
+
+```python
+import torch.nn as nn
+
+# This is a transpose convolution of 2x2 swith stride 2
+# which upsamples the image to the double size without overlapping.
+# We need to manually specify stride=2,
+# otherwise, default is stride=1!
+# Similarly, note that channels start decreasing by the end,
+# since we are trying to go back to the original image shape!
+nn.ConvTranspose2d(in_channels=16, 
+				   out_channels=4,
+				   kernel_size=2,
+				   stride=2)
+				   #stride=1,
+				   #padding=0,
+				   #output_padding=0,
+				   #groups=1,
+				   #bias=True,
+				   #dilation=1,
+				   #padding_mode='zeros'
+				   #...
+```
+
+### 5.3 CNN Autoencoder with MNIST
+
+This section is carried out in notebooks from
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ autoencoders / convolutional-autoencoder`:
+
+- `Convolutional_Autoencoder_Exercise.ipynb`
+- `Upsampling_Solution.ipynb`
+
+The notebook is basically the same as the previous one, but this time a **convolutional autoencoder** needs to be implemented.
+
+First, the following the given architecture is used, applying **transpose convolutions**; then **upsampling** is applied.
+
+![Architecture of the Convolutional Autoencoder](./pics/conv_enc_MNIST.png)
+
+In both cases, the differential significant new part is the architecture definition, shown below.
+
+**Solution with CNN + Transpose Convolutions**:
+
+```python
+import torch.nn as nn
+import torch.nn.functional as F
+
+# define the NN architecture
+class ConvAutoencoder(nn.Module):
+    def __init__(self):
+        super(ConvAutoencoder, self).__init__()
+        ## encoder layers ##
+
+        # 1 input image channel (grayscale)
+        # 16 output channels/feature maps
+        # 3x3 square convolution kernel
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out: (input_size + 2*1 - 3)/1 + 1 = input_size = 28
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, stride=1, kernel_size=3, padding=1)
+
+        # maxpool layer
+        # pool with kernel_size=2, stride=2
+        # output size: W_in / 2 = 14
+        # Note: there is no relu after MaxPool2d!
+        self.pool = nn.MaxPool2d(2, 2)
+
+        # 16 input image channel (grayscale)
+        # 4 output channels/feature maps
+        # 3x3 square convolution kernel
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out: (W_in + 2*1 - 3)/1 + 1 = W_in = 14
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=4, stride=1, kernel_size=3, padding=1)
+        
+        ## decoder layers ##
+        # This is a transpose convolution of 2x2 swith stride 2
+        # which upsamples the image to the double size without overlapping.
+        # We need to manually specify stride=2,
+        # otherwise, default is stride=1!
+        # Similarly, note that channels start decreasing by the end,
+        # since we are trying to go back to the original image shape!
+        self.t_conv1 = nn.ConvTranspose2d(in_channels=4,
+                                          out_channels=16,
+                                          kernel_size=2,
+                                          stride=2)
+
+        self.t_conv2 = nn.ConvTranspose2d(in_channels=16,
+                                          out_channels=1,
+                                          kernel_size=2,
+                                          stride=2)
+
+    def forward(self, x):
+        ## encode ##
+        
+        # conv 1 with relu + pool layer
+        x = self.pool(F.relu(self.conv1(x)))
+        # conv 2 with relu + pool layer
+        x = self.pool(F.relu(self.conv2(x))) # compressed representation
+        
+        ## decode ##
+
+        x = F.relu(self.t_conv1(x))
+        # output layer (with sigmoid for scaling from 0 to 1)
+        x = torch.sigmoid(self.t_conv2(x))
+                
+        return x
+
+# initialize the NN
+model = ConvAutoencoder()
+print(model)
+# ConvAutoencoder(
+#   (conv1): Conv2d(1, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (pool): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+#   (conv2): Conv2d(16, 4, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (t_conv1): ConvTranspose2d(4, 16, kernel_size=(2, 2), stride=(2, 2))
+#   (t_conv2): ConvTranspose2d(16, 1, kernel_size=(2, 2), stride=(2, 2))
+# )
+```
+
+The result is better than the one of MLPs, but there are some small artifacts in some images. These artifacts are solved in this case using **upsampling**. Note that `upsample` is a function, hence, we don't need to define it as a layer. However, we do need to add a `Conv2d` for each `upsample` in order to modify the depth of the imges/feature maps.
+
+```python
+import torch.nn as nn
+import torch.nn.functional as F
+
+# define the NN architecture
+class ConvAutoencoder(nn.Module):
+    def __init__(self):
+        super(ConvAutoencoder, self).__init__()
+        ## encoder layers ##
+        # conv layer (depth from 1 --> 16), 3x3 kernels
+        self.conv1 = nn.Conv2d(1, 16, 3, padding=1)  
+        # conv layer (depth from 16 --> 8), 3x3 kernels
+        self.conv2 = nn.Conv2d(16, 4, 3, padding=1)
+        # pooling layer to reduce x-y dims by two; kernel and stride of 2
+        self.pool = nn.MaxPool2d(2, 2)
+        
+        ## decoder layers ##
+        # Upsampling with interpolation is applied with a function,
+        # but we need to apply convolutions on top in order to
+        # modify the number of channels.
+        self.conv4 = nn.Conv2d(4, 16, 3, padding=1)
+        self.conv5 = nn.Conv2d(16, 1, 3, padding=1)
+        
+
+    def forward(self, x):
+        # add layer, with relu activation function
+        # and maxpooling after
+        x = F.relu(self.conv1(x))
+        x = self.pool(x)
+        # add hidden layer, with relu activation function
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)  # compressed representation
+        
+        ## decoder 
+        # Upsample, followed by a conv layer, with relu activation function.
+        # This function is called `interpolate` in some PyTorch versions.
+        # The convolution does not change the image size,
+        # but it modifies the depth (i.e., the number of channels).
+        x = F.upsample(x, scale_factor=2, mode='nearest')
+        x = F.relu(self.conv4(x))
+        # Upsample again, output should have a sigmoid applied.
+        x = F.upsample(x, scale_factor=2, mode='nearest')
+        x = F.sigmoid(self.conv5(x))
+        
+        return x
+
+# initialize the NN
+model = ConvAutoencoder()
+print(model)
+# ConvAutoencoder(
+#   (conv1): Conv2d(1, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (conv2): Conv2d(16, 4, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (pool): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+#   (conv4): Conv2d(4, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (conv5): Conv2d(16, 1, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+# )
+```
+
+### 5.4 CNN Denoising Autoencoder with MNIST
+
+This section uses a notebook from 
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ autoencoders / denoising-autoencoder`.
+
+The code is very similar to the previous MNIST notebooks; however, this time we train the network to remove noise from MNSIT images. To achieve that a complex convolutional autoencoder is defined: 
+
+- Three convolutional layers starting witha peth of 32 are defined in the encoder
+- Three transpose convolutions are defined for the ddecoder.
+
+Additionally, during training, noise is added to the images fed to the network; then, the output is compared to the original noise-free images in the loss computation. Thus, we optimize the network to remove noise.
+
+```python
+noisy_imgs = images + noise_factor * torch.randn(*images.shape)
+outputs = model(noisy_imgs)
+loss = criterion(outputs, images)
+```
+
+In the following, the three most important parts of the notebook are collected:
+
+1. Network Definition
+2. Training
+3. Check Results
+
+The rest of the parts is similar (if not identical) to the rest of the notebooks in the section.
+
+```python
+
+### -- Network Definition
+
+import torch.nn as nn
+import torch.nn.functional as F
+
+# define the NN architecture
+# we should use at least 3 convolutions in the encoder and similarly 3 steps in the decoder
+# we should directly generate a depth of 32 in the first encoder convolution
+class ConvDenoiser(nn.Module):
+    def __init__(self):
+        super(ConvDenoiser, self).__init__()
+        ## encoder layers ##
+        # conv layer (depth from 1 --> 32), 3x3 kernels
+        self.conv1 = nn.Conv2d(1, 32, 3, padding=1)  
+        # conv layer (depth from 32 --> 16), 3x3 kernels
+        self.conv2 = nn.Conv2d(32, 16, 3, padding=1)
+        # conv layer (depth from 16 --> 8), 3x3 kernels
+        self.conv3 = nn.Conv2d(16, 8, 3, padding=1)
+        # pooling layer to reduce x-y dims by two; kernel and stride of 2
+        self.pool = nn.MaxPool2d(2, 2)
+        
+        ## decoder layers ##
+        # transpose layer, a kernel of 2 and a stride of 2 will increase the spatial dims by 2
+        self.t_conv1 = nn.ConvTranspose2d(8, 8, 3, stride=2)  # kernel_size=3 to get to a 7x7 image output
+        # two more transpose layers with a kernel of 2
+        self.t_conv2 = nn.ConvTranspose2d(8, 16, 2, stride=2)
+        self.t_conv3 = nn.ConvTranspose2d(16, 32, 2, stride=2)
+        # one, final, normal conv layer to decrease the depth
+        self.conv_out = nn.Conv2d(32, 1, 3, padding=1)
+
+
+    def forward(self, x):
+        ## encode ##
+        # add hidden layers with relu activation function
+        # and maxpooling after
+        x = F.relu(self.conv1(x))
+        x = self.pool(x)
+        # add second hidden layer
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+        # add third hidden layer
+        x = F.relu(self.conv3(x))
+        x = self.pool(x)  # compressed representation
+        
+        ## decode ##
+        # add transpose conv layers, with relu activation function
+        x = F.relu(self.t_conv1(x))
+        x = F.relu(self.t_conv2(x))
+        x = F.relu(self.t_conv3(x))
+        # transpose again, output should have a sigmoid applied
+        x = torch.sigmoid(self.conv_out(x))
+                
+        return x
+
+# initialize the NN
+model = ConvDenoiser()
+print(model)
+# ConvDenoiser(
+#   (conv1): Conv2d(1, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (conv2): Conv2d(32, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (conv3): Conv2d(16, 8, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+#   (pool): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+#   (t_conv1): ConvTranspose2d(8, 8, kernel_size=(3, 3), stride=(2, 2))
+#   (t_conv2): ConvTranspose2d(8, 16, kernel_size=(2, 2), stride=(2, 2))
+#   (t_conv3): ConvTranspose2d(16, 32, kernel_size=(2, 2), stride=(2, 2))
+#   (conv_out): Conv2d(32, 1, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+# )
+
+### -- Training
+
+# specify loss function
+criterion = nn.MSELoss()
+
+# specify loss function
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+# number of epochs to train the model
+n_epochs = 20
+
+# for adding noise to images
+noise_factor=0.5
+
+for epoch in range(1, n_epochs+1):
+    # monitor training loss
+    train_loss = 0.0
+    
+    ###################
+    # train the model #
+    ###################
+    for data in train_loader:
+        # _ stands in for labels, here
+        # no need to flatten images
+        images, _ = data
+        
+        ## add random noise to the input images
+        noisy_imgs = images + noise_factor * torch.randn(*images.shape)
+        # Clip the images to be between 0 and 1
+        noisy_imgs = np.clip(noisy_imgs, 0., 1.)
+                
+        # clear the gradients of all optimized variables
+        optimizer.zero_grad()
+        ## forward pass: compute predicted outputs by passing *noisy* images to the model
+        outputs = model(noisy_imgs)
+        # calculate the loss
+        # the "target" is still the original, not-noisy images
+        loss = criterion(outputs, images)
+        # backward pass: compute gradient of the loss with respect to model parameters
+        loss.backward()
+        # perform a single optimization step (parameter update)
+        optimizer.step()
+        # update running training loss
+        train_loss += loss.item()*images.size(0)
+            
+    # print avg training statistics 
+    train_loss = train_loss/len(train_loader)
+    print('Epoch: {} \tTraining Loss: {:.6f}'.format(
+        epoch, 
+        train_loss
+        ))
+
+### -- Check Results
+
+# obtain one batch of test images
+dataiter = iter(test_loader)
+images, labels = dataiter.next()
+
+# add noise to the test images
+noisy_imgs = images + noise_factor * torch.randn(*images.shape)
+noisy_imgs = np.clip(noisy_imgs, 0., 1.)
+
+# get sample outputs
+output = model(noisy_imgs)
+# prep images for display
+noisy_imgs = noisy_imgs.numpy()
+
+# output is resized into a batch of iages
+output = output.view(batch_size, 1, 28, 28)
+# use detach when it's an output that requires_grad
+output = output.detach().numpy()
+
+# plot the first ten input images and then reconstructed images
+fig, axes = plt.subplots(nrows=2, ncols=10, sharex=True, sharey=True, figsize=(25,4))
+
+# input images on top row, reconstructions on bottom
+for noisy_imgs, row in zip([noisy_imgs, output], axes):
+    for img, ax in zip(noisy_imgs, row):
+        ax.imshow(np.squeeze(img), cmap='gray')
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+
+```
 
 
 ## 6. Style Transfer
