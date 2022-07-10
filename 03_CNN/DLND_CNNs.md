@@ -1979,6 +1979,104 @@ for noisy_imgs, row in zip([noisy_imgs, output], axes):
 
 ## 6. Style Transfer
 
+The key of style transfer consists in separating the content and the style of an image. When we achieve this, we can merge the content from an image with the style of another one.
+
+With CNNs, the deeper we go in the layers, the more relevant becomes the **content** in the feature maps. Max pooling layers play a funamental role in discardding irrelevant information for classification. In style transfer, the deep feature maps are often called **content representations**.
+
+**Style**, on the other hand, can be understood as the brush trokes of a painting: texture, colors, curvatures, etc. Thus, in order to detect style, a fetaure space designed to capture that detect such features (texture, colors, curvatures) is used; concretely, this space looks for **correlations between the feature maps**. In other words, we see which features in one map are related with another map in the same layer. If there are common features (i.e., high correlations), then, these feature can be understood as part of the image style.
+
+In style transfer we have three images: 
+
+1. The **content image**: object shape and arrangement are taken.
+2. The **style image**: colors and textures are taken.
+3. The **target image**: the content of one and the style of the other are merged.
+
+![Style Transfer: Content and style images](./pics/style_transfer.png)
+
+The rest of the section is based on the paper by Gatys et al. that can be found in the `literature/` forlder. The notebooks in 
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ autoencoders / style-transfer`
+
+apply the insights of the paper to perform style transfer using the VGG19 network.
+
+### 6.1 VGG19 and Content Loss
+
+We are going to use the VGG19 network to extract style and content from images. The VGG19 is composed of 19 layers; layers are grouped in stacks which contain several convolutions followed by max-pooling.
+
+![VGG19](./pics/vgg19_convlayers.png)
+
+The feature layer stacks are: `conv1`, `conv2`, `conv3`, `conv4`, `conv5`. Recall: the deeper we go, the closer we are to the image content.
+
+In particular, Gatys et al. take the layer `conv4_2` from the 4th stack to be the **content representation** layer.
+
+The idea is that the content representation of the **content image** and the **target image** should be similar, no matter the style of both. For that the **content loss** is defined as the MSE of the content representation maps of both images. Our aim is to minimize this loss. However, we do not update the weights to that end, but we change the target image so that the content loss is minimized!
+
+![Content Loss](./pics/content_loss.png)
+
+
+### 6.2 Style of an Image: The Gram Matrix
+
+Similarly as we compare the content representation of the target and the content image, we need to compare the style representation of the style and the target image. Gatys et al. found that the visually most appealing results emerged observing the layers `conv1_1`, `conv2_1`, `conv3_1`, `conv4_1`, `conv5_1`.
+
+![Style layers](./pics/style_layers.png)
+
+Note that these layers have different sizes, thus, we obtain multi-scale style features.
+
+In order to capture style, the image is passed, the feature maps are computed and the correlations between them are calculated; high correlations indicate style. In order to compute the correlations, the **Gram matrix** is formed for each of the feature maps.
+
+Let's say a selected layer has the shape `w x h x d`; we have `d` feature maps in it (depth of channels). To compute ther Gram matrix of that set of feature maps, we flatten or vectorize them, so that each map is a row in a matrix `M`. The flattening is done in row-major order:
+
+```
+M = [[row_11, row_12, ..., row_1h],
+	 [row_21, row_22, ..., row_2h],
+	 ...	
+	 [row_d1, row_d2, ..., row_dh]]
+
+M: (w*h) x d
+```
+
+![Vectorized feature maps](./pics/vectorized_feature_maps.png)
+
+Then, the Gram matrix is:
+
+```
+G = M * M^T
+
+G: d x d
+```
+
+![Gram matrix](./pics/gram_matrix.png)
+
+Notes:
+
+- The Gram matrix is always square and its size is the number of channels / depth of the layer, i.e., the number of feature maps in a layer.
+- Each value of the Gram matrix measures the similarity between two different feature maps in the same layer, beacuse its the dot product of their flattened vectors.
+- The matrix M contains non-localized information of the feature maps, i.e., information that would be there even if we shuffled the image content in the space! Thus, that is related to the style.
+- The Gram matrix is a popular way of capturing style, but there are other ways, too.
+
+Now, similarly as with the content, we pass the target and the stlye image, compute their Gram matrices, and calculate the style loss with the difference between them, using the MSE metric. Note that in the case of the style, each of the selected feature maps gets a weighting factor. 
+
+![Style loss](./pics/style_loss.png)
+
+This loss is used to change the target image so that the style loss is minimized.
+
+#### Total Loss
+
+In summary, we have two losses and the total loss is the sum of both:
+
+- the content loss is obtained passing the target and the content image throgh VGG19
+- the style loss in obtained passing the target and the style image through VGG19
+
+We compute the total loss and use backpropagation & optimization to obtain the changes necessary in the target image so that the total loss is minimized.
+
+![Total loss](./pics/total_loss.png)
+
+However, note that both losses are weighted, too: `alpha` for the content weight, `beta` for the style weight. In practice, a ratio of `alpha/beta = 0.1` leads to nice visual results. That is: the loss of the style has 10x more weight than that of the content. Larger `beta` values lead to images that have more style and less traces of the content.
+
+![Total loss](./pics/total_loss_weights.png)
+
+### 6.3 Style Transfer in Pytorch: Notebook
+
 
 
 ## 7. Project: Dog-Breed Classifier

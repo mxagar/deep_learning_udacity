@@ -31,3 +31,6 @@ He_Rectifiers_2015.pdf
 
 IoffeSzegedy_BatchNormalization_2015.pdf
 	Batch normalization.
+
+Gatys_ImageStyleTransfer_2016.pdf
+	Style transfer.
