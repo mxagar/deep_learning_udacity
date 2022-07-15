@@ -49,6 +49,7 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - Notes on Fine Tuning
 10. Convolutional Neural Networks (CNN)
 11. Weight Initialization
+12. Using the Jetson Nano (CUDA)
 
 Appendices:
 
@@ -415,6 +416,21 @@ a = 1/(1+torch.exp(-z)) # sigmoid activation
 # `view` (just a view), reshape, resize_
 # prefer .view() if the new shape is only for the current operation
 z = torch.matmul(w1.view(1,5),x) + b
+# If the matrices are batched, multiplication is done for each batch
+# >>> tensor1 = torch.randn(10, 3, 4)
+# >>> tensor2 = torch.randn(10, 4, 5)
+# >>> torch.matmul(tensor1, tensor2).size()
+# torch.Size([10, 3, 5])
+
+# Transpose: x.t(), or:
+# >>> x = torch.randn(2, 3)
+# >>> x
+# tensor([[ 1.0028, -0.9893,  0.5809],
+#         [-0.1669,  0.7299,  0.4942]])
+# >>> torch.transpose(x, 0, 1) # dimension 0 and 1 swapped
+# tensor([[ 1.0028, -0.1669],
+#         [-0.9893,  0.7299],
+#         [ 0.5809,  0.4942]])
 
 # More operations
 x = torch.rand((3, 2))
@@ -1514,7 +1530,7 @@ inputs, labels = inputs.to(device, dtype=torch.float), labels.to(device, dtype=t
 
 If we get `RuntimeError: Expected object of type torch.FloatTensor but found type torch.cuda.FloatTensor`, then we are mixing tensors that are on different devices.
 
-Check the following file to see how to run python/jupyter via SSH on a Jetson Nano (with a CUDA GPU):
+See Section 12 or check the following file to see how to run python/jupyter via SSH on a Jetson Nano (with a CUDA GPU):
 
 `~/Dropbox/Documentation/howtos/jetson_nano_howto.txt`
 
@@ -1988,6 +2004,69 @@ The notebooks in
 [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch/) `/weight-initialization`
 
 show how to apply that on a simple MLP that classfies the Fashion-MNIST dataset. There is a helper script which compares models initialized in different ways. Small datasets like the Fashion-MNIST are often used because they are easy and fast to train; thus, we can quickly see how the models behave in few epochs.
+
+## 12. Using the Jetson Nano (CUDA)
+
+Notebooks can be executed on a CUDA device via SSH, e.g., on a Jetson Nano. In order to set up the Jetson Nano, we need to follow the steps in 
+
+    ~/Dropbox/Documentation/howtos/jetson_nano_howto.txt
+
+I created the guide following experimenting myself two very important links:
+
+- [Getting Started with Jetson Nano, Medium](https://medium.com/@heldenkombinat/getting-started-with-the-jetson-nano-37af65a07aab)
+- [Getting Started with Jetson Nano, NVIDIA](https://developer.nvidia.com/embedded/learn/get-started-jetson-nano-devkit#intro)
+
+In the following, a basic usage guide is provided; for setup, look at the howto file above.
+
+####  Summary of Installation Steps
+
+- Flash SD image
+- Create account in Jetson Ubuntu (18): mxagar, pw
+- Install basic software
+- Create python environment: `env`
+- Install DL packages in python environment: Pytorch, Torchvision, PIL, OpenCV, etc.
+
+####  How to Connect to Jetson via SSH
+
+    ssh mxagar@jetson-nano.com
+
+#### Connect to a Jupyter Notebook Run on the Jetson from Desktop
+
+Open new Terminal on Mac: start SSH tunneling and leave it open
+    
+    ssh -L 8000:localhost:8888 mxagar@jetson-nano.local
+
+Open new Terminal on Mac (or the same works also): connect to jetson-nano & start jupyter
+        
+    ssh mxagar@jetson-nano.local
+    source ~/python-envs/env/bin/activate
+    cd /your/path
+    jupyter notebook
+        or jupyter-lab
+        in both cases, look for token
+            http://localhost:8888/?token=XXX
+                
+Open new browser on Mac, go to
+     
+    http://localhost:8000
+    insert token XXX
+
+#### SFTP Access
+
+Currently, I cannot access via SFTP the Jetson Nano. Some configuration is needed, which I didn't have time to go through. As a workaround, I clone and pull/push the repositories to the Jetson directly after connecting via SSH.
+
+#### SCP Access
+
+Copy / Transfer file or folder with SCP:
+
+```bash
+# Jetson -> Desktop
+scp mxagar@jetson-nano.local:/path/to/file/on/jetson /folder/on/desktop
+
+# Desktop -> Jetson         
+scp file.txt mxagar@jetson-nano.local:/path/to/folder/on/jetson
+scp -r /local/directory mxagar@jetson-nano.local:/remote/directory
+```
 
 ## Appendix: Lab - Example Projects
 
