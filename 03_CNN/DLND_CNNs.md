@@ -21,49 +21,58 @@ Additionally, note that:
 
 ## Overview of Contents
 
-1. [Convolutional Neural Networks](#1.-Convolutional-Neural-Networks)
-	- 1.1 Applications of CNNs
-	- 1.2 CNNs: Introductory Concepts
-	- 1.3 MNIST MLP Exercise
-	- 1.4 Validation
-	- 1.5 MLPs vs CNNs
-	- 1.6 Frequency in Images, Filters
-	- 1.7 Convolutional Layers
-	- 1.8 Capsule Networks
-	- 1.9 Convolutional Layers in Pytorch
-		- `Conv2d`
-		- `MaxPool2d`
-		- Linear Layer and Flattening
-		- Example of a Simple Architecture
-		- Summary of Guidelines
-	- 1.10 CIFAR CNN Example
-	- 1.11 Data Augmentation
-	- 1.12 Popular Networks
-		- LeNet (1989-1998)
-		- AlexNet (2012)
-		- VGG-16 (2014)
-		- ResNet (2015)
-		- Inception v3 (2015)
-		- DenseNet (2018)
-	- 1.13 Visualization of CNN Feature Maps and Filters
-2. [Cloud Computing and Edge Devices](#2.-Cloud-Computing-and-Edge-Devices)
-	- AWS: See the CVND: [computer_vision_udacity(https://github.com/mxagar/computer_vision_udacity) / `02_Cloud_Computing`
-	- 2.1 Excurs: Jetson Nano
-3. [Transfer Learning](3.-Transfer-Learning)
-	- 3.1 Transfer Leearning vs. Fine-Tuning
-	- 3.2 Flower Classification Example
-4. [Weight Initialization](#4.-Weight-Initialization)
-5. [Autoencoders](#5.-Autoencoders)
-	- 5.1 Simple Linear Autoencoder with MNIST - `Simple_Autoencoder_Exercise.ipynb`
-	- 5.2 Autoencoders with CNNs: Upsampling for the Decoder
-		- Transpose Convolutional Layers
-	- 5.3 CNN Autoencoder with MNIST
-	- 5.4 CNN Denoising Autoencoder with MNIST
-6. [Style Transfer](#6.-Style-Transfer)
-7. Project: Dog-Breed Classifier
-8. Deep Learning for Cander Detection
-9. Jobs in Deep Learning
-10. Project: Optimize Your GitHub Profile
+- [Convolutional Neural Networks (CNNs)](#convolutional-neural-networks-cnns)
+  - [Overview of Contents](#overview-of-contents)
+  - [1. Convolutional Neural Networks](#1-convolutional-neural-networks)
+    - [1.1 Applications of CNNs](#11-applications-of-cnns)
+    - [1.2 CNNs: Introductory Concepts](#12-cnns-introductory-concepts)
+    - [1.3 MNIST MLP Exercise](#13-mnist-mlp-exercise)
+    - [1.4 Validation](#14-validation)
+    - [1.5 MLPs vs CNNs](#15-mlps-vs-cnns)
+    - [1.6 Frequency in Images, Filters](#16-frequency-in-images-filters)
+    - [1.7 Convolutional Layers](#17-convolutional-layers)
+    - [1.8 Capsule Networks](#18-capsule-networks)
+    - [1.9 Convolutional Layers in Pytorch](#19-convolutional-layers-in-pytorch)
+      - [`Conv2d`](#conv2d)
+      - [`MaxPool2d`](#maxpool2d)
+      - [Linear Layer and Flattening](#linear-layer-and-flattening)
+      - [Example of a Simple Architecture](#example-of-a-simple-architecture)
+      - [Summary of Guidelines](#summary-of-guidelines)
+    - [1.10 CIFAR CNN Example](#110-cifar-cnn-example)
+    - [1.11 Data Augmentation](#111-data-augmentation)
+    - [1.12 Popular Networks](#112-popular-networks)
+      - [LeNet (1989-1998)](#lenet-1989-1998)
+      - [AlexNet (2012)](#alexnet-2012)
+      - [VGG-16 (2014)](#vgg-16-2014)
+      - [ResNet (2015)](#resnet-2015)
+      - [Inception v3 (2015)](#inception-v3-2015)
+      - [DenseNet (2018)](#densenet-2018)
+    - [1.13 Visualization of CNN Feature Maps and Filters](#113-visualization-of-cnn-feature-maps-and-filters)
+  - [2. Cloud Computing and Edge Devices](#2-cloud-computing-and-edge-devices)
+    - [2.1 Excurs: Jetson Nano](#21-excurs-jetson-nano)
+      - [Summary of Installation Steps](#summary-of-installation-steps)
+      - [How to Connect to Jetson via SSH](#how-to-connect-to-jetson-via-ssh)
+      - [Connect to a Jupyter Notebook Run on the Jetson from Desktop](#connect-to-a-jupyter-notebook-run-on-the-jetson-from-desktop)
+      - [SFTP Access](#sftp-access)
+  - [3. Transfer Learning](#3-transfer-learning)
+    - [3.1 Transfer Leearning vs. Fine-Tuning](#31-transfer-leearning-vs-fine-tuning)
+    - [3.2 Flower Classification Example](#32-flower-classification-example)
+  - [4. Weight Initialization](#4-weight-initialization)
+  - [5. Autoencoders](#5-autoencoders)
+    - [5.1 Simple Linear Autoencoder with MNIST - `Simple_Autoencoder_Exercise.ipynb`](#51-simple-linear-autoencoder-with-mnist---simple_autoencoder_exerciseipynb)
+    - [5.2 Autoencoders with CNNs: Upsampling for the Decoder](#52-autoencoders-with-cnns-upsampling-for-the-decoder)
+      - [Transpose Convolutional Layers](#transpose-convolutional-layers)
+    - [5.3 CNN Autoencoder with MNIST](#53-cnn-autoencoder-with-mnist)
+    - [5.4 CNN Denoising Autoencoder with MNIST](#54-cnn-denoising-autoencoder-with-mnist)
+  - [6. Style Transfer](#6-style-transfer)
+    - [6.1 VGG19 and Content Loss](#61-vgg19-and-content-loss)
+    - [6.2 Style of an Image: The Gram Matrix](#62-style-of-an-image-the-gram-matrix)
+      - [Total Loss](#total-loss)
+    - [6.3 Style Transfer in Pytorch: Notebook](#63-style-transfer-in-pytorch-notebook)
+  - [7. Project: Dog-Breed Classifier](#7-project-dog-breed-classifier)
+  - [8. Deep Learning for Cancer Detection](#8-deep-learning-for-cancer-detection)
+  - [9. Jobs in Deep Learning](#9-jobs-in-deep-learning)
+  - [10. Project: Optimize Your GitHub Profile](#10-project-optimize-your-github-profile)
 
 ## 1. Convolutional Neural Networks
 
@@ -991,6 +1000,19 @@ Open new browser on Mac, go to
 #### SFTP Access
 
 Currently, I cannot access via SFTP the Jetson Nano. Some configuration is needed, which I didn't have time to go through. As a workaround, I clone and pull/push the repositories to the Jetson directly after connecting via SSH.
+
+#### SCP Access
+
+Copy / Transfer file or folder with SCP:
+
+```bash
+# Jetson -> Desktop
+scp mxagar@jetson-nano.local:/path/to/file/on/jetson /folder/on/desktop
+
+# Desktop -> Jetson			
+scp file.txt mxagar@jetson-nano.local:/path/to/folder/on/jetson
+scp -r /local/directory mxagar@jetson-nano.local:/remote/directory
+```
 
 ## 3. Transfer Learning
 
@@ -1981,9 +2003,9 @@ for noisy_imgs, row in zip([noisy_imgs, output], axes):
 
 The key of style transfer consists in separating the content and the style of an image. When we achieve this, we can merge the content from an image with the style of another one.
 
-With CNNs, the deeper we go in the layers, the more relevant becomes the **content** in the feature maps. Max pooling layers play a funamental role in discardding irrelevant information for classification. In style transfer, the deep feature maps are often called **content representations**.
+With CNNs, the deeper we go in the layers, the more relevant becomes the **content** in the feature maps. Max pooling layers play a fundamental role in discarding irrelevant information for classification. In style transfer, the deep feature maps are often called **content representations**.
 
-**Style**, on the other hand, can be understood as the brush trokes of a painting: texture, colors, curvatures, etc. Thus, in order to detect style, a fetaure space designed to capture that detect such features (texture, colors, curvatures) is used; concretely, this space looks for **correlations between the feature maps**. In other words, we see which features in one map are related with another map in the same layer. If there are common features (i.e., high correlations), then, these feature can be understood as part of the image style.
+**Style**, on the other hand, can be understood as the brush strokes of a painting: texture, colors, curvatures, etc. Thus, in order to detect style, a feature space designed to capture such features (texture, colors, curvatures) is used; concretely, this space looks for **correlations between the feature maps**. In other words, we see which features in one map are related with another map in the same layer. If there are common features (i.e., high correlations), then, these feature can be understood as part of the image style.
 
 In style transfer we have three images: 
 
@@ -2027,17 +2049,21 @@ In order to capture style, the image is passed, the feature maps are computed an
 Let's say a selected layer has the shape `w x h x d`; we have `d` feature maps in it (depth of channels). To compute ther Gram matrix of that set of feature maps, we flatten or vectorize them, so that each map is a row in a matrix `M`. The flattening is done in row-major order:
 
 ```
-M = [[row_11, row_12, ..., row_1h],
-	 [row_21, row_22, ..., row_2h],
+M = [[m_111, m_121, ..., m_wh1],
+	 [m_112, m_122, ..., m_wh2],
 	 ...	
-	 [row_d1, row_d2, ..., row_dh]]
+	 [m_11d, m_12d, ..., m_whd]]
 
-M: (w*h) x d
+M: d x (w*h)
+
+[m_111, m_121, ..., m_wh1] : 1 x (w*h), vectorized feature map
 ```
 
 ![Vectorized feature maps](./pics/vectorized_feature_maps.png)
 
 Then, the Gram matrix is:
+
+
 
 ```
 G = M * M^T
@@ -2077,7 +2103,264 @@ However, note that both losses are weighted, too: `alpha` for the content weight
 
 ### 6.3 Style Transfer in Pytorch: Notebook
 
+Very interesting: implementation of the whole Section 6.
 
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch/) `/ style-transfer`
+
+In this notebook, the paper by Gatys et al. that was introduced in this section so far is implemented / replicated.
+
+The VGG19 network is used to extract style and content from images. The VGG19 is composed of 19 layers; layers are grouped in stacks which contain several convolutions followed by max-pooling.
+
+![VGG19](./pics/vgg19_convlayers.png)
+
+The **style** feature layers are: `conv1_1`, `conv2_1`, `conv3_1`, `conv4_1`, `conv5_1`. Recall: the deeper we go, the closer we are to the image content.
+
+In particular, Gatys et al. take the layer `conv4_2` from the 4th stack to be the **content representation** layer.
+
+In summary, the notebook performs the following steps:
+
+1. Load Pre-Trained VGG19
+2. Load Content and Style Images
+3. Extract Content and Style Feature Maps and Generate Gramm Matrices
+4. Target Update Loop: Merging of the Images
+5. Display the Final Target Image
+
+I carried out the optimization in the Jetson Nano:
+
+
+
+
+```python
+# import resources
+%matplotlib inline
+
+from PIL import Image
+from io import BytesIO
+import matplotlib.pyplot as plt
+import numpy as np
+
+import torch
+import torch.optim as optim
+import requests
+from torchvision import transforms, models
+
+### -- 1. Load Pre-Trained VGG19
+
+# The style and the content are captured only in the convolutional and pooling layers
+# so we use the VGG19 as a feature extractor.
+# Get the "features" portion of VGG19 (we will not need the "classifier" portion)
+vgg = models.vgg19(pretrained=True).features
+
+# Freeze all VGG parameters since we're only optimizing the target image
+for param in vgg.parameters():
+    param.requires_grad_(False)
+
+# move the model to GPU, if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+vgg.to(device)
+
+### -- 2. Load Content and Style Images
+
+def load_image(img_path, max_size=400, shape=None):
+    ''' Load in and transform an image, making sure the image
+       is <= 400 pixels in the x-y dims.'''
+    if "http" in img_path:
+        response = requests.get(img_path)
+        image = Image.open(BytesIO(response.content)).convert('RGB')
+    else:
+        image = Image.open(img_path).convert('RGB')
+    
+    # large images will slow down processing
+    if max(image.size) > max_size:
+        size = max_size
+    else:
+        size = max(image.size)
+    
+    if shape is not None:
+        size = shape
+        
+    in_transform = transforms.Compose([
+                        transforms.Resize(size),
+                        transforms.ToTensor(),
+                        transforms.Normalize((0.485, 0.456, 0.406), 
+                                             (0.229, 0.224, 0.225))])
+
+    # discard the transparent, alpha channel (that's the :3) and add the batch dimension
+    image = in_transform(image)[:3,:,:].unsqueeze(0)
+    
+    return image
+
+# load in content and style image
+content = load_image('images/octopus.jpg').to(device)
+# Resize style to match content, makes code easier
+style = load_image('images/hockney.jpg', shape=content.shape[-2:]).to(device)
+
+# helper function for un-normalizing an image 
+# and converting it from a Tensor image to a NumPy image for display
+def im_convert(tensor):
+    """ Display a tensor as an image. """
+    
+    image = tensor.to("cpu").clone().detach()
+    image = image.numpy().squeeze()
+    image = image.transpose(1,2,0)
+    image = image * np.array((0.229, 0.224, 0.225)) + np.array((0.485, 0.456, 0.406))
+    image = image.clip(0, 1)
+
+    return image
+
+# display the images
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+# content and style ims side-by-side
+ax1.imshow(im_convert(content))
+ax2.imshow(im_convert(style))
+
+### -- 3. Extract Content and Style Feature Maps and Generate Gramm Matrices
+
+# Print out VGG19 structure so you can see the names of various layers
+print(vgg)
+
+# Define a function which extracts feature maps given a model and an image
+def get_features(image, model, layers=None):
+    """ Run an image forward through a model and get the features for 
+        a set of layers. Default layers are for VGGNet matching Gatys et al (2016)
+    """
+    
+    ## Complete mapping layer names of PyTorch's VGGNet to names from the paper
+    ## Need the layers for the content and style representations of an image
+    if layers is None:
+        layers = {'0': 'conv1_1',
+                  '5': 'conv2_1',
+                  '10': 'conv3_1',
+                  '19': 'conv4_1',
+                  '21': 'conv4_2', # content representation
+                  '28': 'conv5_1'}
+        
+        
+    features = {}
+    x = image
+    # model._modules is a dictionary holding each module in the model
+    # We pass the image sequentially through all modules/layers
+    # If a layer is a selectd one, we take the feature maps
+    for name, layer in model._modules.items():
+        x = layer(x)
+        if name in layers:
+            features[layers[name]] = x
+            
+    return features
+
+# Define a function which computes the Gramm matrix of a feature map
+def gram_matrix(tensor):
+    """ Calculate the Gram Matrix of a given tensor 
+        Gram Matrix: https://en.wikipedia.org/wiki/Gramian_matrix
+    """
+    # Get the batch_size, depth, height, and width of the Tensor
+    batch_size, d, h, w = tensor.size()
+    # Reshape it, so we're multiplying the features for each channel
+    # We can ignore the batch size, because we are passing a single image!
+    # However, if batched images were passed, we could still apply matrix multiplication
+    #tensor = tensor.view(batch_size, d, h*w)
+    tensor = tensor.view(d, h*w)
+    # Calculate the Gram matrix
+    # Batched matrices: multiplication is done for each batch
+    # However, we ignore the batch, because we have removed it
+    gram = torch.matmul(tensor,tensor.t())
+    
+    return gram 
+
+# Generate content and style features as well as style Gramm matrices
+
+# Get content and style features only once before forming the target image
+# features_style_conv1_1 <- style_features['conv1_1']
+# is the corresponding feature map of the style image
+content_features = get_features(content, vgg)
+style_features = get_features(style, vgg)
+
+# Calculate the gram matrices for each layer of our style representation
+# gramm_style_conv1_1 <- style_grams['conv1_1']
+# is the Gramm matrix of the style images corresponding feature map
+# Note that we compute the Gramm matrix of of the conv4_2,
+# but we won't use it, because it's the content representation
+style_grams = {layer: gram_matrix(style_features[layer]) for layer in style_features}
+
+# Create a third "target" image and prepare it for change
+# It is a good idea to start off with the target as a copy of our *content* image,
+# then iteratively change its style.
+target = content.clone().requires_grad_(True).to(device)
+
+### -- 4. Target Update Loop: Merging of the Images
+
+# Weights for each style layer 
+# Weighting earlier layers more will result in *larger* style artifacts
+# Notice we are excluding `conv4_2` our content representation
+style_weights = {'conv1_1': 1.,
+                 'conv2_1': 0.8, #0.75
+                 'conv3_1': 0.5, #0.2
+                 'conv4_1': 0.3, #0.2
+                 'conv5_1': 0.1} #0.2
+
+# You may choose to leave these as is
+content_weight = 1  # alpha
+style_weight = 1e6  # beta
+
+# for displaying the target image, intermittently
+show_every = 400
+
+# iteration hyperparameters
+optimizer = optim.Adam([target], lr=0.003)
+steps = 2000  # decide how many iterations to update your image (5000)
+
+for ii in range(1, steps+1):
+    
+    # The Content Loss
+    # Get the features from your target image    
+    target_features = get_features(target, vgg)
+    # Then calculate the content loss
+    content_loss = torch.mean((target_features['conv4_2'] - content_features['conv4_2'])**2)
+    
+    # The Style Loss
+    # Initialize the style loss to 0
+    style_loss = 0
+    # Iterate through each style layer and add to the style loss
+    for layer in style_weights:
+        # Get the "target" style representation for the layer
+        target_feature = target_features[layer]
+        _, d, h, w = target_feature.shape
+        
+        # Calculate the target gram matrix
+        target_gram = gram_matrix(target_feature)
+        
+        # Get the "style" style representation
+        style_gram = style_grams[layer]
+        # Calculate the style loss for one layer, weighted appropriately
+        layer_style_loss = style_weights[layer]*torch.mean((target_gram - style_gram)**2)
+        
+        # Add to the style loss
+        style_loss += layer_style_loss / (d * h * w)
+        
+        
+    # Calculate the *total* loss
+    total_loss = content_weight*content_loss + style_weight*style_loss
+    
+    ## -- do not need to change code, below -- ##
+    # update your target image
+    optimizer.zero_grad()
+    total_loss.backward()
+    optimizer.step()
+    
+    # display intermediate images and print the loss
+    if  ii % show_every == 0:
+        print('Total loss: ', total_loss.item())
+        plt.imshow(im_convert(target))
+        plt.show()
+
+### -- 5. Display the Final Target Image
+
+# display content and final, target image
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+ax1.imshow(im_convert(content))
+ax2.imshow(im_convert(target))
+
+```
 
 ## 7. Project: Dog-Breed Classifier
 
