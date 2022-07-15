@@ -10,6 +10,7 @@ The nanodegree is composed of six modules:
 4. Recurrent Neural Networks (RNN)
 5. Generative Adversarial Networks (GAN)
 6. Deploying a Model
+7. Excurs: Transformers & [Vision Transformers](https://iaml-it.github.io/posts/2021-04-28-transformers-in-vision/)
 
 Each module has a folder with its respective notes.
 
