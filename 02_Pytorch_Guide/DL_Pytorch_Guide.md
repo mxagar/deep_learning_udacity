@@ -53,6 +53,8 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
 
 Appendices:
 
+- Tips and Tricks
+    - Number of Model Parameters
 - Lab: Example Projects
 
 ## 1. Introduction and Summary
@@ -2068,6 +2070,18 @@ scp file.txt mxagar@jetson-nano.local:/path/to/folder/on/jetson
 scp -r /local/directory mxagar@jetson-nano.local:/remote/directory
 ```
 
+## Appendix: Tips and Tricks
+
+### Number of Model Parameters
+
+```python
+# Get number of model parameters
+def get_num_parameters(net):
+    model_parameters = filter(lambda p: p.requires_grad, net.parameters())
+    params = sum([np.prod(p.size()) for p in model_parameters])
+    return params
+```
+
 ## Appendix: Lab - Example Projects
 
 The following files give a very nice overview of how Pytorch is used for image classification:
@@ -2080,3 +2094,5 @@ The following files give a very nice overview of how Pytorch is used for image c
 However, many applications go beyond those use cases. To that end, I will collect in the folder `./lab` more blueprints/examples of different applications.
 
 Please, go to the `./lab` folder are read the `README.md` there to get more information.
+
+

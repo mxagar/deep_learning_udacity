@@ -6,7 +6,7 @@ The nanodegree is composed of six modules:
 
 1. Introduction to Deep Learning
 2. Neural Networks and Pytorch Guide
-3. Convolutonal Neural Networks (CNN)
+3. Convolutional Neural Networks (CNN)
 4. Recurrent Neural Networks (RNN)
 5. Generative Adversarial Networks (GAN)
 6. Deploying a Model
