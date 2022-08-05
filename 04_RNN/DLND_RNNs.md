@@ -40,7 +40,7 @@ Semantic word embeddings are able to represent words with vectors that capture w
 
 ![Semantic word embeddings](./pics/semantic_word_embedding.png)
 
-However, note that an embedding doesn't need to be semantic! We can have a simple embedding which compresses sparse vectors or integer-encoded words.
+However, note that an embedding doesn't need to be semantic! We can have a simple embedding which compresses sparse vectors or integer-encoded words. Compressed vectors are much more efficient than sparse one-hot representations. If we use a Pytorch `nn.Embedding` and train it, it will learn some word relationships.
 
 ### 6.1 Dimensionality Reduction
 
@@ -581,12 +581,526 @@ cos = compute_cosines(df,v_girl)
 
 ## 7. Sentiment Prediction RNN
 
-In this section, the sentiment analysis network presented by [Andrew Trask](http://iamtrask.github.io) in the 1st module is improved.
+In this section, the sentiment analysis network presented by [Andrew Trask](http://iamtrask.github.io) in the 1st module is improved by using a RNN.
 
-The section is implemented in a notebook: [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ sentiment-rnn / Sentiment_RNN_Exercise.ipynb`
+The section is implemented in a notebook: [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ sentiment-rnn / Sentiment_RNN_Exercise.ipynb`.
 
 Since we pass sequences of words to the RNN model based on LSTM cells, the performance is expected to be better than the fully connected network by Andrew Trask.
 
+![Sentiment Analysis Network Diagram](./pics/sentiment_network_diagram.png)
+
+Basically, the network receives a batch of reviews. Reviews are tokenized and encoded as integers. The sequence length (number of words per review) is fixed: 200; thus, we either truncate the texts if longer or pad them with 0s on the left.
+
+The trained network is able to yield a value 0-1 which denotes the positive (1) or negative (0) sentiment of any text.
+
+This is a very interesting application model.
+
+The efficiency I go with the test split was 96.8%; that's very high.
+
+The summary of the most important steps:
+
+1. Load data and pre-process it:
+	- punctuation is removed,
+	- words are tokenized with `split()`
+	- a vocabulary dictionary is built
+	- tokens are encoded as integers
+	- outliers are removed (reviews with length 0)
+	- encoded reviews are converted to a fixed sequence length with trucation or left zero padding
+2. Training, validation and test splits are created, as well as data loaders
+3. Model definition
+4. Training
+5. Saving and loading
+6. Testing
+7. Inference 
+
+
+```python
+### -- 1. Load data and pre-process it
+
+import numpy as np
+
+# read data from text files
+with open('data/reviews.txt', 'r') as f:
+    reviews = f.read()
+with open('data/labels.txt', 'r') as f:
+    labels = f.read()
+
+### -- 1.1 punctuation is removed,
+
+from string import punctuation
+
+print(punctuation) # !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+
+# get rid of punctuation
+reviews = reviews.lower() # lowercase, standardize
+all_text = ''.join([c for c in reviews if c not in punctuation])
+
+### -- 1.2 words are tokenized with `split()`
+
+# split by new lines and spaces
+reviews_split = all_text.split('\n')
+all_text = ' '.join(reviews_split)
+
+# create a list of words
+words = all_text.split()
+
+### -- 1.3 a vocabulary dictionary is built
+
+# The embedding lookup requires that we pass in integers to our network.
+# Counter is a dictionary that maps words into number of occurrences.
+# We use it, order the words according to their counts and create 
+# a dictionary which maps a word to an an integer (rank in appearances).
+from collections import Counter
+
+## Build a dictionary that maps words to integers
+word_counts = Counter(words)
+words_sorted = sorted(word_counts,key=word_counts.get,reverse=True)
+vocab_to_int = {words_sorted[i]:(i+1) for i in range(len(words_sorted))}
+
+### -- 1.4 tokens are encoded as integers
+
+## use the dict to tokenize each review in reviews_split
+## store the tokenized reviews in reviews_ints
+reviews_ints = []
+for review in reviews_split:
+    review_int = [vocab_to_int[word] for word in review.split()]
+    reviews_ints.append(review_int)
+
+
+# stats about vocabulary
+print('Unique words: ', len((vocab_to_int)))  # should ~ 74000+
+print()
+
+# print tokens in first review
+print('Tokenized review: \n', reviews_ints[:1])
+
+# 1=positive, 0=negative label conversion
+encoded_labels = np.array([0 if p == 'negative' else 1 for p in labels.split('\n')])
+
+### -- 1.5 outliers are removed (reviews with length 0)
+
+# outlier review stats
+review_lens = Counter([len(x) for x in reviews_ints])
+print("Zero-length reviews: {}".format(review_lens[0]))
+print("Maximum review length: {}".format(max(review_lens)))
+
+print('Number of reviews before removing outliers: ', len(reviews_ints))
+
+## remove any reviews/labels with zero length from the reviews_ints list.
+
+# One method (my first approach)
+# reviews_len = np.array([len(x) for x in reviews_ints])
+# non_zero_len_reviews = np.arange(len(reviews_len))[reviews_len > 0]
+# reviews_ints = np.array(reviews_ints,dtype=object)[non_zero_len_reviews]
+# encoded_labels = encoded_labels[non_zero_len_reviews]
+
+# Other method
+# get indices of any reviews with length 0
+non_zero_idx = [ii for ii, review in enumerate(reviews_ints) if len(review) != 0]
+# remove 0-length reviews and their labels
+reviews_ints = [reviews_ints[ii] for ii in non_zero_idx]
+encoded_labels = np.array([encoded_labels[ii] for ii in non_zero_idx])
+
+print('Number of reviews after removing outliers: ', len(reviews_ints))
+
+# print tokens in first review
+print('Tokenized review: \n', reviews_ints[:1])
+
+### -- 1.6 encoded reviews are converted to a fixed sequence length with truncation or left zero padding
+
+# We need to pass review sequences of the same length to the model.
+# Thus, for a given fixed sequence length:
+# (1) we truncate long reviews
+# and (2) pad with 0s from the left short ones.
+# Since our tokens started with the integer 1,
+# we have introduced a new token with id/integer 0,
+# which means padding space.
+def pad_features(reviews_ints, seq_length):
+    ''' Return features of review_ints, where each review is padded with 0's 
+        or truncated to the input seq_length.
+    '''
+    # getting the correct rows x cols shape
+    features = np.zeros((len(reviews_ints), seq_length), dtype=int)
+
+    # for each review, I grab that review and 
+    for i, row in enumerate(reviews_ints):
+        features[i, -len(row):] = np.array(row)[:seq_length]
+        
+    return features
+
+# Test your implementation!
+
+seq_length = 200
+features = pad_features(reviews_ints, seq_length=seq_length)
+# print first 10 values of the first 30 batches 
+print(features[:30,:10])
+
+### -- 2. Training, validation and test splits are created, as well as data loaders
+
+split_frac = 0.8
+test_threshold = int(features.shape[0]*split_frac)
+val_threshold = (features.shape[0] - test_threshold)//2
+
+## split data into training, validation, and test data (features and labels, x and y)
+train_x, test_x = features[:test_threshold,:], features[-test_threshold:,:]
+test_x, val_x = test_x[:val_threshold,:], test_x[-val_threshold:,:]
+train_y, test_y = encoded_labels[:test_threshold], encoded_labels[-test_threshold:]
+test_y, val_y = test_y[:val_threshold], test_y[-val_threshold:]
+
+## print out the shapes of your resultant feature data
+print(train_x.shape)
+print(test_x.shape)
+print(val_x.shape)
+print(train_y.shape)
+print(test_y.shape)
+print(val_y.shape)
+
+import torch
+from torch.utils.data import TensorDataset, DataLoader
+
+# create Tensor datasets
+train_data = TensorDataset(torch.from_numpy(train_x), torch.from_numpy(train_y))
+valid_data = TensorDataset(torch.from_numpy(val_x), torch.from_numpy(val_y))
+test_data = TensorDataset(torch.from_numpy(test_x), torch.from_numpy(test_y))
+
+# dataloaders
+batch_size = 50
+
+# make sure to SHUFFLE your data
+train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
+valid_loader = DataLoader(valid_data, shuffle=True, batch_size=batch_size)
+test_loader = DataLoader(test_data, shuffle=True, batch_size=batch_size)
+
+# obtain one batch of training data
+dataiter = iter(train_loader)
+sample_x, sample_y = dataiter.next()
+
+print('Sample input size: ', sample_x.size()) # batch_size, seq_length
+print('Sample input: \n', sample_x)
+print()
+print('Sample label size: ', sample_y.size()) # batch_size
+print('Sample label: \n', sample_y)
+
+### -- 3. Model definition
+
+# First checking if GPU is available
+train_on_gpu=torch.cuda.is_available()
+
+if(train_on_gpu):
+    print('Training on GPU.')
+else:
+    print('No GPU available, training on CPU.')
+
+import torch.nn as nn
+
+class SentimentRNN(nn.Module):
+    """
+    The RNN model that will be used to perform Sentiment analysis.
+    """
+
+    def __init__(self, vocab_size, output_size, embedding_dim, hidden_dim, n_layers, drop_prob=0.5):
+        """
+        Initialize the model by setting up the layers.
+        """
+        super(SentimentRNN, self).__init__()
+
+        self.output_size = output_size
+        self.n_layers = n_layers
+        self.hidden_dim = hidden_dim
+        self.vocab_size = vocab_size
+        self.embedding_dim = embedding_dim
+        
+        # embedding layer that turns words into a vector of a specified size
+        self.word_embeddings = nn.Embedding(self.vocab_size, self.embedding_dim)
+
+        # the LSTM takes embedded word vectors (of a specified size) as inputs 
+        # and outputs hidden states of size hidden_dim
+        # We use batch_first=True because we are using DataLoaders
+        # to batch our data like that!
+        # Because batch_first=True, we expect the input size:
+        # (batch, seq, feature) instead of (seq, batch, feature)
+        # Similarly, the output size will be
+        # (batch, seq, out) instead of (seq, batch, out)
+        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim, self.n_layers,
+                            dropout=drop_prob, batch_first=True)
+
+        # the linear layer that maps the hidden state output dimension 
+        # to the output, which is a sentiment value (expected to be 1)
+        self.hidden2output = nn.Linear(hidden_dim, self.output_size)
+
+        self.dropout = nn.Dropout(p=0.3)
+        self.sigmoid = nn.Sigmoid()
+        
+    def forward(self, x, hidden):
+        """
+        Perform a forward pass of our model on some input and hidden state.
+        """
+        # Embedding
+        x = x.long()
+        embed = self.word_embeddings(x)
+        lstm_out, hidden = self.lstm(embed, hidden)
+        
+        # lstm_out is of size (batch, seq, out)
+        # we want the output of the last words in seq
+        lstm_out = lstm_out[:, -1, :] # getting the last time step output
+        
+        # stack up lstm outputs
+        lstm_out = lstm_out.contiguous().view(-1, self.hidden_dim)
+        
+        # Dropout
+        out = self.dropout(lstm_out)
+        
+        # Linear
+        lin_out = self.hidden2output(out)
+        
+        # Sigmoid
+        sig_out = self.sigmoid(lin_out)
+        
+        # return last sigmoid output and hidden state
+        return sig_out, hidden
+    
+    def init_hidden(self, batch_size):
+        ''' Initializes hidden state '''
+        # Create two tensors of 0s for the hidden state(s)
+        # The axes dimensions are (n_layers, batch_size, hidden_dim)
+        # Although we have batch_first=True, hidden states do not change order
+        hidden = (torch.zeros(self.n_layers, batch_size, self.hidden_dim),
+                  torch.zeros(self.n_layers, batch_size, self.hidden_dim))
+        
+        if (train_on_gpu):
+            hidden = hidden.cuda()
+            
+        return hidden
+
+# Instantiate the model w/ hyperparams
+vocab_size = len(vocab_to_int)+1 # don't forget the padding!
+output_size = 1
+embedding_dim = 400 # usuaylly 200-500
+hidden_dim = 256 # this is the dimension to input the linear layer
+n_layers = 2
+
+net = SentimentRNN(vocab_size, output_size, embedding_dim, hidden_dim, n_layers)
+
+print(net)
+# SentimentRNN(
+#   (word_embeddings): Embedding(74073, 400)
+#   (lstm): LSTM(400, 256, num_layers=2, batch_first=True, dropout=0.5)
+#   (hidden2output): Linear(in_features=256, out_features=1, bias=True)
+#   (dropout): Dropout(p=0.3, inplace=False)
+#   (sigmoid): Sigmoid()
+# )
+
+### -- 4. Training
+
+# loss and optimization functions
+lr=0.001
+
+criterion = nn.BCELoss()
+optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+
+# training params
+
+epochs = 4 # 3-4 is approx where I noticed the validation loss stop decreasing
+
+counter = 0
+print_every = 100
+clip=5 # gradient clipping
+
+# move model to GPU, if available
+if(train_on_gpu):
+    net.cuda()
+
+net.train()
+# train for some number of epochs
+for e in range(epochs):
+    # initialize hidden state
+    h = net.init_hidden(batch_size)
+
+    # batch loop
+    for inputs, labels in train_loader:
+        counter += 1
+
+        if(train_on_gpu):
+            inputs, labels = inputs.cuda(), labels.cuda()
+
+        # Creating new variables for the hidden state, otherwise
+        # we'd backprop through the entire training history
+        h = tuple([each.data for each in h])
+
+        # zero accumulated gradients
+        net.zero_grad()
+
+        # get the output from the model
+        output, h = net(inputs, h)
+
+        # calculate the loss and perform backprop
+        # .squeeze(): remove empty dimensions
+        # .float(): force 0s and 1s to be floats
+        loss = criterion(output.squeeze(), labels.float())
+        loss.backward()
+        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+        nn.utils.clip_grad_norm_(net.parameters(), clip)
+        optimizer.step()
+
+        # loss stats
+        if counter % print_every == 0:
+            # Get validation loss
+            val_h = net.init_hidden(batch_size)
+            val_losses = []
+            net.eval()
+            for inputs, labels in valid_loader:
+
+                # Creating new variables for the hidden state, otherwise
+                # we'd backprop through the entire training history
+                val_h = tuple([each.data for each in val_h])
+
+                if(train_on_gpu):
+                    inputs, labels = inputs.cuda(), labels.cuda()
+
+                output, val_h = net(inputs, val_h)
+                val_loss = criterion(output.squeeze(), labels.float())
+
+                val_losses.append(val_loss.item())
+
+            net.train()
+            print("Epoch: {}/{}...".format(e+1, epochs),
+                  "Step: {}...".format(counter),
+                  "Loss: {:.6f}...".format(loss.item()),
+                  "Val Loss: {:.6f}".format(np.mean(val_losses)))
+### -- 5. Saving and loading
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+def save_model(filepath, model, vocab_size, output_size, embedding_dim, hidden_dim, n_layers):
+    # Convert model into a dict: architecture params (layer sizes) + state (weight & bias values)
+    checkpoint = {'vocab_size': vocab_size,
+                  'output_size': output_size,
+                  'embedding_dim': embedding_dim,
+                  'hidden_dim': hidden_dim,
+                  'n_layers': n_layers,
+                  'state_dict': model.state_dict()}
+    torch.save(checkpoint, filepath)
+
+filepath = "lstm_sentiment_best.pth"
+save_model(filepath, net, vocab_size, output_size, embedding_dim, hidden_dim, n_layers)
+
+def load_checkpoint(filepath):
+    checkpoint = torch.load(filepath, map_location=torch.device(device))
+    model = SentimentRNN(checkpoint['vocab_size'],
+                         checkpoint['output_size'],
+                         checkpoint['embedding_dim'],
+                         checkpoint['hidden_dim'],
+                         checkpoint['n_layers'])
+    model.load_state_dict(checkpoint['state_dict'])
+    print(model)
+    
+    return model
+
+net = load_checkpoint(filepath)
+
+### -- 6. Testing
+
+# Get test data loss and accuracy
+
+test_losses = [] # track loss
+num_correct = 0
+
+# init hidden state
+h = net.init_hidden(batch_size)
+
+net.eval()
+# iterate over test data
+for inputs, labels in test_loader:
+
+    # Creating new variables for the hidden state, otherwise
+    # we'd backprop through the entire training history
+    h = tuple([each.data for each in h])
+
+    if(train_on_gpu):
+        inputs, labels = inputs.cuda(), labels.cuda()
+    
+    # get predicted outputs
+    output, h = net(inputs, h)
+    
+    # calculate loss
+    test_loss = criterion(output.squeeze(), labels.float())
+    test_losses.append(test_loss.item())
+    
+    # convert output probabilities to predicted class (0 or 1)
+    pred = torch.round(output.squeeze())  # rounds to the nearest integer
+    
+    # compare predictions to true label
+    correct_tensor = pred.eq(labels.float().view_as(pred))
+    correct = np.squeeze(correct_tensor.numpy()) if not train_on_gpu else np.squeeze(correct_tensor.cpu().numpy())
+    num_correct += np.sum(correct)
+
+
+# -- stats! -- ##
+# avg test loss
+print("Test loss: {:.3f}".format(np.mean(test_losses)))
+
+# accuracy over all test data
+test_acc = num_correct/len(test_loader.dataset)
+print("Test accuracy: {:.3f}".format(test_acc))
+
+### -- 7. Inference 
+
+def predict(net, test_review, sequence_length=200):
+    ''' Prints out whether a give review is predicted to be 
+        positive or negative in sentiment, using a trained model.
+        
+        params:
+        net - A trained net 
+        test_review - a review made of normal text and punctuation
+        sequence_length - the padded length of a review
+        '''
+    
+    # print custom response based on whether test_review is pos/neg
+    net.eval()
+    
+    # Pre-process and encode text: tokenization
+    test_review = test_review.lower() # lowercase, standardize
+    test_review = ''.join([c for c in test_review if c not in punctuation])
+    review_int = [vocab_to_int[word] for word in test_review.split()]
+    features = pad_features([review_int], seq_length) # Mind the wrapping [], because we pass batches!
+    
+    print(features.shape)
+    
+    # Convert to torch tensor
+    x = torch.from_numpy(features)
+    
+    if(train_on_gpu):
+        x = x.cuda()
+        net = net.cuda()
+        
+    # Initialize net
+    batch_size = batch_size = x.size(0)
+    h = net.init_hidden(batch_size)
+    #h = tuple([each.data for each in h])
+    
+    # Forward pass
+    output, h = net(x, h)
+    
+    # Round output and select sentiment
+    if torch.round(output.squeeze()) > 0.5:
+        print(output.squeeze())
+        return "positive"
+    else:
+        print(output.squeeze())
+        return "negative"
+
+
+test_review_pos = 'This movie had the best acting and the dialogue was so good. I loved it.'
+test_review_neg = 'This movie had the worst acting and the dialogue was so bad. What a waste of time!'
+test_review_neu = 'This is a movie.'
+
+# call function
+# try negative and positive reviews!
+seq_length=200
+print(predict(net, test_review_pos, seq_length)) # 0.9128
+print(predict(net, test_review_neg, seq_length)) # 0.0081
+print(predict(net, test_review_neu, seq_length)) # 0.4309
+```
 
 ## 8. Project: Generating TV Scripts
 
