@@ -34,3 +34,8 @@ IoffeSzegedy_BatchNormalization_2015.pdf
 
 Gatys_ImageStyleTransfer_2016.pdf
 	Style transfer.
+
+CovingtonSargin_YoutubeRecommendations_2016.pdfSilverHassabis_AlphaGoNaturePaper_2016.pdfRadfordSutskever_TransferableVisualModels_2021.pdfKarrasAila_StyleGAN_2019.pdfDevlinToutanova_BERT_2019.pdf
+
+Mikolov_Word2vec_2013.pdf
+Mikolov_Word2vec_2_2013.pdf
