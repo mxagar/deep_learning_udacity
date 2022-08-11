@@ -6,7 +6,7 @@ The nanodegree is composed of six modules:
 
 1. Introduction to Deep Learning
 2. Neural Networks and Pytorch Guide
-3. Convolutonal Neural Networks (CNN)
+3. Convolutional Neural Networks (CNN)
 4. Recurrent Neural Networks (RNN)
 5. Generative Adversarial Networks (GAN)
 6. Deploying a Model
@@ -27,7 +27,11 @@ Additionally, note that:
 4. Hyperparameters: Covered in [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity), module `03_Advanced_CV_and_DL`.
 5. Attention Mechanisms: Covered in [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity), module `03_Advanced_CV_and_DL`.
 6. [Embeddings and Word2Vec](#6.-Embeddings-and-Word2Vec)
-7. [Sentiment Prediction RNN](#7.-Sentiment-Prediction-RNN)
+	- 6.1 Dimensionality Reduction
+	- 6.2 Word2Vec: Semantic Embeddings
+	- 6.3 Word2Vec Notebook 1: Skip-Gram Model Training
+	- 6.4 Word2Vec Notebook 2: Skip-Gram Model Training with Negative Sampling
+7. [Sentiment Prediction RNN: Notebook](#7.-Sentiment-Prediction-RNN:-Notebook)
 8. [Project: Generating TV Scripts](#8.-Project:-Generating-TV-Scripts)
 
 ## 6. Embeddings and Word2Vec
@@ -579,7 +583,7 @@ cos = compute_cosines(df,v_girl)
 
 ```
 
-## 7. Sentiment Prediction RNN
+## 7. Sentiment Prediction RNN: Notebook
 
 In this section, the sentiment analysis network presented by [Andrew Trask](http://iamtrask.github.io) in the 1st module is improved by using a RNN.
 

@@ -13,9 +13,9 @@ The nanodegree is composed of six modules:
 
 Each module has a folder with its respective notes. This folder is the one of the **second module** and it contains a Pytorch guide.
 
-Additionally, note that I made many hand-written nortes, which I will scan and push to this repostory.
+Additionally, note that I made many hand-written notes, which I will scan and push to this repository.
 
-Here, I refence notebooks that are present in two repositories (both updated, but the second more advanced):
+Here, I reference notebooks that are present in two repositories (both updated, but the second more advanced):
 
 - [DL_PyTorch](https://github.com/mxagar/DL_PyTorch), referenced in the CVND
 - [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/intpo-to-pytorch/`, the one used in the DLND
@@ -50,6 +50,10 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
 10. Convolutional Neural Networks (CNN)
 11. Weight Initialization
 12. Using the Jetson Nano (CUDA)
+13. Recursive Neural Networks (RNN)
+    - Sequence to Sequence: 
+    - Sequence to One: 
+    - Sentiment Analysis: Sequence to Probability
 
 Appendices:
 
