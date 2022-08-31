@@ -54,7 +54,7 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - Sequence to Sequence: 
     - Sequence to One: 
     - Sentiment Analysis: Sequence to Probability
-14. Vanilla Pipeline
+14. Vanilla Inference Pipeline and Artifact
 
 Appendices:
 
