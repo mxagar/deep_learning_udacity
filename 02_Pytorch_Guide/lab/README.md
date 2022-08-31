@@ -6,6 +6,10 @@ List of examples (they usually build up on the previous):
 
 - `pytorch_example_01`: **transfer learning (DenseNet121, CNN) applied to a custom dataset** in which images need to be classified (dogs and cats); images are first organized into forlders with a script, and then, the classification pipeline is followed: loading/preprocessing, model transfer, traning, and inference. Inferred classes are saved in a CSV.
 
+- `pytorch_example_02`
+
+- `pytorch_inference_pipeline`
+
 ## List of Applications / Utilities
 
 - Image Classification
@@ -19,3 +23,7 @@ List of examples (they usually build up on the previous):
 - Image Segmentation
 
 - Anomaly Detection
+
+- MLOps
+    
+    - `pytorch_inference_pipeline`
