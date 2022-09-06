@@ -2364,7 +2364,11 @@ ax2.imshow(im_convert(target))
 
 ## 7. Project: Dog-Breed Classifier
 
+The project repository is:
 
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ project-dog-classification`
+
+There, the instructions as well as a summary of the work can be found.
 
 ## 8. Deep Learning for Cancer Detection
 
