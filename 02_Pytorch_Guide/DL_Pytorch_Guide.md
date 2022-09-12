@@ -48,6 +48,12 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
 9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
     - Notes on Fine Tuning
 10. Convolutional Neural Networks (CNN)
+    - `Conv2d`
+    - `MaxPool2d`
+    - Linear Layer and Flattening
+    - Example of a Simple Architecture
+    - Summary of Guidelines for the Architecture Definitions
+    - Guidelines on Training and Hyperparameter Selection
 11. Weight Initialization
 12. Using the Jetson Nano (CUDA)
 13. Recursive Neural Networks (RNN)
@@ -55,11 +61,13 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - Sequence to One: 
     - Sentiment Analysis: Sequence to Probability
 14. Vanilla Inference Pipeline and Artifact
+15. Cloud Computing with AWS
 
 Appendices:
 
 - Tips and Tricks
     - Number of Model Parameters
+    - Running average loss
 - Lab: Example Projects
 
 ## 1. Introduction and Summary
@@ -1437,6 +1445,8 @@ The transforms have several goals:
 - Normalize the images: the network efficiency improves if the pixel values are in `[-1,1]`
 - **Data augmentation**: we can add random rotations or similar, which generalize the network
 
+Another very nice application of the [DataLoader](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader) is in the [CVND Face keypopint detection project](https://github.com/mxagar/P1_Facial_Keypoints).
+
 All in all, everything is summarized in the following:
 
 ```python
@@ -1478,6 +1488,9 @@ test_transforms = transforms.Compose([transforms.Resize(255),
 # Pass transforms in here, then run the next cell to see how the transforms look
 train_data = datasets.ImageFolder(data_dir + '/train', transform=train_transforms)
 test_data = datasets.ImageFolder(data_dir + '/test', transform=test_transforms)
+
+# Access class names
+train_data.classes
 
 trainloader = torch.utils.data.DataLoader(train_data, batch_size=32, shuffle = True)
 testloader = torch.utils.data.DataLoader(test_data, batch_size=32, shuffle = True)
@@ -1594,7 +1607,10 @@ testloader = torch.utils.data.DataLoader(test_data, batch_size=64)
 # Check the sizes of the last classifier layer
 # Note that we can access the layers and layer groups: model.classifier ...
 model = models.densenet121(pretrained=True)
-model
+print(model)
+# It is important to print the model and to take the name of the last layer
+# In the case of DenseNet, that's 'classifier'; for ResNet50 it's 'fc'
+# We need to replace that last layer with a Sequential that maps the nodes to our desired outputs
 
 ### -- 3. Change the classifier of the pre-trained network
 
@@ -1615,6 +1631,10 @@ model.classifier = nn.Sequential(OrderedDict([
                           ('fc2', nn.Linear(500, 2)),
                           ('output', nn.LogSoftmax(dim=1))
                           ]))
+
+# This should be superfluous, but just in case
+for param in model.classifier.parameters():
+    param.requires_grad = True
 
 # Loss: Classification + LogSoftmax -> NLLLoss
 criterion = nn.NLLLoss()
@@ -1852,6 +1872,7 @@ Usually a `MaxPool2d` that halvens the size is chosen, i.e.:
 
 A `MaxPool2d` can be defined once and used several times; it comes after the `relu(Conv2d(x))`.
 
+
 ### Linear Layer and Flattening
 
 After the convolutional layers, the 3D feature maps need to be reshaped to a 1D feature vector to enter into a linear layer. If padding has been applied so that the size of the feature maps is preserved after each `Conv2d`, we only need to compute the final size taking into account the effects of the applied `MaxPool2d` reductions and the final depth; otherwise, the convolution resizing formmula needs to be applied carefully step by step.
@@ -1935,7 +1956,7 @@ print(net)
 
 ```
 
-### Summary of Guidelines
+### Summary of Guidelines for the Architecture Definition
 
 - Usual architecture: 2-4 `Conv2d` with `MaxPool2d`in-between so that the size is halved; at the end 1-3 fully connected layers with dropout in-between to avoid overfitting.
 - Recall that an image has the shape `B x W x H x D`. The bacth size `B` is usually not used during the network programming, but it's there, even though we feed one image per batch!
@@ -1949,7 +1970,61 @@ print(net)
 - Before entering the fully connected or linear layer, we need to flatten the feature map:
     - In the definition of `Linear()`: we need to compute the final volume of the last feature map set. If we preserved the sized with padding it's easy; if not, we need to apply the formula above step by step.
     - In the `forward()` method: `x = x.view(x.size(0), -1)`; `x.size(0)`is the batch size, `-1` is the rest. 
-- If we use `CrossEntropyLoss()`, we need to return the `relu()` output; if we return the `log_softmax()`, we need to use the `NLLLoss()`. `CrossEntropy() == log_softmax() + NLLLoss()`.
+- If we use `CrossEntropyLoss()`, we need to return the `relu()`/non-activated output; if we return the `log_softmax()`, we need to use the `NLLLoss()`. `CrossEntropy() == log_softmax() + NLLLoss()`.
+
+### Guidelines on Training and Hyperparameter Selection
+
+This section is a summary of the Andrew Ng's notes on **Machine Learning System Design**. All the notes can be found here:
+
+[machine_learning_coursera](https://github.com/mxagar/machine_learning_coursera) `/ 04_MLSystemDesign`
+
+Hyperparameters we can tune:
+
+- batch size: larger values accelerate the computation, but they yield coarser results
+- regularization (equivalently, dropout): we can use it to reduce overfitting
+- model parameters (equivalently, layers and nodes in the network): we increase them if the model is too simplistic
+- learning rate
+    - small values lead to slower decrease of the loss
+    - too large values lead to oscillation of the loss
+    - values to consider `[0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1]`; we can also use schedule decaying learning rates, because the closer we are to the solution the smaller should be the steps
+- number of data samples: if the model is complex enough, more samples improve the result
+- number of epochs: same as with the samples: if the model is complex enough, more epochs improve the result, except when we start overfitting (see case 3 below)
+
+Metrics we should observe:
+
+- Training and (cross-) validation loss
+- Training and (cross-) validation accuracy
+
+A central point is to detect whether we have:
+
+1. High Bias = We are underfitting, the model is too simplistic to model the data
+2. High Variance = We are overfitting, the model is too complex and learns noise from the data
+3. Correct trade-off bias-variance = the model correctly learns how to model the data
+
+Depending on each case, we should act differently
+
+**CASE 3**: Correct trade-off bias-variance
+
+- That is the case we should land in.
+- We have the correct trade-off when both loss (train & val) decrease with an exponential decay.
+- In some cases, when the number of samples/epochs increases, the validation loss might start increasing. That means we are overfitting; several solutions are possible:
+    - Save the model with the lowest validation loss
+    - Apply **early stopping**
+    - Re-define the model with added dropout (i.e., regularization)
+
+**CASE 1: High Bias**: We are underfitting
+
+- Loss curves decay and converge fast to a high value and remain there
+- The model is too simplistic to learn the targets
+- We need to add more features (i.e., more nodes and layers); **nothing else will help**
+
+**CASE 2: High Variance**: We are overfitting
+
+- Loss curves change (decrease) slowly
+- Possible solutions:
+    - Decrease complexity of model
+    - Increase regularization: dropout in the final linear layers
+    - Getting more epochs or more data is likely to help; but before doing that, we should use the samples we have and make sure that the learning curves decrease over time.
 
 
 ## 11. Weight Initialization
@@ -1958,7 +2033,7 @@ Weight initialization can affect dramatically the performance of the training.
 
 If we initialize to 0 all the weights, the backpropagation will have a very hard time to discern in which direction the weights should be optimized. Something similar happens if we initialize the weights with a constant value, say 1.
 
-There are two approachs in weight initialization:
+There are two approaches in weight initialization:
 
 - Xavier Glorot initialization: initialize weights to `Uniform(-n,n)`, with `n = 1 / sqrt(in_nodes)`; i.e., a uniform distirbution in the range given by the number of input nodes in the layer (inverse square root).
 
@@ -2158,6 +2233,123 @@ with open("imagenet_classes.txt", "r") as f:
 print(f"Classification: {classes[proba.argmax()]}")
 ```
 
+## 15. Cloud Computing with AWS
+
+### 15.1 Launch EC2 Instances
+
+EC2 = Elastic Compute Cloud. We can launch VM instances.
+
+Create an AWS account, log in to the AWS console & search for "EC2" in the services.
+
+Select region on menu, top-right: Ireland, `eu-west-1`. Selecting a region **very important**, since everything is server region specific. Take into account that won't see the instances you have in different regions than the one you select in the menu! Additionally, we should select the region which is closest to us. Not also that not all regions have the same services and the service prices vary between regions!
+
+Press: **Launch Instance**.
+
+Follow these steps:
+
+1. Choose an Amazon Machine Image (AMI) - An AMI is a template that contains the software configuration (operating system, application server, and applications) required to launch your instance. I looked for specific AMIs on the search bar (keyword "deep learning") and selected `Deep Learning AMI (Amazon Linux 2) Version 61.3` and `Deep Learning AMI (Amazon Linux 2) Version 61.3` for different instances. Depending on which we use, we need to install different dependencies.
+
+2. Choose an Instance Type - Instance Type offers varying combinations of CPUs, memory (GB), storage (GB), types of network performance, and availability of IPv6 support. AWS offers a variety of Instance Types, broadly categorized in 5 categories. You can choose an Instance Type that fits our use case. The specific type of GPU instance you should launch for this tutorial is called `p2.xlarge` (P2 family). I asked to increase the limit for EC2 in the support/EC2-Limits menu option to select `p2.xlarge`, but they did not grant it to me; meanwhile, I chose `t2.micro`, elegible for the free tier.
+
+3. Configure Instance Details - Provide the instance count and configuration details, such as, network, subnet, behavior, monitoring, etc.
+
+4. Add Storage - You can choose to attach either SSD or Standard Magnetic drive to your instance. Each instance type has its own minimum storage requirement.
+
+5. Add Tags - A tag serves as a label that you can attach to multiple AWS resources, such as volumes, instances or both.
+
+6. Configure Security Group - Attach a set of firewall rules to your instance(s) that controls the incoming traffic to your instance(s). You can select or create a new security group; when you create one:
+    - Select: Allow SSH traffic from anywhere
+    - Then, when you launch the instance, **you edit the security group later**
+    - We can also select an existing security group
+
+7. Review - Review your instance launch details before the launch.
+
+8. I was asked to create a key-pair; I created one with the name `face-keypoints` using RSA. You can use a key pair to securely connect to your instance. Ensure that you have access to the selected key pair before you launch the instance. A file `face-keypoints.pem` was automatically downloaded.
+
+More on [P2 instances](https://aws.amazon.com/ec2/instance-types/p2/)
+
+Important: Edittting the security group: left menu, `Network & Security` > `Security Groups`:
+
+- Select the security group associated with the created instance (look in EC2 dashboard table)
+- Inbound rules (manage/create/add rule):
+    - SSH, 0.0.0.0/0, Port 22
+    - Jupyter, 0.0.0.0/0, Port 8888
+    - HTTPS (Github), 0.0.0.0/0, Port 443
+- Outbound rules (manage/create/add rule):
+    - SSH, 0.0.0.0/0, Port 22
+    - Jupyter, 0.0.0.0/0, Port 8888
+    - HTTPS (Github), 0.0.0.0/0, Port 443
+
+If we don't edit the security group, we won't be able to communicate with the instance in the required ports!
+
+**Important: Always shut down / stop all instances if not in use to avoid costs! We can re-start afterwards!**. AWS charges primarily for running instances, so most of the charges will cease once you stop the instance. However, there are smaller storage charges that continue to accrue until you **terminate** (i.e. delete) the instance.
+
+We can also set billing alarms.
+
+### 15.2 Connect to an Instance
+
+Once the instance is created, 
+
+1. We `start` it: 
+
+    - EC2 dashboard
+    - Instances
+    - Select instance
+    - Instance state > Start
+
+2. We connect to it from our local shell
+
+```bash
+# Go to the folder where the instance key pem file is located
+cd .../project
+# Make sure the pem file is only readable by me
+chmod 400 face-keypoints.pem
+# Connect to instance
+# user: 'ec2-user' if Amazon Image, 'ubuntu' if Ubuntu image
+# Public IP: DNS or IP number specified in AWS EC2 instance properties
+# ssh -i <pem-filename>.pem <user>@<public-IP>
+ssh -i face-keypoints.pem ec2-user@3.248.188.159
+# We need to generate a jupyter config file
+jupyter notebook --generate-config
+# Make sure that
+# ~/.jupyter/jupyter_notebook_config.py
+# contains 
+# c.NotebookApp.ip = '*'
+# Or, alternatively, directly change it:
+sed -ie "s/#c.NotebookApp.ip = 'localhost'/#c.NotebookApp.ip = '*'/g" ~/.jupyter/jupyter_notebook_config.py
+# Clone or download the code
+# Note that the SSH version of the repo URL cannot be downloaded;
+# I understand that's because the SSH version is user-bound 
+git clone https://github.com/mxagar/P1_Facial_Keypoints.git
+# Go to downloaded repo
+cd P1_Facial_Keypoints
+# When I tried to install the repo dependencies
+# I got some version errors, so I stopped and
+# I did not install the dependencies.
+# However, in a regular situation, we would need to install them.
+# Also, maybe:
+# pip install --upgrade setuptools.
+sudo python3 -m pip install -r requirements.txt
+# Launch the Jupyter notebook without a browser
+jupyter notebook --ip=0.0.0.0 --no-browser
+# IMPORTANT: catch/copy the token string value displayed:
+# http://127.0.0.1:8888/?token=<token-string>
+```
+
+3. Open our local browser on this URL, composed by the public IP of the EC2 instance we have running and the Jupyter token:
+
+```
+http://<public-IP>:8888/?token=<token-string>
+```
+
+### 15.3 Pricing
+
+Always stop & terminate instances that we don't need! Terminates erases any data we have on the instance!
+
+[Amazon EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
+
+
+
 ## Appendix: Tips and Tricks
 
 ### Number of Model Parameters
@@ -2169,6 +2361,99 @@ def get_num_parameters(net):
     params = sum([np.prod(p.size()) for p in model_parameters])
     return params
 ```
+
+### Torch Summary
+
+The library [torchsummary](https://pypi.org/project/torchsummary/) provides a very nice summary of the network, similar to what Keras does:
+
+```python
+from torchsummary import summary
+model = Net()
+summary(model)
+```
+
+### Running Average Loss
+
+We can either sum the loss and the divide it by the number of batches or compute the running average:
+
+```python
+# Running Average
+avg_loss = 0
+
+for e in range(epochs):
+    # ...
+    avg_loss += (1.0 / (batch_id + 1)) * (loss.item() - avg_loss)
+
+```
+
+### Export Conda and Pip Environments
+
+```bash
+conda env export -f environment.yaml
+pip freeze > requirements. txt
+```
+
+### Apply Good Code and Reproducibility Guidelines
+
+- Use randomness seeds and controlled weight initialization to allow reproducibility.
+- Embed code in classes and create scripts.
+- Logging.
+- Follow PEP8 guidelines.
+- [Ultimate Guide to Python Debugging](https://towardsdatascience.com/ultimate-guide-to-python-debugging-854dea731e1b)
+- Try [Pytorch profiling](https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html)
+
+### Imbalaced Datasets
+
+Imbalanced datasets are those classification datasets that contain significantly different numbers of instances for each class. Over- or under-sampling techniques need to be applied if we want to avoid introducing class bias.
+
+Check, for instance: [imbalanced-dataset-sampler](https://github.com/ufoym/imbalanced-dataset-sampler).
+
+### Use `Sequential` to Be Cleaner
+
+```python
+class Net(nn.Module):
+
+    def __init__(self):
+        super(Net, self).__init__()
+
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+
+        self.fc1 = nn.Linear(56*56*32, 133)
+        self.fc2 = nn.Linear(1024, 133)
+
+    def forward(self, x):
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+
+        x = x.view(x.size(0), -1)
+        x = self.fc1(x)
+
+        return x
+```
+
+### Improving the Training: Learning Rate Scheduler and Optimization Algorithms
+
+The section [Guidelines on Training and Hyperparameter Selection](#Guidelines-on-Training-and-Hyperparameter-Selection) provides some tips on how to determine whether the network is training properly or not.
+
+One additional way of improving the training is by using a learning scheduler, as explained in the [docu of optim](https://pytorch.org/docs/stable/optim.html). An example scheduler could be:
+
+```python
+scheduler = optim.lr_scheduler.StepLR(optimizer_scratch, step_size=100, gamma=0.9)
+```
+
+Finally, check also:
+
+- [Optimization algorithms](https://ruder.io/optimizing-gradient-descent/)
+- []()
 
 ## Appendix: Lab - Example Projects
 

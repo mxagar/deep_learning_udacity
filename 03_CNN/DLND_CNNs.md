@@ -809,7 +809,7 @@ We want to learn invariant representations of objects, in which these properties
 - Size of the object: scale invariante
 - Orientation/rotatiin of the object: rotation invariant.
 
-Max-pooling achieves some translation invariance: a summary pixel (max, mean) is chosen within a window, so the pixel could be anywhere translated in that window; addditionally, if we apply several max-pooling layers sequentially, the invariance is more significant.
+Max-pooling achieves some translation invariance: a summary pixel (max, mean) is chosen within a window, so the pixel could be anywhere translated in that window; additionally, if we apply several max-pooling layers sequentially, the invariance is more significant.
 
 Another way to increase the invariance and, thus, improve the generalization, is to use data augmentation: we artificially move, scale and rotate the images in the dataset.
 
