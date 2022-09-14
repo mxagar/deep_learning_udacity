@@ -2372,39 +2372,58 @@ There, the instructions as well as a summary of the work can be found.
 
 ## 8. Deep Learning for Cancer Detection
 
-```
-# Intro
+This section has a mini-project associated, which is developed in the repository [dermatologist-ai](https://github.com/mxagar/dermatologist-ai).
 
-	Melanoma cuases 10.000 deaths/year in USA
-		Traffic accidetnt 40.000
+
+
+
+### Skin Cancer Detection Problem
+
+	Melanoma causes 10.000 deaths/year in USA
+		Traffic accident 40.000
 	Four stages
+		0. In-situ (localized spot)
 		1. Superficial
 		4. It has reached blood vessels (it can happen within a year)
 	Survival 5 years
-		Stage 1: 100%
+		Stages 0,1: 98.4%-100%
 		Stage 4: 20%
 		Therefore, early detection is very important!
 	Very hard to distinguish a melanoma from a mole (lunar)
 		dermatologists are very trained
 
-# Dataset
+![Skin Cancer Classification: Example](./pics/skin_cancer_example.jpg)
 
-	more than 20.000 labelled images collected
-	there are more than 2.000 of disease classes...
+### Dataset
+
+	More than 20.000 labelled images collected
+	The general term is skin disease
+		which is broken down to benign / malign / ...
+		there is a classification tree which comes from medicine
+	There are more than 2.000 of disease classes...
 		they were distilled to 757 classes
 		many of the 2000 were duplicates, had missspellings, etc
-	melanoma, the worst and most lethal, is one of them
-	very challenging classification
+	Melanoma, the worst and most lethal, is one of them
+	Very challenging classification
+	Additional difficulty: some images contain markers for size reference
 
-# Network & Training
+![Skin Cancer Classification](./pics/skin_cancer_classification.jpg)
+
+
+### Network and Training
 	
 	Inception-v3, from Google
-	They traine dit 2x
+	They trained it 2x
 		once with randomly initialized weights
-		once with previoulsy trained weights - network pretrained with regular images, cats & dogs, etc
+		once with previoulsy trained weights - network pretrained with regular images, cats & dogs, etc.
 			surprisingly, it led to better results!
 			although the training images are different from the skin images,
 			apparently significant features and structures are learned when observing the world
+
+![Skin Cancer Classification: Network](./pics/skin_cancer_network.jpg)
+
+
+```
 
 # Validation
 
@@ -2508,8 +2527,9 @@ There, the instructions as well as a summary of the work can be found.
 
 ## 9. Jobs in Deep Learning
 
-
+Done.
 
 ## 10. Project: Optimize Your GitHub Profile
 
+Done.
 

@@ -881,6 +881,9 @@ dataiter = iter(trainloader)
 # Get a batch
 images, labels = next(dataiter)
 
+# Set in eval mode! (turn off dropout, etc.)
+model.eval()
+
 # Flatten first image of the batch
 img = images[0].view(1, 784)
 # Turn off gradients to speed up this part
@@ -1033,6 +1036,9 @@ import helper
 dataiter = iter(trainloader)
 # Get a batch
 images, labels = next(dataiter)
+
+# Set in eval mode! (turn off dropout, etc.)
+model.eval()
 
 # Flatten first image of the batch
 img = images[0].view(1, 784)
@@ -2452,8 +2458,17 @@ scheduler = optim.lr_scheduler.StepLR(optimizer_scratch, step_size=100, gamma=0.
 
 Finally, check also:
 
-- [Optimization algorithms](https://ruder.io/optimizing-gradient-descent/)
-- []()
+- [Optimization algorithms by Sebastian Ruder](https://ruder.io/optimizing-gradient-descent/)
+- [Understanding Categorical Cross-Entropy Loss, Binary Cross-Entropy Loss, Softmax Loss, Logistic Loss, Focal Loss and all those confusing names](https://gombru.github.io/2018/05/23/cross_entropy_loss/)
+
+### Print Memory Usage During Training
+
+```python
+print("use_cuda: ",use_cuda," -> ", torch.cuda.get_device_name(0))
+print('Memory Usage:')
+print('\tAllocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+print('\tCached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+```
 
 ## Appendix: Lab - Example Projects
 
