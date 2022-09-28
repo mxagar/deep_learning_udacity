@@ -54,6 +54,7 @@ Additionally, note that:
       - [How to Connect to Jetson via SSH](#how-to-connect-to-jetson-via-ssh)
       - [Connect to a Jupyter Notebook Run on the Jetson from Desktop](#connect-to-a-jupyter-notebook-run-on-the-jetson-from-desktop)
       - [SFTP Access](#sftp-access)
+      - [SCP Access](#scp-access)
   - [3. Transfer Learning](#3-transfer-learning)
     - [3.1 Transfer Leearning vs. Fine-Tuning](#31-transfer-leearning-vs-fine-tuning)
     - [3.2 Flower Classification Example](#32-flower-classification-example)
@@ -71,6 +72,19 @@ Additionally, note that:
     - [6.3 Style Transfer in Pytorch: Notebook](#63-style-transfer-in-pytorch-notebook)
   - [7. Project: Dog-Breed Classifier](#7-project-dog-breed-classifier)
   - [8. Deep Learning for Cancer Detection](#8-deep-learning-for-cancer-detection)
+    - [8.1 Skin Cancer Details, Dataset and Model](#81-skin-cancer-details-dataset-and-model)
+      - [Skin Cancer Detection Problem](#skin-cancer-detection-problem)
+      - [Dataset](#dataset)
+      - [Network and Training](#network-and-training)
+      - [Validation](#validation)
+    - [8.2 Evaluation of Classification Models](#82-evaluation-of-classification-models)
+      - [Precision, Recall, Accuracy, Sensitivity, Specificity](#precision-recall-accuracy-sensitivity-specificity)
+      - [Detection Score Threshold](#detection-score-threshold)
+      - [ROC Curve = Receiver Operating Characteristic](#roc-curve--receiver-operating-characteristic)
+      - [Visualization](#visualization)
+      - [Confusion Matrix](#confusion-matrix)
+    - [8.3 Additional Resources](#83-additional-resources)
+    - [8.4 Mini-Project](#84-mini-project)
   - [9. Jobs in Deep Learning](#9-jobs-in-deep-learning)
   - [10. Project: Optimize Your GitHub Profile](#10-project-optimize-your-github-profile)
 
@@ -2558,7 +2572,7 @@ Additional links provided by Udacity:
 
 ### 8.4 Mini-Project
 
-See repository: []()
+See repository: [dermatologist-ai](https://github.com/mxagar/dermatologist-ai).
 
 ## 9. Jobs in Deep Learning
 
