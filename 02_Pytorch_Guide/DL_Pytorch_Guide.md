@@ -62,6 +62,7 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - Sentiment Analysis: Sequence to Probability
 14. Vanilla Inference Pipeline and Artifact
 15. Cloud Computing with AWS
+16. Beyond Classification: Object Detection and Semantic Segmentation
 
 Appendices:
 
@@ -2354,7 +2355,11 @@ Always stop & terminate instances that we don't need! Terminates erases any data
 
 [Amazon EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
 
+## 16. Beyond Classification: Object Detection and Semantic Segmentation
 
+The Udacity Computer Vision Nanodegree covers in the 3rd module the topics of Object Detection and Semantic Segmentation, among others.
+
+See also [detection_segmentation_pytorch](https://github.com/mxagar/detection_segmentation_pytorch).
 
 ## Appendix: Tips and Tricks
 
