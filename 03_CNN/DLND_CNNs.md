@@ -2374,10 +2374,9 @@ There, the instructions as well as a summary of the work can be found.
 
 This section has a mini-project associated, which is developed in the repository [dermatologist-ai](https://github.com/mxagar/dermatologist-ai).
 
+### 8.1 Skin Cancer Details, Dataset and Model
 
-
-
-### Skin Cancer Detection Problem
+#### Skin Cancer Detection Problem
 
 	Melanoma causes 10.000 deaths/year in USA
 		Traffic accident 40.000
@@ -2394,7 +2393,7 @@ This section has a mini-project associated, which is developed in the repository
 
 ![Skin Cancer Classification: Example](./pics/skin_cancer_example.jpg)
 
-### Dataset
+#### Dataset
 
 	More than 20.000 labelled images collected
 	The general term is skin disease
@@ -2410,7 +2409,7 @@ This section has a mini-project associated, which is developed in the repository
 ![Skin Cancer Classification](./pics/skin_cancer_classification.jpg)
 
 
-### Network and Training
+#### Network and Training
 	
 	Inception-v3, from Google
 	They trained it 2x
@@ -2423,9 +2422,7 @@ This section has a mini-project associated, which is developed in the repository
 ![Skin Cancer Classification: Network](./pics/skin_cancer_network.jpg)
 
 
-```
-
-# Validation
+#### Validation
 
 	Dataset was carefully cleaned
 	They wanted to remove duplicates, remove yellow scaling markers, etc
@@ -2436,9 +2433,14 @@ This section has a mini-project associated, which is developed in the repository
 		Dermatologist 1 accuracy: 65.6%
 		Dermatologist 2 accuracy: 66.0%
 
-# Precision, Recall, Accuracy
+	Note that they needed to classify between melanoma, benign and another lession (carcinoma)
+	With the achieved results, they decided to do real experiments, larger.
 
-	See handwritten notes.
+### 8.2 Evaluation of Classification Models
+
+#### Precision, Recall, Accuracy, Sensitivity, Specificity
+
+See handwritten notes.
 
 	Confusion matrix with
 		actual truth: +, -
@@ -2461,9 +2463,10 @@ This section has a mini-project associated, which is developed in the repository
 	Specificity = true negative rate
 		of all healthy people, how many did we diagnose healthy?
 
-# Detection Score Threshold
 
-	See handwritten notes.
+#### Detection Score Threshold
+
+See handwritten notes.
 	
 	Network output: P = probability of malignant
 	Where should we put the threshold?
@@ -2472,9 +2475,12 @@ This section has a mini-project associated, which is developed in the repository
 		malignant
 	In the medical context, we should take a conservative threshold (type I error) that eliminates all FN (type II error)
 
-# ROC Curve = Receiver Operating Characteristic
+![Classification Problems: Deciding the Threshold](./pics/skin_cancer_p_threshold.png)
+
+
+#### ROC Curve = Receiver Operating Characteristic
 	
-	See handwritten notes.
+See handwritten notes.
 	
 	Plot that illustrates the diagnostic ability of a binary classifier.
 	There are several ROC curves
@@ -2490,8 +2496,11 @@ This section has a mini-project associated, which is developed in the repository
 		and plot
 
 	Area Under the Curve (AUC) should be as close as possible to 1.0
+	Important takeaway: the area NOT under the curve represents the miss-classifications.
 
-	Several cases analyzed in the handwritten notes
+![ROC Area Under the Curve](./pics/roc_auc.png)
+
+Several cases analyzed in the handwritten notes.
 
 	Interpretation
 		Specificity: high values make the overall cost more efficient
@@ -2503,33 +2512,59 @@ This section has a mini-project associated, which is developed in the repository
 		the spread is quite large
 		it seems some have a lower sensitivity: is it because it is costly for the insurance companies to run more tests?
 
-# Visualization
+![ROC-AUC Result Carcinoma](./pics/skin_cancer_roc_result_carcinoma.png)
 
-	See handwritten notes.
+![ROC-AUC Result Melanoma](./pics/skin_cancer_roc_result_melanoma.png)
+
+#### Visualization
+
+See handwritten notes.
 	
 	t-SNE
 	Sesibility analysis
 		change samples and observe change in class output to understand what is the net looking at
 		-> heatmaps, saliency maps
 
-# Confusion Matrix	
+![Skin Cancer: T-SNE Visualization](./pics/skin_cancer_t_sne.png)
 
-	See handwritten notes.
+#### Confusion Matrix	
+
+See handwritten notes.
 	
-	If we have seveal classes, they tell as the probability of patients having A while they're diagnosed with B
+	If we have several classes, they tell as the probability of patients having A while they're diagnosed with B
 
 	The confusion matrix should as close as possible to the identity, and in any case the less sparse possible
 
-	The two tested dermatologists had a more sparse confusion matrix than teh network 
+	The two tested dermatologists had a more sparse confusion matrix than the network 
 
-```
+![Skin Cancer: Confusion Matrices](./pics/skin_cancer_confusion_matrices.png)
 
+### 8.3 Additional Resources
+
+The Nature paper by Sebastian Thrun et al. is in the folder `literature/`:
+
+`EstevaThrun_SkinCancerDetectionNN_Nature_2017.pdf`
+
+Additional links provided by Udacity:
+
+- [Nature Paper: Dermatologist-level classification of skin cancer with deep neural networks](https://www.nature.com/articles/nature21056.epdf?author_access_token=8oxIcYWf5UNrNpHsUHd2StRgN0jAjWel9jnR3ZoTv0NXpMHRAJy8Qn10ys2O4tuPakXos4UhQAFZ750CsBNMMsISFHIKinKDMKjShCpHIlYPYUHhNzkn6pSnOCt0Ftf6)
+- [Fortune: Stanford’s Artificial Intelligence Is Nearly as Good as Your Dermatologist](https://fortune.com/2017/01/26/stanford-ai-skin-cancer/)
+- [Bloomberg: Diagnosing Skin Cancer With Google Images](https://www.bloomberg.com/news/articles/2017-06-29/diagnosing-skin-cancer-with-google-images)
+- [BBC: Artificial intelligence 'as good as cancer doctors'](https://www.bbc.com/news/health-38717928)
+- [Wall Street Journal: Computers Turn Medical Sleuths and Identify Skin Cancer](https://www.wsj.com/articles/computers-turn-medical-sleuths-and-identify-skin-cancer-1486740634?emailToken=JRrzcPt+aXiegNA9bcw301gwc7UFEfTMWk7NKjXPN0TNv3XR5Pmlyrgph8DyqGWjAEd26tYY7mAuACbSgWwvV8aXkLNl1A74KycC8smailE=)
+- [Forbes: What Can Computer Vision Do In The Palm Of Your Hand?](https://www.forbes.com/sites/forbestechcouncil/2017/09/27/what-can-computer-vision-do-in-the-palm-of-your-hand/?sh=7652637547a7)
+- [Scientific American: Deep-Learning Networks Rival Human Vision](https://www.scientificamerican.com/article/deep-learning-networks-rival-human-vision1/)
+
+
+### 8.4 Mini-Project
+
+See repository: []()
 
 ## 9. Jobs in Deep Learning
 
-Done.
+Done; uninteresting to me.
 
 ## 10. Project: Optimize Your GitHub Profile
 
-Done.
+Done; uninteresting to me.
 

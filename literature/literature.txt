@@ -18,6 +18,7 @@ SimonyanZissermann_VGG_2015.pdf
 YosinskiBengio_HowTransferable_2014.pdf
 	Paper in which transferability of learned features is analyzed.
 
+EstevaThrun_SkinCancerDetectionNN_Nature_2017.pdf
 EstevaThrun_CancerDetection_2017.pdf
 	Nature paper by Sebastian Thrun.
 	Fine-tuning is applied to the Inception v3 network to learn the detection of skin cancer.
@@ -39,3 +40,4 @@ CovingtonSargin_YoutubeRecommendations_2016.pdfSilverHassabis_AlphaGoNaturePap
 
 Mikolov_Word2vec_2013.pdf
 Mikolov_Word2vec_2_2013.pdf
+
