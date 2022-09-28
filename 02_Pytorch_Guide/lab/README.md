@@ -6,9 +6,10 @@ List of examples (they usually build up on the previous):
 
 - `pytorch_example_01`: **transfer learning (DenseNet121, CNN) applied to a custom dataset** in which images need to be classified (dogs and cats); images are first organized into forlders with a script, and then, the classification pipeline is followed: loading/preprocessing, model transfer, traning, and inference. Inferred classes are saved in a CSV.
 
-- `pytorch_example_02`
+- `pytorch_example_02`: Manual CNN & Transfer Learning on Jetson Nano (CUDA) using CIFAR-10.
 
-- `pytorch_inference_pipeline`
+- `pytorch_inference_pipeline`: Simple Pytorch serialization and deployment.
+
 
 ## List of Applications / Utilities
 
@@ -18,9 +19,9 @@ List of examples (they usually build up on the previous):
     - `pytorch_example_01`: Transfer learning with DenseNet-121, custom dataset handling (subset of dogs-vs-cats from Kaggle, RGB), training-validation-inference, save & load.
     - `pytorch_example_02`: CIFAR-10 (32x32x3) with a manually defined CNN and transfer learning with VGG16. The example is similar to `pytorch_example_00`, but with a more complex dataset; additionally, three splits are done to the dataset: train/validation/test.
 
-- Image Object Detection
+- Image Object Detection: see [detection_segmentation_pytorch](https://github.com/mxagar/detection_segmentation_pytorch).
 
-- Image Segmentation
+- Image Segmentation: see [detection_segmentation_pytorch](https://github.com/mxagar/detection_segmentation_pytorch).
 
 - Anomaly Detection
 
