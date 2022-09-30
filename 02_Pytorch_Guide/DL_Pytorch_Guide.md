@@ -2117,7 +2117,7 @@ In the following, a basic usage guide is provided; for setup, look at the howto 
 
 ####  How to Connect to Jetson via SSH
 
-    ssh mxagar@jetson-nano.com
+    ssh mxagar@jetson-nano.local
 
 #### Connect to a Jupyter Notebook Run on the Jetson from Desktop
 
