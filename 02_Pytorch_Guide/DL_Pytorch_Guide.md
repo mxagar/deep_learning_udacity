@@ -70,6 +70,7 @@ Appendices:
     - Number of Model Parameters
     - Running average loss
 - Lab: Example Projects
+- Important Links
 
 ## 1. Introduction and Summary
 
@@ -2488,4 +2489,7 @@ However, many applications go beyond those use cases. To that end, I will collec
 
 Please, go to the `./lab` folder are read the `README.md` there to get more information.
 
+## Appendix: Important Links
+
+- [Deep Tutorials for PyTorch](https://github.com/sgrvinod/Deep-Tutorials-for-PyTorch)
 
