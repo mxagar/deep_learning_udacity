@@ -2160,9 +2160,164 @@ scp -r /local/directory mxagar@jetson-nano.local:/remote/directory
 
 ## 13. Recursive Neural Networks (RNN)
 
+There is a complete module in my notes on the Udacity Deep Learning Nanodegree dedicated to Recursive Neural Networks; additionally, the Computer Vision Nanodegree has also a module which covers the topic extensively:
+
+- [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity) `/ 03_Advanced_CV_and_DL`
+- [deep_learning_udacity](https://github.com/mxagar/deep_learning_udacity) ` / 04_RNN`
+
+### Introduction: Simple RNNs and LSTMs
+
+While CNNs capture spatial relationships, RNNs capture sequential information. The basic way of generating RNNs is using **Simple Recurrent Neurons** or **Elman Networks**, which re-use their previous memory state as input in the next state, as shown in the image:
+
+![Simple RNN](./pics/SimpleRNN.png)
+
+Note that the folded model of the simple RNN neuron is basically like a layer which has three vectors and three mapping matrices:
+
+- `x_t`: input vector at time step `t`.
+- `y_t`: output vector at time step `t`.
+- `s_t`: memory state at time `t`.
+- `W_x`: weight matrix connecting the inputs to the state layer.
+- `W_y`: weight matrix connecting the state to the output.
+- `W_s`: weight matrix connecting the state from the previous timestep to the state in the following timestep.
+
+Note that we can stack several of such RNN cells or layers; the output of the previous becomes the input for the next. When we define an RNN cell in Pytorch, we specify
+
+- the sizes of the input and hidden/output vectors
+- and the number of layers that make up the RNN, i.e., the number of RNN cells that are stacked (typically 1-3).
+
+If we unfold the model and compute the gradients propagating the error in the network, we see that the error derivatives with respect to `W_x` and `W_s` are the summation of the current derivative and all the previous ones.
+
+However, not all previous derivates are considered due to the **vanishing gradient** problem; in practice, the 8-10 previous steps are used. Similarly, to avoid the **exploding gradient** issue, **gradient clipping** is applied: if the gradient exceeds a threshold, it is normalized.
+
+In fact, simple RNNs are not that used because they fall in the **vanishing gradient** problem. Instead, **Long Short-Term Memory (LSTM) units** are usually employed, which were invented by Schmidhuber et al. in 1997 to target specifically the vanishing gradient issue.
+
+The LSTM cells are able to keep for longer periods of time past events: +1000 steps backwards can be considered, not only 8-10. Additionally, with the use of sigmoid and `tanh` activations, LSTM cells can control
+
+- which information to remove
+- which to store and
+- when to use it
+- and when to pass the information to the next stage.
+
+In the following, I will briefly explain the intuition of the LSTM cell without going into details. If interested, Christopher Olah has a great post which explains what's happening inside an LSTM unit: [Understanding LSTM Networks](http://colah.github.io/posts/2015-08-Understanding-LSTMs/). 
+
+LSTM cells segregate the memory input/output into two types: 
+
+- short-term memory, which captures recent inputs and outputs.
+- and long-term memory, which captures the context.
+ 
+Therefore, in practice we have:
+
+- Three inputs:
+  - signal/event: `x_t`
+  - previous short-term memory: `h_(t-1)`
+  - previous long-term memory : `C_(t-1)`
+- Three outputs: 
+  - transformed signal or output: `y_t = h_t`
+  - current/updated short-term memory: `h_t`
+  - current/updated long-term memory: `C_t`
+
+Note that the updated short-term memory is the signal output, too!
+
+All 3 inputs are used in the cell in **4 different and interconnected gates** to generate the 3 outputs; these internal gates are:
+
+- Forget gate: useless parts of previous long-term memory are forgotten, creating a lighter long-term memory.
+- Learn gate: previous short-term memory and current event are learned.
+- Remember gate: we mix the light long-term memory with forgotten parts and the learned information to form the new long-term memory.
+- Use gate: similarly, we mix the light long-term memory with forgotten parts and the learned information to form the new short-term memory.
+
+![LSTM Cell Abstraction](./pics/LSTMs.png)
+
+In summary, the LSTM cell is able to capture the context and the recent items in the fed sequences applying several mappings via four gates internally. A key aspect of the cell is that **it is differentiable**, so we can apply backpropagation and optimize the parameters to minimize the error.
+
+### Defining an LSTM cell in Pytorch
+
+In the following example, the basic usage of an LSTM cell in Pytorch is shown. Input vectors of 4 items map to output vectors of 3 items with one cell. We can pass sequences of vectors, i.e., several vectors arranged in a tensor. One vector can be a word after being transformed into an embedding.
+
+Notes: 
+
+- `nn.LSTM` is more like a layer than a neuron, as happens with `nn.RNN`; its equivalent would be `nn.Linear`. Additionally, `nn.LSTM` can have several layers inside.
+- We can pass one vector after the another in a loop. However, it's more efficient to pass several vectors together in a tensor. Note this is not a batch - a batch would be another grouping on top of that. It is rather a sequence. If a vector is a word, it would be a sentence!
+
+```python
+import torch
+import torch.nn as nn
+from torch.autograd import Variable
+
+# input_dim: number of inputs, length of the input vector, number of units in the input vector
+# hidden_dim: number of ouputs, length of the output vector, number of units in the output vector
+# n_layers: number of hidden layers used; 1 == the LSTM cell has 1 hidden state
+# Note that we pass a SEQUENCE of vectors of dimension input_dim;
+# The length of the sequence appears later
+input_dim = 4 # example: dimensions of the input word embedding
+hidden_dim = 3 # example: number output class categories, if we directly have the output after the LSTM
+n_layers = 1 # usually 1 (default) to 3
+lstm = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=n_layers)
+# We can add dropout layers on the outputs of each LSTM layer if we add the argument dropout=drop_p
+# drop_p needs to be non-zero; dropout layer is added in all layers except the last one.
+# Default: 0
+# Also, we can use argument batch_first=True (especially relevant when DataLoaders are used).
+# Then, we expect the input size:
+# (batch, seq, feature) instead of (seq, batch, feature)
+# Similarly, the output size will be
+# (batch, seq, out) instead of (seq, batch, out)
+
+# Make a sequence of 5 input vectors of 4 random values each
+# Ie., each vector is of dimension 4 (=input_dim)
+inputs_list = [torch.randn(1, input_dim) for _ in range(5)]
+
+# Turn input vectors into a tensor with 5 rows of data.
+# This is our SEQUENCE.
+# Note that the LENGTH of the SEQUENCE is ARBITRARY!
+# Add the extra 2nd dimension (1) for batch_size.
+# We can also pass each of the 5 vectors one after the other,
+# but packing them together is more efficient.
+# This seems to be a batch -- but a batch is an additional grouping
+# on top of it. IT IS A SEQUENCE.
+# Batch size != sequence length.
+batch_size = 1
+inputs = torch.cat(inputs_list).view(len(inputs_list), batch_size, -1) 
+
+# Size: (number of sequences, batch size, input_dim)
+print('inputs size: \n', inputs.size()) # [5, 1, 4]
+
+# Initialize the hidden states: short- and long-term memories
+# We have so many as layers we have defined.
+# h0: (n_layers, batch_size, hidden_dim)
+# c0: (n_layers, batch_size, hidden_dim)
+h0 = torch.randn(n_layers, batch_size, hidden_dim)
+c0 = torch.randn(n_layers, batch_size, hidden_dim)
+
+# Wrap everything in torch Variable
+# Torch Variables are a wrapper around tensors; they represent a node in a graph,
+# and they have almost the same operations as tensors.
+# To obtain a tensro from a Variable: var.data
+# To obtain the gradient tensor of a Variable: var.grad.data
+inputs = Variable(inputs)
+h0 = Variable(h0)
+c0 = Variable(c0)
+# get the outputs and hidden state
+#output, hidden = lstm(inputs, (h0, c0))
+output, (h1, c1) = lstm(inputs, (h0, c0))
+
+# output size: [5, 1, 3]: one output of 3 elements for each of the 5 sequences of 4 elements
+# hidden size, (h1, c1): we get the last hidden state; INPUT for the next LSTM
+# h1: [1, 1, 3] 
+# c1: [1, 1, 3]
+```
+
+### Examples
+
+Applications:
+
+
+Architectures:
+
 - Sequence to Sequence: 
 - Sequence to One: 
 - Sentiment Analysis: Sequence to Probability
+
+Code / Notebooks:
+
 
 ## 14. Vanilla Inference Pipeline and Artifact
 
@@ -2362,6 +2517,9 @@ The Udacity Computer Vision Nanodegree covers in the 3rd module the topics of Ob
 
 See also [detection_segmentation_pytorch](https://github.com/mxagar/detection_segmentation_pytorch).
 
+## 17. Recursive Neural Networks
+
+
 ## Appendix: Tips and Tricks
 
 ### Number of Model Parameters
@@ -2492,4 +2650,6 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
 ## Appendix: Important Links
 
 - [Deep Tutorials for PyTorch](https://github.com/sgrvinod/Deep-Tutorials-for-PyTorch)
-
+- [Understanding LSTM Networks, by Chris Olah](http://colah.github.io/posts/2015-08-Understanding-LSTMs/)
+- [Exploring LSTMs, by Edwin Chen](http://blog.echen.me/2017/05/30/exploring-lstms/)
+- [Karpathy's Lecture: Recurrent Neural Networks, Image Captioning, LSTM](https://www.youtube.com/watch?v=iX5V1WpxxkY)
