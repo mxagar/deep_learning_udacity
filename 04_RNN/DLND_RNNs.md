@@ -126,7 +126,7 @@ The  notebook has the following sections:
 5. Embedding vector visualization with t-SNE
 6. Save the embedding matrix as a dataframe
 
-Note that the training takes quite a long time. INstead off using this approach, we can try the next notebook, which is based in the second paper by Mikolov et al.; that paper improves the training speed.
+Note that the training takes quite a long time. Instead off using this approach, we can try the next notebook, which is based in the second paper by Mikolov et al.; that paper improves the training speed.
 
 In the next section, some word arithmetics are shown; these were not in the original Udacity notebook, I tested them.
 
