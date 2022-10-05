@@ -2365,8 +2365,25 @@ Note: in RNNs, "one" might be one sequence of fixed size.
     - Save the embedding matrix as a dataframe.
 
 - Sentiment analysis RNN with LSTMs: [Sentiment_RNN_Exercise.ipynb](https://github.com/mxagar/deep-learning-v2-pytorch/blob/master/sentiment-rnn/Sentiment_RNN_Exercise.ipynb)
-  - This notebook improves the basic sentiment analysis network without RNN: [Sentiment Analysis Neural Network with Numpy](https://github.com/mxagar/deep-learning-v2-pytorch/tree/master/sentiment-analysis-network).
-  - 
+  - This notebook improves the basic sentiment analysis model network without RNNs: [Sentiment Analysis Neural Network with Numpy](https://github.com/mxagar/deep-learning-v2-pytorch/tree/master/sentiment-analysis-network).
+  - The network receives a batch of reviews. Reviews are tokenized and encoded as integers. The sequence length (number of words per review) is fixed: 200; thus, we either truncate the texts if longer or pad them with 0s on the left.
+  - The trained network is able to yield a value 0-1 which denotes the positive (1) or negative (0) sentiment of any text.
+  - The efficiency I got with the test split was 96.8%; that's very high!
+  - Steps:
+    - Load data and pre-process it:
+    	- punctuation is removed,
+    	- words are tokenized with `split()`
+    	- a vocabulary dictionary is built
+    	- tokens are encoded as integers
+    	- outliers are removed (reviews with length 0)
+    	- encoded reviews are converted to a fixed sequence length with truncation or left zero padding
+    - Training, validation and test splits are created
+    - Data loaders
+    - Model definition: Embedding, LSTM, Linear, Dropout, Sigmoid
+    - Training
+    - Saving and loading model
+    - Testing
+    - Inference / Prediction function
 
 ## 14. Vanilla Inference Pipeline and Artifact
 
@@ -2566,8 +2583,6 @@ The Udacity Computer Vision Nanodegree covers in the 3rd module the topics of Ob
 
 See also [detection_segmentation_pytorch](https://github.com/mxagar/detection_segmentation_pytorch).
 
-## 17. Recursive Neural Networks
-
 
 ## Appendix: Tips and Tricks
 
@@ -2702,3 +2717,4 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
 - [Understanding LSTM Networks, by Chris Olah](http://colah.github.io/posts/2015-08-Understanding-LSTMs/)
 - [Exploring LSTMs, by Edwin Chen](http://blog.echen.me/2017/05/30/exploring-lstms/)
 - [Karpathy's Lecture: Recurrent Neural Networks, Image Captioning, LSTM](https://www.youtube.com/watch?v=iX5V1WpxxkY)
+- [Skorch: A Scikit-Learn Wrapper for Pytorch](https://github.com/skorch-dev/skorch): Use Pytorch classifiers in `Pipeline` or `GridSearchCV`.
