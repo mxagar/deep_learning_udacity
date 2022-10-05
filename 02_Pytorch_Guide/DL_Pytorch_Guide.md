@@ -2229,6 +2229,10 @@ All 3 inputs are used in the cell in **4 different and interconnected gates** to
 
 In summary, the LSTM cell is able to capture the context and the recent items in the fed sequences applying several mappings via four gates internally. A key aspect of the cell is that **it is differentiable**, so we can apply backpropagation and optimize the parameters to minimize the error.
 
+An alternative to LSTMs are the **Gated Recurrent Units (GRUs)**, which appeared later. They simplify the recurrent cell while achieving similar performances.
+
+For more information, see: [Gated Recurrent Units (GRU)](http://www.cs.toronto.edu/~guerzhoy/321/lec/W09/rnn_gated.pdf).
+
 ### Defining an LSTM cell in Pytorch
 
 In the following example, the basic usage of an LSTM cell in Pytorch is shown. Input vectors of 4 items map to output vectors of 3 items with one cell. We can pass sequences of vectors, i.e., several vectors arranged in a tensor. One vector can be a word after being transformed into an embedding.
@@ -2307,17 +2311,62 @@ output, (h1, c1) = lstm(inputs, (h0, c0))
 
 ### Examples
 
-Applications:
+We distinguish different [types of RNN](https://www.javatpoint.com/tensorflow-types-of-rnn), depending on the sequence length for input/output, and example applications:
 
+- One to one: time series, text generation
+- One to many: image tagging
+- Many to one: sentiment analysis, time series
+- Many to many: part-of-speech tagging, machine translation
 
-Architectures:
+![Types of RNN](./pics/typesRNN.png)
 
-- Sequence to Sequence: 
-- Sequence to One: 
-- Sentiment Analysis: Sequence to Probability
+Note: in RNNs, "one" might be one sequence of fixed size.
+#### Code / Notebooks
 
-Code / Notebooks:
+- Simple RNN to forecast time series: [Simple_RNN.ipynb](https://github.com/mxagar/deep-learning-v2-pytorch/blob/master/recurrent-neural-networks/time-series/Simple_RNN.ipynb)
+  - A simple RNN is defined which takes one input sequence of 20 values sampled from the `sin()` function and and delivers one sequence of 20 values.
+  - The target sequence is defined as the input shifted one step.
+  - Therefore, only the last element from the target/output sequence would be really used.
 
+- LSTM RNN with Embeddings to tag Part-of-Speech type of sequences of words: [LSTM_Part-of-Speech_Tagging.ipynb](https://github.com/mxagar/CVND_Exercises/blob/master/2_4_LSTMs/2.%20LSTM%20Training%2C%20Part%20of%20Speech%20Tagging.ipynb)
+  - The notebook is very interesting, but the example is very simple: we use a vocabulary of less than 15 words and 3 possible parts-of-speech (noun, verb, determinant).
+  - A sequence of arbitrary length (words) is transformed into a sequence of the same length (parts-of-speech).
+  - Embeddings are used.
+  - Steps:
+    - At the beginning, a vocabulary is built: each word gets an index and vice versa.
+    - We take a sentence: a sequence of arbitrary length composed of words.
+    - The words are converted to indices.
+    - The sequence of indices is converted to a sequence of vectors using the embedding; we have a tensor of this size: `[sequence_length, embedding_vector_size]`.
+    - The sequence is passed to the LSTM. We need to specify the batch size too, e.g., 1; thus, the tensor is reshaped to `[sequence_length, batch_size=1, embedding_vector_size]`.
+    - The output is of size `[sequence_length, batch_size=1, hidden_dimension]`, which is mapped to `[sequence_length, output_classes]` with a linear layer.
+
+- Character-level LSTM to generate text: [Character_Level_RNN_Exercise.ipynb](https://github.com/mxagar/CVND_Exercises/blob/master/2_4_LSTMs/3_1.Chararacter-Level%20RNN%2C%20Exercise.ipynb)
+  - It is based on a post by [Andrej Karpathy](http://karpathy.github.io/2015/05/21/rnn-effectiveness/).
+  - A network is defined to be trained with sequences of characters such that the network is able to predict the next most likely character given the character sequence fed so far. In consequence, the network is able to generate a text character by character.
+  - Very interesting example where many topics are touched; could be a blueprint for word-level text generation.
+  - Steps:
+    - Encoding of text is done: vocabulary (`int2char`, `char2int`) is built and one-hot encoding of text or character sequences is done.
+    - Text is properly segmented in mini-batches of a fixed sequence length.
+    - Network is defined with LSTMs.
+    - Initial memory priming is discussed.
+    - Training and text prediction.
+    - Hyperparameter tuning is discussed.
+
+- Semantic Embeddings after Word2Vec by Mikolov et al.: [Skip_Grams_Exercise.ipynb](https://github.com/mxagar/deep-learning-v2-pytorch/blob/master/word2vec-embeddings/Skip_Grams_Exercise.ipynb)
+  - A semantic embedding is created following the Skip-gram approach by Mikolov et al.
+  - This is not an RNN, but embeddings are common in RNNs.
+  - A version with optimized training speed which uses negative sampling: [Negative_Sampling_Exercise.ipynb](https://github.com/mxagar/deep-learning-v2-pytorch/blob/master/word2vec-embeddings/Negative_Sampling_Exercise.ipynb)
+  - Steps:
+    - Text pre-processing: a vocabulary is built with all the unique words in the text and some symbols are replaced by symbol names (`. ->  <PERIOD>`). Additionally, subsampling of the words is done based on their occurrence: a probability of removing a word is defined based on its frequency in the text.
+    - Batch generation: we write a generator of batches which receives the text with integer-encoded words and produces sequences of input-target word pairs (encoded as integers).
+    - Similarity function
+    - SkipGram Model Definition and Training. Note that the training takes very long. This is optimized in the other mentioned notebook.
+    - Embedding vector visualization with t-SNE
+    - Save the embedding matrix as a dataframe.
+
+- Sentiment analysis RNN with LSTMs: [Sentiment_RNN_Exercise.ipynb](https://github.com/mxagar/deep-learning-v2-pytorch/blob/master/sentiment-rnn/Sentiment_RNN_Exercise.ipynb)
+  - This notebook improves the basic sentiment analysis network without RNN: [Sentiment Analysis Neural Network with Numpy](https://github.com/mxagar/deep-learning-v2-pytorch/tree/master/sentiment-analysis-network).
+  - 
 
 ## 14. Vanilla Inference Pipeline and Artifact
 
