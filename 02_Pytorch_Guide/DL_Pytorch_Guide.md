@@ -57,12 +57,14 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
 11. Weight Initialization
 12. Using the Jetson Nano (CUDA)
 13. Recursive Neural Networks (RNN)
-    - Sequence to Sequence: 
-    - Sequence to One: 
-    - Sentiment Analysis: Sequence to Probability
-14. Vanilla Inference Pipeline and Artifact
-15. Cloud Computing with AWS
-16. Beyond Classification: Object Detection and Semantic Segmentation
+    - Introduction: Simple RNNs and LSTMs
+    - Defining an LSTM cell in Pytorch
+    - Examples
+        - Code / Notebooks
+14. Recommendations for Hyperparameter Tuning
+15. Vanilla Inference Pipeline and Artifact
+16. Cloud Computing with AWS
+17. Beyond Classification: Object Detection and Semantic Segmentation
 
 Appendices:
 
@@ -2165,6 +2167,7 @@ There is a complete module in my notes on the Udacity Deep Learning Nanodegree d
 - [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity) `/ 03_Advanced_CV_and_DL`
 - [deep_learning_udacity](https://github.com/mxagar/deep_learning_udacity) ` / 04_RNN`
 
+
 ### Introduction: Simple RNNs and LSTMs
 
 While CNNs capture spatial relationships, RNNs capture sequential information. The basic way of generating RNNs is using **Simple Recurrent Neurons** or **Elman Networks**, which re-use their previous memory state as input in the next state, as shown in the image:
@@ -2321,6 +2324,7 @@ We distinguish different [types of RNN](https://www.javatpoint.com/tensorflow-ty
 ![Types of RNN](./pics/typesRNN.png)
 
 Note: in RNNs, "one" might be one sequence of fixed size.
+
 #### Code / Notebooks
 
 - Simple RNN to forecast time series: [Simple_RNN.ipynb](https://github.com/mxagar/deep-learning-v2-pytorch/blob/master/recurrent-neural-networks/time-series/Simple_RNN.ipynb)
@@ -2385,7 +2389,13 @@ Note: in RNNs, "one" might be one sequence of fixed size.
     - Testing
     - Inference / Prediction function
 
-## 14. Vanilla Inference Pipeline and Artifact
+## 14. Recommendations for Hyperparameter Tuning
+
+See the module `03_Advanced_CV_and_DL` of my notes on the Udacity Deep Learning Nanodegree: [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity/blob/main/03_Advanced_CV_and_DL/CVND_Advanced_CV_and_DL.md), Section 6: Hyperparameters.
+
+Also, check [Skorch: A Scikit-Learn Wrapper for Pytorch](https://github.com/skorch-dev/skorch); it should be possible to use Pytorch classifiers in `Pipeline` or `GridSearchCV`.
+
+## 15. Vanilla Inference Pipeline and Artifact
 
 Inference pipelines and artifacts are possible with pytorch.
 
@@ -2462,9 +2472,9 @@ with open("imagenet_classes.txt", "r") as f:
 print(f"Classification: {classes[proba.argmax()]}")
 ```
 
-## 15. Cloud Computing with AWS
+## 16. Cloud Computing with AWS
 
-### 15.1 Launch EC2 Instances
+### 16.1 Launch EC2 Instances
 
 EC2 = Elastic Compute Cloud. We can launch VM instances.
 
@@ -2515,7 +2525,7 @@ If we don't edit the security group, we won't be able to communicate with the in
 
 We can also set billing alarms.
 
-### 15.2 Connect to an Instance
+### 16.2 Connect to an Instance
 
 Once the instance is created, 
 
@@ -2571,13 +2581,13 @@ jupyter notebook --ip=0.0.0.0 --no-browser
 http://<public-IP>:8888/?token=<token-string>
 ```
 
-### 15.3 Pricing
+### 16.3 Pricing
 
 Always stop & terminate instances that we don't need! Terminates erases any data we have on the instance!
 
 [Amazon EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
 
-## 16. Beyond Classification: Object Detection and Semantic Segmentation
+## 17. Beyond Classification: Object Detection and Semantic Segmentation
 
 The Udacity Computer Vision Nanodegree covers in the 3rd module the topics of Object Detection and Semantic Segmentation, among others.
 
