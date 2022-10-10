@@ -2244,6 +2244,7 @@ Notes:
 
 - `nn.LSTM` is more like a layer than a neuron, as happens with `nn.RNN`; its equivalent would be `nn.Linear`. Additionally, `nn.LSTM` can have several layers inside.
 - We can pass one vector after the another in a loop. However, it's more efficient to pass several vectors together in a tensor. Note this is not a batch - a batch would be another grouping on top of that. It is rather a sequence. If a vector is a word, it would be a sentence!
+- When we input a sequence, we get as output a sequence of the same length; the output sequence is composed of hidden memory state vectors. The size of a hidden state vector doesn't need to be the same as the size of an input vector.
 
 ```python
 import torch
@@ -2316,12 +2317,14 @@ output, (h1, c1) = lstm(inputs, (h0, c0))
 
 We distinguish different [types of RNN](https://www.javatpoint.com/tensorflow-types-of-rnn), depending on the sequence length for input/output, and example applications:
 
-- One to one: time series, text generation
-- One to many: image tagging
-- Many to one: sentiment analysis, time series
-- Many to many: part-of-speech tagging, machine translation
+- One to one: vanilla neural network.
+- One to many: image captioning.
+- Many to one: sentiment analysis, time series.
+- Many to many: part-of-speech tagging, machine translation.
 
 ![Types of RNN](./pics/typesRNN.png)
+
+See also [Andrej Karpathy's blog post](http://karpathy.github.io/2015/05/21/rnn-effectiveness/).
 
 Note: in RNNs, "one" might be one sequence of fixed size.
 
@@ -2388,6 +2391,9 @@ Note: in RNNs, "one" might be one sequence of fixed size.
     - Saving and loading model
     - Testing
     - Inference / Prediction function
+- [Text Generator Project](https://github.com/mxagar/text_generator)
+  - This is a very nice example in which the typical NLP process with RNNs is implemented.
+  - My [blog post](https://mikelsagardia.io/blog/text-generation-rnn.html) explains many concepts.
 
 ## 14. Recommendations for Hyperparameter Tuning
 
