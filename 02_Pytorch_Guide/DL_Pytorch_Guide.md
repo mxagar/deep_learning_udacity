@@ -391,7 +391,8 @@ def save_model(filepath, model, input_size, output_size, hidden_sizes):
 def load_checkpoint(filepath):
     checkpoint = torch.load(filepath)
     # If we saved the model in a CUDA device, we need to map it to CPU
-    # checkpoint = torch.load(filepath, map_location=torch.device('cpu'))
+    # checkpoint = torch.load(filepath, map_location=torch.device('cpu')), or
+    # checkpoint = torch.load(filepath, map_location='cpu')
     # Create a model with given architecture params (layer sizes) + model state (weight & bias values)
     model = Network(checkpoint['input_size'],
                     checkpoint['output_size'],
@@ -1368,7 +1369,8 @@ save_model(filepath, model, input_size, output_size, hidden_sizes)
 def load_checkpoint(filepath):
     checkpoint = torch.load(filepath)
     # If we saved the model in a CUDA device, we need to map it to CPU
-    # checkpoint = torch.load(filepath, map_location=torch.device('cpu'))    
+    # checkpoint = torch.load(filepath, map_location=torch.device('cpu')), or
+    # checkpoint = torch.load(filepath, map_location='cpu')    
     model = fc_model.Network(checkpoint['input_size'],
                              checkpoint['output_size'],
                              checkpoint['hidden_layers'])
@@ -2240,12 +2242,7 @@ For more information, see: [Gated Recurrent Units (GRU)](http://www.cs.toronto.e
 
 In the following example, the basic usage of an LSTM cell in Pytorch is shown. Input vectors of 4 items map to output vectors of 3 items with one cell. We can pass sequences of vectors, i.e., several vectors arranged in a tensor. One vector can be a word after being transformed into an embedding.
 
-Notes: 
-
-- LSTM units are defined with `nn.LSTM` in Pytorch, and although they are called *units*, they are more like a layer than a neuron, akin to `nn.RNN`; its equivalent would be `nn.Linear`. Additionally, `nn.LSTM` can have several stacked layers inside.
-- We can pass one vector after the another in a loop. However, it's more efficient to pass a sequence of vectors together in a tensor. On top of a sequence, we can define batches of sequences. While sequences are usually defined by the application programmer, I'd advise to create batches automatically with the [Pytorch `DataLoader`](https://pytorch.org/docs/stable/data.html) API, as shown in the project [text_generator](https://github.com/mxagar/text_generator).
-- When we input a sequence, we get as output a sequence of the same length; the output sequence is composed of hidden memory state vectors. The size of a hidden state vector doesn't need to be the same as the size of an input vector. This can be seen in the project [text_generator](https://github.com/mxagar/text_generator), too; if you'd like more explanations, I encourage you to read [my blog post on that project](https://mikelsagardia.io/blog/text-generation-rnn.html).
-- RNNs have many hyperparameters and it can be overwhelming to select the correct starting set. [Andrej Karpathy](http://karpathy.github.io/2015/05/21/rnn-effectiveness/) gives a great collection of hints in his project [char-rnn](https://github.com/karpathy/char-rnn); these are implemented in [text_generator](https://github.com/mxagar/text_generator).
+See the [important notes on LSTMs and RNNs](#important-notes-on-lstms-and-rnns) section below.
 
 ```python
 import torch
@@ -2307,12 +2304,40 @@ c0 = Variable(c0)
 # get the outputs and hidden state
 #output, hidden = lstm(inputs, (h0, c0))
 output, (h1, c1) = lstm(inputs, (h0, c0))
+# hidden = (h, c)
 
 # output size: [5, 1, 3]: one output of 3 elements for each of the 5 sequences of 4 elements
-# hidden size, (h1, c1): we get the last hidden state; INPUT for the next LSTM
+# hidden size: hidden = (h1, c1): we get the last hidden state; INPUT for the next LSTM
 # h1: [1, 1, 3] 
 # c1: [1, 1, 3]
 ```
+
+### Important Notes on LSTMs and RNNs
+
+Working with sequences and RNNs can seem non-straighforward. In this section I collect some remarks that can be helpful. They are useful only if the reader knows already how LSTMs are used in general; if that's not the case [my blog post on text generation](https://mikelsagardia.io/blog/text-generation-rnn.html) provides many introductory explanations.
+
+- LSTM units are defined with `nn.LSTM` in Pytorch, and although they are called *units*, they are more like a layer than a neuron, akin to `nn.RNN`; its equivalent would be `nn.Linear`. Additionally, `nn.LSTM` can have several stacked layers inside; if they are more than 1, we can even add dropout in their definition.
+- Note that the `batch_size` and the `sequence_length` are really **not LSTM model attributes**; that means we can dynamically change these sizes every time we perform `forward()`, in other words, we can simply pass an input vector 
+- We can pass one vector after the another in a loop. However, it's more efficient to pass a sequence of vectors together in a tensor. On top of a sequence, we can define batches of sequences. While sequences are usually defined by the application programmer, I'd advise to create batches automatically with the [Pytorch `DataLoader`](https://pytorch.org/docs/stable/data.html) API, as shown in the projects [text_generator](https://github.com/mxagar/text_generator) or [image_captioning](https://github.com/mxagar/image_captioning).
+- When we pass a sequence to the `LSTM` unit:
+  - the returned hidden state tuple `hidden = (h, c)` refers to the one obtained after passing the last vector in the sequence; `h` and `c` have the same size `hidden_size`, `h` is the output or short-term memory and `c` is the cell state or long-term memory
+  - we get as output a sequence of the same length; the output sequence is composed of hidden memory state vectors `h` obtained after each input sequence element. The size of a hidden state vector doesn't need to be the same as the size of an input vector. This can be seen in the project [text_generator](https://github.com/mxagar/text_generator), too; if you'd like more explanations, I encourage you to read [my blog post on that project](https://mikelsagardia.io/blog/text-generation-rnn.html).
+- In some cases we may want to pass input vectors in a loop; for instance, that's the case when the input sequence would be composed by the subsequent outputs of the previous vector inputs, like in machine translation or [image caption generation](https://github.com/mxagar/image_captioning).
+- We decide whether to pass the `hidden` tuple or not depending on the application:
+  - If we don't pass `hidden`, the hidden states are initializes to zero according to the [Pytorch LSTM documentation](https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html).
+  - I understand that if we define `hidden = None` and then do `output, hidden = lstm(inputs, hidden)`, that's like passing nothing.
+  - If we write an `init_hidden()` function to manually reset/initialize the hidden state tuple, we need to take into account that it requires the parameters `batch_size` and `sequence_length`, which should be able to modify any time.
+  - When we input a sequence, the `h` vector is passed between element processings automatically, independently from the fact whether we pass the `hidden` tuple or not.
+  - If we want to re-use the previous `hidden` tuple, you need to consider the following:
+    - The sequence inputs that reuse `hidden` *need* to be related in each loop step.
+    - In the training loop, we might want to create a new copy `hidden` to prevent backpropagating the entire training history: `hidden = tuple([each.data for each in hidden])`
+    - Important links on resetting hidden states:
+      - [In LSTM, why should I reset hidden variables?](https://discuss.pytorch.org/t/in-lstm-why-should-i-reset-hidden-variables/94016)
+      - [Shall I pass hidden states to LSTM or not?](https://discuss.pytorch.org/t/shall-i-pass-hidden-states-to-lstm-or-not/72426)
+- Observation I've done from several NLP projects: when the LSTM output is mapped to a vocabulary vector (in theory a sparse one-hot encoded vector) with a linear layer, the model output is not activated with `softmax`; instead, it is left as a non-activated (regression) output and it is passed to the regular `CrossEntropyLoss` criterion/loss function (yes, `CrossEntropyLoss`). Then, that loss function compares integer-encoded tokens with regressed vocabulary values -- it doesn't make much sense, but there seems to be some magic implemented under the hood that makes the models learn more efficiently.
+- RNNs have many hyperparameters and it can be overwhelming to select the correct starting set.
+  - [Andrej Karpathy](http://karpathy.github.io/2015/05/21/rnn-effectiveness/) gives a great collection of hints in his project [char-rnn](https://github.com/karpathy/char-rnn); these are implemented in my [text generator project](https://github.com/mxagar/text_generator).
+  - Also, related research papers give good starting points.
 
 ### Examples
 
@@ -2392,9 +2417,22 @@ Note: in RNNs, "one" might be one sequence of fixed size.
     - Saving and loading model
     - Testing
     - Inference / Prediction function
+
 - [Text Generator Project](https://github.com/mxagar/text_generator)
   - This is a very nice example in which the typical NLP process with RNNs is implemented.
   - My [blog post](https://mikelsagardia.io/blog/text-generation-rnn.html) explains many concepts.
+
+- [Image Captioning Project](https://github.com/mxagar/image_captioning)
+  - This is also a very nice example in which a CNN-RNN encoder-decoder is implemented to predict image captions.
+  - Installation and usage of the [MS COCO](https://cocodataset.org/#home) dataset is shown.
+  - Creation of custom data loaders.
+  - Basic text processing (i.e., tokenization and vectorization) to create vocabularies.
+  - Usage of pre-trained Convolutional Neuronal Networks.
+  - Usage of Recurrent Neural Networks to learn sequences of vectors.
+  - Links to many resources, e.g.:
+    - How to compute the [BLEU metric](https://en.wikipedia.org/wiki/BLEU): theory and tools.
+    - How to implement [beam search](https://en.wikipedia.org/wiki/Beam_search).
+  - Links to many papers.
 
 ## 14. Recommendations for Hyperparameter Tuning
 
@@ -2689,6 +2727,20 @@ class Net(nn.Module):
         x = self.fc1(x)
 
         return x
+```
+### Automatically Reload Modules
+
+It is a best practice to define the network/model in an external file, e.g., `model.py`, and to import it to the notebooks we're working on the application. However, the kernel needs to be re-started if the module is to be reloaded after the changes.
+
+To avoid that, we can use the following magic commands in a cell; we need to re-run it in order to reload the module without restarting the kernel.
+
+```python
+# Watch for any changes in model.py, and re-load it automatically
+%load_ext autoreload
+%autoreload 2
+
+# Import Network 
+from model import Net
 ```
 
 ### Improving the Training: Learning Rate Scheduler and Optimization Algorithms
