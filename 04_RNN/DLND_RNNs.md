@@ -1108,5 +1108,4 @@ print(predict(net, test_review_neu, seq_length)) # 0.4309
 
 ## 8. Project: Generating TV Scripts
 
-
-
+See project repository: [text_generator](https://github.com/mxagar/text_generator).
