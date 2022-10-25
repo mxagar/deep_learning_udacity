@@ -41,3 +41,9 @@ CovingtonSargin_YoutubeRecommendations_2016.pdfSilverHassabis_AlphaGoNaturePap
 Mikolov_Word2vec_2013.pdf
 Mikolov_Word2vec_2_2013.pdf
 
+Rombach_StableDiffusion_2022.pdfRamesh_DallE_2021.pdfZhang_StackGAN_2017.pdf
+
+Chen_CartoonGAN_2018.pdf
+
+Goodfellow_GANs_2014.pdf
+
