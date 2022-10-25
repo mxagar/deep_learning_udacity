@@ -14,8 +14,9 @@ The nanodegree is composed of six modules:
 Each module has a folder with its respective notes. This folder is the one of the **first module**: Introduction to Deep Learning.
 
 Additionally, note that:
-- I made many hand-written nortes, which I will scan and push to this repostory.
-- I forked the Udacity repository for the exercisesl [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch); all the material and  notebooks are there.
+
+- I made many hand-written notes; check the PDFs.
+- I forked the Udacity repository for the exercises [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch); all the material and notebooks are there.
 
 ## Overview of Contents
 
