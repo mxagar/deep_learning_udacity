@@ -144,6 +144,8 @@ Let's consider the MNIST dataset with `28x28` grayscale images. For such small i
 - A popular choice for the output of the generator is the hyperbolic tangent `tanh`, which yields values in `[0,1]`.
 - The output of the discriminator is a `sigmoid`.
 
+
+
 ![Simple GAN Architecture Choices](./pics/simple_gan_architecture.jpg)
 
 ## X. Diffusion Models
