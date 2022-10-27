@@ -28,12 +28,14 @@ Additionally, note that:
       - [Interpretation](#interpretation)
       - [Difficulties with GANs](#difficulties-with-gans)
     - [1.3 Tips for Training GANs](#13-tips-for-training-gans)
+    - [1.4 MNIST GAN](#14-mnist-gan)
+  - [X. Interesting Links](#x-interesting-links)
   - [X. Diffusion Models](#x-diffusion-models)
   - [X. NERFs](#x-nerfs)
 
 ## 1. Generative Adversarial Networks (GANs)
 
-This section is taught by Ian Goodfellow himself! Goodfellow invented the Generative Adversarial Networks (GANs).
+This section is taught by Ian Goodfellow himself! Goodfellow invented the Generative Adversarial Networks (GANs) with his seminal paper [Generative Adversarial Networks, 2014](https://arxiv.org/abs/1406.2661).
 
 ### 1.1 Applications of GANs
 
@@ -144,9 +146,45 @@ Let's consider the MNIST dataset with `28x28` grayscale images. For such small i
 - A popular choice for the output of the generator is the hyperbolic tangent `tanh`, which yields values in `[0,1]`.
 - The output of the discriminator is a `sigmoid`.
 
-
-
 ![Simple GAN Architecture Choices](./pics/simple_gan_architecture.jpg)
+
+In contrast to many other machine learning models, GANs require 2 losses, `g_loss` and `d_loss`, and 2 optimization algorithms running simultaneously. Additionally:
+
+- Adam is a good choice.
+- For the discriminator, we should use the **binary cross-entropy loss, but its stable version that uses logits**! The logits are the values produced by the discriminator, right before the sigmoid.
+- For the discriminator, one GAN specific trick is to multiply the labels by 0.9 so that they are a little bit below their value. It regularizes the system and decreases extreme predictions.
+- For the generator, we should use the same stable binary cross-entropy loss, but with the labels flipped. In other words: the generator optimizes the log-probability of the wrong labels.
+- Some people take `g_loss = -d_loss`, but it doesn't work well in practice, because the gradient one is 0 when the other is winning. The intuition behind that choice is that both nets are adversarial, i.e., they are competing with each other, and we want to achieve an equilibrium.
+
+![GAN Optimization](./pics/gan_optimization.jpg) 
+
+![GAN: Numerically Stable Cross-Entropy](./pics/gan_stable_cross_entropy.jpg)
+
+![GAN: Generator, Flipped Labels](./pics/gan_generator_flipped_labels.jpg)
+
+Everything introduced so far applies to all GANs; however, if we want to scale up to large image sizes, we need to start using convolutional layers.
+
+- Convolutional layers take 4D tensors: `(batch_size, channels, width, height)`; we need to `reshape` the noise input `z` for that.
+- Classification CNNs apply convolutions and pooling to shrink the image size while enlarging the number of channels; however, for GANs, **it is recommended to increase the image size as we go deeper in the generator**! That is achieved with convolution transpose with stides larger than 1.
+- We should use **batch normalization** (or equivalent) in all layers except the output layer of the generator and the input layer of the discriminator. The [DCGAN](https://arxiv.org/abs/1511.06434v2) authors also apply different batch normalizations to real and fake/generated images, and that seems to work nicely in practice.
+
+![GAN CNNs](./pics/gan_cnn.jpg)
+
+![GAN: Convolutions Expand Image Size](./pics/gan_convolution.jpg)
+
+### 1.4 MNIST GAN
+
+
+
+## X. Interesting Links
+
+- [DCGAN Tutorial, Pytorch](https://pytorch.org/tutorials/beginner/dcgan_faces_tutorial.html)
+- [Cool GAN Applications](https://jonathan-hui.medium.com/gan-some-cool-applications-of-gans-4c9ecca35900)
+- [Compilation of Cool GAN Projects](https://github.com/nashory/gans-awesome-applications).
+- [Generative Adversarial Networks, 2014](https://arxiv.org/abs/1406.2661).
+- [Improved Techniques for Training GANs, 2016](https://arxiv.org/abs/1606.03498).
+- [DCGAN Paper, 2016](https://arxiv.org/abs/1511.06434v2).
+
 
 ## X. Diffusion Models
 
