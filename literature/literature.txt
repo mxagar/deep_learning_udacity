@@ -48,3 +48,5 @@ Chen_CartoonGAN_2018.pdf
 Goodfellow_GANs_2014.pdf
 
 SalimansGoodfellow_ImprovedTrainingGAN_2016.pdf
+
+Radford_DCGAN_2016.pdf
