@@ -77,7 +77,7 @@ Generative Adversarial Networks (GANs) were introduced by Ian Goodfellow and col
 
 Some notes on the notation:
 
-- The noise is `z` (Gaussian).
+- The noise is `z` (Gaussian). It is also known as the later vector, i.e., we are taking a point in the latent space that contains all possible images.
 - The Generator produces `x = G(z)`; `x` is an image.
 - The discriminator takes that `x = G(z)` as fake input (as well as real samples) and produces `D(G(z))`, which should be real (1) even for fake (0) samples (e.g., images) at the end.
 
@@ -142,9 +142,11 @@ Tim Salimans, Ian Goodfellow, Wojciech Zaremba, Vicki Cheung, Alec Radford, Xi C
 Let's consider the MNIST dataset with `28x28` grayscale images. For such small images, we can get away with fully connected networks, i.e., we end up having matrix multiplications: `matlmul`. Additionally, we would require the following:
 
 - Both the generator `G` and the discriminator `D` need to have at least one hidden layer.
-- For the hidden layers, any activation function will work, but the **leaky ReLU**, `lrelu` is specially popular. They work very well because they facilitate the propagation of the gradient in the entire network. This is good for every network, but it is specially important for GANs, since the generator needs to receive the gradients of the discriminator!
+- For the hidden layers, any activation function will work, but the **leaky ReLU**, `lrelu` is specially popular. They work very well because they facilitate the propagation of the gradient in the entire network, since the gradient of `lrelu` is not 0 for negative values. This is good for every network, but it is specially important for GANs, since the generator needs to receive the gradients of the discriminator!
 - A popular choice for the output of the generator is the hyperbolic tangent `tanh`, which yields values in `[0,1]`.
 - The output of the discriminator is a `sigmoid`.
+
+`LeakyReLU(x) = max(0,x) + negative_slope (default: 0.01) * min(0,x)`
 
 ![Simple GAN Architecture Choices](./pics/simple_gan_architecture.jpg)
 
@@ -176,7 +178,13 @@ Everything introduced so far applies to all GANs; however, if we want to scale u
 
 **Core idea of GANs**: The final goal of a GAN is to train both networks together as if they are competing, i.e., they have opposing objectives. Then, **the resulting Generator G() is able to create very realistic fake data (e.g., face images)**. Simultaneously, the discriminator D() is not able to distinguish between fake/generated and real, and it outputs values close to 0.5 for both.
 
+This section implements a GAN for the MNIST dataset. The notebook is in 
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ gan-mnist`
+
 ![MNIST GAN: ](./pics/gan_mnist_idea.jpg)
+
+
 
 
 
