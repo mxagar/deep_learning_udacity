@@ -81,7 +81,7 @@ Some notes on the notation:
 - The Generator produces `x = G(z)`; `x` is an image.
 - The discriminator takes that `x = G(z)` as fake input (as well as real samples) and produces `D(G(z))`, which should be real (1) even for fake (0) samples (e.g., images) at the end.
 
-The final goal of a GAN is to train both networks together as if they are competing; then, **the resulting Generator G() is able to create very realistic fake data (e.g., face images)**.
+**Core idea**: The final goal of a GAN is to train both networks together as if they are competing, i.e., they have opposing objectives. Then, **the resulting Generator G() is able to create very realistic fake data (e.g., face images)**. Simultaneously, the D() is not able to distinguish between fake/generated and real, and it outputs values close to 0.5 for both.
 
 To that end, the training works in two Phases (for each epoch) which can be repeated one after the other several times or with each batch (for some epochs):
 
@@ -173,6 +173,10 @@ Everything introduced so far applies to all GANs; however, if we want to scale u
 ![GAN: Convolutions Expand Image Size](./pics/gan_convolution.jpg)
 
 ### 1.4 MNIST GAN
+
+**Core idea of GANs**: The final goal of a GAN is to train both networks together as if they are competing, i.e., they have opposing objectives. Then, **the resulting Generator G() is able to create very realistic fake data (e.g., face images)**. Simultaneously, the discriminator D() is not able to distinguish between fake/generated and real, and it outputs values close to 0.5 for both.
+
+![MNIST GAN: ](./pics/gan_mnist_idea.jpg)
 
 
 
