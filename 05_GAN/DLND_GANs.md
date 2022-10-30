@@ -230,7 +230,7 @@ Generator training:
   g_optimizer.step()
   ```
 
-In order to visualize the samples in the 4th step, **Sample Visualization**, we save 16 fake/generated images every epoch. Each time a fixed set of 16 random/latent vectors is used.
+In order to visualize the samples in the 4th step, **Sample Visualization**, we save 16 fake/generated images every epoch. Each time a fixed set of 16 random/latent vectors is used. We can see how the fake/generated samples become more realistic with time.
 
 In the following, the code of the notebook is provided:
 
