@@ -17,8 +17,8 @@ Additionally, note that I made many hand-written notes, which I will scan and pu
 
 Here, I reference notebooks that are present in two repositories (both updated, but the second more advanced):
 
-- [DL_PyTorch](https://github.com/mxagar/DL_PyTorch), referenced in the CVND
-- [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/intpo-to-pytorch/`, the one used in the DLND
+- [DL_PyTorch](https://github.com/mxagar/DL_PyTorch), referenced in the CVND.
+- [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/intpo-to-pytorch/`, the one used in the DLND.
 
 ## Summary and More Applications
 
@@ -35,56 +35,79 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
 
 ## Overview of Contents
 
-1. Introduction and Summary
-    - File: `helper.py`
-    - File `fc_model.py`
-2. Tensors: `Part 1 - Tensors in Pytorch.ipynb`
-3. Neural Networks: `Part 2 - Neural Networks in PyTorch.ipynb`
-4. Training Neural Networks: `Part 3 - Training Neural Networks.ipynb`
-5. Fashion-MNIST Example: `Part 4 - Fashion-MNIST.ipynb`
-6. Inference and Validation: `Part 5 - Inference and Validation.ipynb`
-7. Saving and Loading Models: `Part 6 - Saving and Loading Models.ipynb`
-8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`
-9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`
-    - Notes on Fine Tuning
-10. Convolutional Neural Networks (CNN)
-    - `Conv2d`
-    - `MaxPool2d`
-    - Linear Layer and Flattening
-    - Example of a Simple Architecture
-    - Summary of Guidelines for the Architecture Definitions
-    - Guidelines on Training and Hyperparameter Selection
-11. Weight Initialization
-12. Batch Normalization
-13. Using the Jetson Nano (CUDA)
-14. Recursive Neural Networks (RNN)
-    - Introduction: Simple RNNs and LSTMs
-    - Defining an LSTM cell in Pytorch
-    - Examples
-        - Code / Notebooks
-15. Recommendations for Hyperparameter Tuning
-16. Vanilla Inference Pipeline and Artifact
-17. Cloud Computing with AWS
-18. Beyond Classification: Object Detection and Semantic Segmentation
+- [Pytorch Guide](#pytorch-guide)
+  - [Summary and More Applications](#summary-and-more-applications)
+  - [Overview of Contents](#overview-of-contents)
+  - [1. Introduction and Summary](#1-introduction-and-summary)
+    - [Summary: `helper.py`, `fc_model.py`](#summary-helperpy-fc_modelpy)
+      - [File: `helper.py`](#file-helperpy)
+      - [File `fc_model.py`](#file-fc_modelpy)
+  - [2. Tensors: `Part 1 - Tensors in Pytorch.ipynb`](#2-tensors-part-1---tensors-in-pytorchipynb)
+  - [3. Neural Networks: `Part 2 - Neural Networks in PyTorch.ipynb`](#3-neural-networks-part-2---neural-networks-in-pytorchipynb)
+  - [4. Training Neural Networks: `Part 3 - Training Neural Networks.ipynb`](#4-training-neural-networks-part-3---training-neural-networksipynb)
+  - [5. Fashion-MNIST Example: `Part 4 - Fashion-MNIST.ipynb`](#5-fashion-mnist-example-part-4---fashion-mnistipynb)
+  - [6. Inference and Validation: `Part 5 - Inference and Validation.ipynb`](#6-inference-and-validation-part-5---inference-and-validationipynb)
+    - [6.1 Three Splits: Train, Validation, Test](#61-three-splits-train-validation-test)
+  - [7. Saving and Loading Models: `Part 6 - Saving and Loading Models.ipynb`](#7-saving-and-loading-models-part-6---saving-and-loading-modelsipynb)
+  - [8. Loading Image Data: `Part 7 - Loading Image Data.ipynb`](#8-loading-image-data-part-7---loading-image-dataipynb)
+  - [9. Transfer Learning: `Part 8 - Transfer Learning.ipynb`](#9-transfer-learning-part-8---transfer-learningipynb)
+    - [Notes on Fine Tuning](#notes-on-fine-tuning)
+  - [10. Convolutional Neural Networks (CNNs)](#10-convolutional-neural-networks-cnns)
+    - [`Conv2d`](#conv2d)
+    - [`MaxPool2d`](#maxpool2d)
+    - [Linear Layer and Flattening](#linear-layer-and-flattening)
+    - [Example of a Simple Architecture](#example-of-a-simple-architecture)
+    - [Summary of Guidelines for the Architecture Definition](#summary-of-guidelines-for-the-architecture-definition)
+    - [Guidelines on Training and Hyperparameter Selection](#guidelines-on-training-and-hyperparameter-selection)
+  - [11. Weight Initialization](#11-weight-initialization)
+  - [12. Batch Normalization](#12-batch-normalization)
+      - [Implementation](#implementation)
+      - [Benefits of Batch Normalization](#benefits-of-batch-normalization)
+      - [Notebook: Batch Normalization](#notebook-batch-normalization)
+  - [13. Using the Jetson Nano (CUDA)](#13-using-the-jetson-nano-cuda)
+      - [Summary of Installation Steps](#summary-of-installation-steps)
+      - [How to Connect to Jetson via SSH](#how-to-connect-to-jetson-via-ssh)
+      - [Connect to a Jupyter Notebook Run on the Jetson from Desktop](#connect-to-a-jupyter-notebook-run-on-the-jetson-from-desktop)
+      - [SFTP Access](#sftp-access)
+      - [SCP Access](#scp-access)
+  - [14. Recursive Neural Networks (RNN)](#14-recursive-neural-networks-rnn)
+    - [Introduction: Simple RNNs and LSTMs](#introduction-simple-rnns-and-lstms)
+    - [Defining an LSTM cell in Pytorch](#defining-an-lstm-cell-in-pytorch)
+    - [Important Notes on LSTMs and RNNs](#important-notes-on-lstms-and-rnns)
+    - [Examples](#examples)
+      - [Code / Notebooks](#code--notebooks)
+  - [15. Recommendations for Hyperparameter Tuning](#15-recommendations-for-hyperparameter-tuning)
+  - [16. Vanilla Inference Pipeline and Artifact](#16-vanilla-inference-pipeline-and-artifact)
+  - [17. Cloud Computing with AWS](#17-cloud-computing-with-aws)
+    - [17.1 Launch EC2 Instances](#171-launch-ec2-instances)
+    - [17.2 Connect to an Instance](#172-connect-to-an-instance)
+    - [17.3 Pricing](#173-pricing)
+  - [18. Beyond Classification: Object Detection and Semantic Segmentation](#18-beyond-classification-object-detection-and-semantic-segmentation)
+  - [Appendix: Tips and Tricks](#appendix-tips-and-tricks)
+    - [Number of Model Parameters](#number-of-model-parameters)
+    - [Torch Summary](#torch-summary)
+    - [Running Average Loss](#running-average-loss)
+    - [Export Conda and Pip Environments](#export-conda-and-pip-environments)
+    - [Apply Good Code and Reproducibility Guidelines](#apply-good-code-and-reproducibility-guidelines)
+    - [Imbalaced Datasets](#imbalaced-datasets)
+    - [Use `Sequential` to Be Cleaner](#use-sequential-to-be-cleaner)
+    - [Automatically Reload Modules](#automatically-reload-modules)
+    - [Improving the Training: Learning Rate Scheduler and Optimization Algorithms](#improving-the-training-learning-rate-scheduler-and-optimization-algorithms)
+    - [Print Memory Usage During Training](#print-memory-usage-during-training)
+  - [Appendix: Lab - Example Projects](#appendix-lab---example-projects)
+  - [Appendix: Important Links](#appendix-important-links)
 
-Appendices:
-
-- Tips and Tricks
-    - Number of Model Parameters
-    - Running average loss
-- Lab: Example Projects
-- Important Links
 
 ## 1. Introduction and Summary
 
-Primarily developed by Facebook AI Research (FAIR).  
-Released in 2017.  
-Open Source, BSD.  
-Very intuitive: similar to Numpy and DL concepts integrate din a more natural way; more intuitive than TensorFlow or Keras.  
-Caffe2 was integrated to PyTorch in 2018.  
-Main intefarce: Python - it's very Pythonic; C++ interface is available too.  
-Main class: Tensors = multidimensional arrays, similar to Numpy's, but they can be operated on CUDA GPUs.  
-Automatic differentiation used (autograd?): derivative used in backpropagation computed in feedforward pass.  
+- Primarily developed by Facebook AI Research (FAIR).  
+- Released in 2017.  
+- Open Source, BSD.  
+- Very intuitive: similar to Numpy and DL concepts integrate din a more natural way; more intuitive than TensorFlow or Keras.  
+- Caffe2 was integrated to PyTorch in 2018.  
+- Main interface: Python - it's very Pythonic; C++ interface is available too.  
+- Main class: Tensors = multidimensional arrays, similar to Numpy's, but they can be operated on CUDA GPUs.  
+- Automatic differentiation used (autograd?): derivative used in backpropagation computed in feedforward pass.  
 
 Very interesting Tutorial: [DEEP LEARNING WITH PYTORCH: A 60 MINUTE BLITZ](https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html)
 
