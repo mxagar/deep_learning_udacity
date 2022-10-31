@@ -603,8 +603,208 @@ view_samples(0, [rand_images])
 
 ```
 
-### 1.5 Deep Convolutional GANs: DCGANs
+## 2. Deep Convolutional GANs: DCGANs
 
+In this section the [Street View House Numbers (SVHN) Dataset](http://ufldl.stanford.edu/housenumbers/) is used: a collection of house numbers images from street view that are labelled to be classified.
+
+![Street View House Numbers (SVHN) Dataset](./pics/svhn.png)
+
+The dataset is more complex than MNIST and it requires convolutional layers; thus, a **Deep Convolutional GAN (DCGAN)** is defined following similar guidelines as before, but replacing any linear layers with convolutions or transpose convolutions.
+
+The first ones to use a DCGAN were
+
+Alec Radford, Luke Metz, Soumith Chintala, 2016. [Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks](https://arxiv.org/abs/1511.06434)
+
+This section is based on that paper. Radford et al. provide architectural guidelines specific for DCGANs:
+
+> Architecture guidelines for stable Deep Convolutional GANs
+> - Replace any pooling layers with strided convolutions (discriminator) and fractional-strided convolutions (generator).
+> - Use batchnorm in both the generator and the discriminator.
+> - Remove fully connected hidden layers for deeper architectures.
+> - Use ReLU activation in generator for all layers except for the output, which uses Tanh.
+> - Use LeakyReLU activation in the discriminator for all layers.
+
+### 2.1 DCGAN Discriminator
+
+The discriminator has the architecture shown in the following:
+
+![DCGAN: Discriminator](./pics/dcgan_discriminator.jpg)
+
+Note that:
+
+- There are no pooling layers! Instead, convolutions of `stride=2` are used, thus, for every 2 pixels it sees, it creates 1 filtered image.
+- We use the same leaky ReLU as before.
+- We use batch normalization: layer outputs are scaled to have a mean of 0 and variance of 1; that increases training speed and reduces issues to poor initialization.
+- We're going to use images of size `(32, 32, 3)`.
+
+### 2.2 DCGAN Generator
+
+The generator has the architecture shown in the following:
+
+![DCGAN: Generator](./pics/dcgan_generator.jpg)
+
+Note that:
+
+- Transpose convolutions are used to upsample the feature maps: we go from narrow and deep feature maps to wide and shallow maps (i.e., images). The output layer size depends on the stride: `stride=2` doubles the size. The change in depth is controlled by the number of channels of the kernel.
+- ReLU is used, not leaky ReLU!
+- Batch normalization is used.
+- We're going to output images of size `(32, 32, 3)`.
+
+### 2.3 Batch Normalization
+
+Batch normalization was introduced by Ioffe et al. in 
+
+[Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167). Sergey Ioffe, Christian Szegedy, 2015.
+
+> Batch normalization normalizes the output of a previous layer by subtracting the batch mean and dividing by the batch standard deviation.
+
+As a result, the batch mean becomes 0 and the variance/std. dev. 1.
+
+The **goal of batch normalization is to improve training (make it faster) and make possible deeper networks; the accuracy of the inference might be improved a little bit.**
+
+**Intuition**: Normalizing the inputs to a network helps the network learn a converge to a solution; we can imagine that batch normalization is like doing that between layers, i.e., it is as if a network were composed by many mini sub-networks, and we scale the input for each of them. So we'd have a series of networks feeding to each other.
+
+Apart from that intuitive explanation, the authors prove in the paper that batch normalization decreases what they call the **internal covariate shift**:
+
+> Internal covariate shift refers to the change in the distribution of the inputs to different layers. It turns out that training a network is most efficient when the distribution of inputs to each layer is similar!
+
+Also, check Goodfellow's text book on Deep Learning: Chapter 8, Optimization.
+
+#### Implementation
+
+We compute the mean and the variance of all the values `x_i` in the batch `B` that come out from a layer **before the activation**:
+
+`mu_B, sigma_B^2`
+
+Then, the `x_i` values are scaled:
+
+`x_i_scaled <- (x_i - mu_B) / sqrt(sigma_B^2 + epsilon)`
+
+with `epsilon -> 0.001`; we add that small coefficient because
+
+- we want to avoid division by 0,
+- and because we are really trying to estimate the population variance; that variance is usually larger than the variance of the sample (the batch, in our case).
+
+Then, we apply a scaling (`gamma`) and a shift (`beta`) to those scaled values:
+
+`y_i <- gamma*x_i_scaled + beta`
+
+The parameters `gamma` and `beta` are **learnable**!
+
+Note that we usually don't use the bias term when applying batch normalization because
+
+> since we normalize `Wx+b`, the bias `b` can be ignored given that its effect will be canceled by the subsequent mean subtraction (the role of the bias is subsumed by `beta`).
+
+The following image/algorithm from Ioffe et al. summarizes the batch normalization algorithm:
+
+![Batch Normalization Algorithm](./pics/batch_norm_algorithm.jpg)
+
+So in summary:
+
+- We standardize the signals with batch sample statistics: mean and variance.
+- The normalization happens after the layer and before the activation.
+- If we apply batch normalization, the bias term can be switched off.
+- Apart from the normalization, there is a scaling and a shifting with learnable parameters. That means we need to have unique batch normalization layers for each layer.
+
+Practical notes for Pytorch:
+
+- In MLPs: We use [`BatchNorm1d`](https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm1d.html#torch.nn.BatchNorm1d) if the layers we normalize are linear. The normalization is applied to every node signal.
+- In CNNs: We use [`BatchNorm2d`](https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm2d.html#torch.nn.BatchNorm2d) if the layers we normalize are convolutional. The normalization is applied to every feature map.
+- In RNNs: The implementation is more complex and there is not Pytorch class ready to use; in the paper [Recurrent Batch Normalization](https://arxiv.org/abs/1603.09025), Cooijmans et al. showed how to do it; here is an exemplary [implementation code in Pytorch](https://github.com/jihunchoi/recurrent-batch-normalization-pytorch).
+- We need to use `.eval()` for testing in order to apply the **population** batch normalization instead of the **batch/sample** batch normalization employed with `.train()`. Population refers to the entire dataset fed so far, while sample/batch refers to the batch.
+
+#### Benefits of Batch Normalization
+
+The main motivation of batch normalization is to improve the training; we can get overall better results, but the idea is to speed up the learning process so that we can try different hyperparameters in a shorter time.
+
+- By normalizing the inputs to the next layer, we reduce the oscillations, which **improves training speed and convergence**.
+- We **can use much higher learning rates**; therefore, we can train faster.
+- **Weight initialization is easier**, we can be much less careful.
+- **Activation functions work better**, because we input centered and scaled distributions.
+- **We can create deeper networks because of the previous 4 points**, and deeper networks learn more complex features.
+- **A little bit of regularization is added**, as shown experimentally; thus, we can reduce some dropout.
+- **We can obtain small inference improvements**; although the main motivation is to enhance the training to try different sets of hyperparameters.
+
+#### Notebook: Batch Normalization
+
+This notebook shows how to use batch normalization in a classification network which uses the MNIST dataset:
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ batch-norm`
+
+The implementation is done using MLPs. Two networks are instantiated:
+
+- one without batch normalization
+- and one with batch normalization.
+
+Apart from that difference, the training and testing is the same for both, i.e., the batch normalization appears only in the network layer definition and the `forward()` function.
+
+Both networks are compared and the one with batch normalization shows better learning curves (faster, lower loss) and accuracy on the test split.
+
+In the following, the definition of the networks, which is the most important part of the notebook:
+
+```python
+import torch.nn as nn
+import torch.nn.functional as F
+
+class NeuralNet(nn.Module):
+    def __init__(self, use_batch_norm, input_size=784, hidden_dim=256, output_size=10):
+        """
+        Creates a PyTorch net using the given parameters.
+        
+        :param use_batch_norm: bool
+            Pass True to create a network that uses batch normalization; False otherwise
+            Note: this network will not use batch normalization on layers that do not have an
+            activation function.
+        """
+        super(NeuralNet, self).__init__() # init super
+        
+        # Default layer sizes
+        self.input_size = input_size # (28*28 images)
+        self.hidden_dim = hidden_dim
+        self.output_size = output_size # (number of classes)
+        # Keep track of whether or not this network uses batch normalization.
+        self.use_batch_norm = use_batch_norm
+        
+        # define hidden linear layers, with optional batch norm on their outputs
+        # layers with batch_norm applied have no bias term
+        # Ioffe et al. explain that 
+        # "the bias b can be ignored since 
+        # its effect will be canceled by the subsequent mean subtraction 
+        # (the role of the bias is subsumed by beta)"
+        if use_batch_norm:
+            self.fc1 = nn.Linear(input_size, hidden_dim*2, bias=False)
+            self.batch_norm1 = nn.BatchNorm1d(hidden_dim*2)
+        else:
+            self.fc1 = nn.Linear(input_size, hidden_dim*2)
+            
+        # define *second* hidden linear layers, with optional batch norm on their outputs
+        if use_batch_norm:
+            self.fc2 = nn.Linear(hidden_dim*2, hidden_dim, bias=False)
+            self.batch_norm2 = nn.BatchNorm1d(hidden_dim)
+        else:
+            self.fc2 = nn.Linear(hidden_dim*2, hidden_dim)
+        
+        # third and final, fully-connected layer
+        self.fc3 = nn.Linear(hidden_dim, output_size)
+        
+        
+    def forward(self, x):
+        # flatten image
+        x = x.view(-1, 28*28)
+        # all hidden layers + optional batch norm + relu activation
+        x = self.fc1(x)
+        if self.use_batch_norm:
+            x = self.batch_norm1(x)
+        x = F.relu(x)
+        # second layer
+        x = self.fc2(x)
+        if self.use_batch_norm:
+            x = self.batch_norm2(x)
+        x = F.relu(x)
+        # third layer, no batch norm or activation
+        x = self.fc3(x)
+        return x
+```
 
 
 ## X. Interesting Links

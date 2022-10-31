@@ -50,3 +50,5 @@ Goodfellow_GANs_2014.pdf
 SalimansGoodfellow_ImprovedTrainingGAN_2016.pdf
 
 Radford_DCGAN_2016.pdf
+
+Cooijmans_RecurrentBatchNorm_2017.pdf
