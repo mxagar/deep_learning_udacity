@@ -55,16 +55,17 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - Summary of Guidelines for the Architecture Definitions
     - Guidelines on Training and Hyperparameter Selection
 11. Weight Initialization
-12. Using the Jetson Nano (CUDA)
-13. Recursive Neural Networks (RNN)
+12. Batch Normalization
+13. Using the Jetson Nano (CUDA)
+14. Recursive Neural Networks (RNN)
     - Introduction: Simple RNNs and LSTMs
     - Defining an LSTM cell in Pytorch
     - Examples
         - Code / Notebooks
-14. Recommendations for Hyperparameter Tuning
-15. Vanilla Inference Pipeline and Artifact
-16. Cloud Computing with AWS
-17. Beyond Classification: Object Detection and Semantic Segmentation
+15. Recommendations for Hyperparameter Tuning
+16. Vanilla Inference Pipeline and Artifact
+17. Cloud Computing with AWS
+18. Beyond Classification: Object Detection and Semantic Segmentation
 
 Appendices:
 
@@ -1568,7 +1569,7 @@ See Section 12 or check the following file to see how to run python/jupyter via 
 
 The following steps are carried out in the notebook:
 
-1. Load the dataset andd define the transforms
+1. Load the dataset and define the transforms
 2. Load the pre-trained network (DenseNet)
 3. Change the classifier of the pre-trained network
 4. Train the new classifier with the own dataset
@@ -2099,7 +2100,164 @@ The notebooks in
 
 show how to apply that on a simple MLP that classfies the Fashion-MNIST dataset. There is a helper script which compares models initialized in different ways. Small datasets like the Fashion-MNIST are often used because they are easy and fast to train; thus, we can quickly see how the models behave in few epochs.
 
-## 12. Using the Jetson Nano (CUDA)
+## 12. Batch Normalization
+
+Batch normalization was introduced by Ioffe et al. in 
+
+[Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167). Sergey Ioffe, Christian Szegedy, 2015.
+
+> Batch normalization normalizes the output of a previous layer by subtracting the batch mean and dividing by the batch standard deviation.
+
+As a result, the batch mean becomes 0 and the variance/std. dev. 1.
+
+The **goal of batch normalization is to improve training (make it faster) and make possible deeper networks; the accuracy of the inference might be improved a little bit.**
+
+**Intuition**: Normalizing the inputs to a network helps the network learn a converge to a solution; we can imagine that batch normalization is like doing that between layers, i.e., it is as if a network were composed by many mini sub-networks, and we scale the input for each of them. So we'd have a series of networks feeding to each other.
+
+Apart from that intuitive explanation, the authors prove in the paper that batch normalization decreases what they call the **internal covariate shift**:
+
+> Internal covariate shift refers to the change in the distribution of the inputs to different layers. It turns out that training a network is most efficient when the distribution of inputs to each layer is similar!
+
+Also, check Goodfellow's text book on Deep Learning: Chapter 8, Optimization.
+
+#### Implementation
+
+We compute the mean and the variance of all the values `x_i` in the batch `B` that come out from a layer **before the activation**:
+
+`mu_B, sigma_B^2`
+
+Then, the `x_i` values are scaled:
+
+`x_i_scaled <- (x_i - mu_B) / sqrt(sigma_B^2 + epsilon)`
+
+with `epsilon -> 0.001`; we add that small coefficient because
+
+- we want to avoid division by 0,
+- and because we are really trying to estimate the population variance; that variance is usually larger than the variance of the sample (the batch, in our case).
+
+Then, we apply a scaling (`gamma`) and a shift (`beta`) to those scaled values:
+
+`y_i <- gamma*x_i_scaled + beta`
+
+The parameters `gamma` and `beta` are **learnable**!
+
+Note that we usually don't use the bias term when applying batch normalization because
+
+> since we normalize `Wx+b`, the bias `b` can be ignored given that its effect will be canceled by the subsequent mean subtraction (the role of the bias is subsumed by `beta`).
+
+The following image/algorithm from Ioffe et al. summarizes the batch normalization algorithm:
+
+![Batch Normalization Algorithm](./pics/batch_norm_algorithm.jpg)
+
+So in summary:
+
+- We standardize the signals with batch sample statistics: mean and variance.
+- The normalization happens after the layer and before the activation.
+- If we apply batch normalization, the bias term can be switched off.
+- Apart from the normalization, there is a scaling and a shifting with learnable parameters. That means we need to have unique batch normalization layers for each layer.
+
+Practical notes for Pytorch:
+
+- In MLPs: We use [`BatchNorm1d`](https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm1d.html#torch.nn.BatchNorm1d) if the layers we normalize are linear. The normalization is applied to every node signal.
+- In CNNs: We use [`BatchNorm2d`](https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm2d.html#torch.nn.BatchNorm2d) if the layers we normalize are convolutional. The normalization is applied to every feature map.
+- In RNNs: The implementation is more complex and there is not Pytorch class ready to use; in the paper [Recurrent Batch Normalization](https://arxiv.org/abs/1603.09025), Cooijmans et al. showed how to do it; here is an exemplary [implementation code in Pytorch](https://github.com/jihunchoi/recurrent-batch-normalization-pytorch).
+- We need to use `.eval()` for testing in order to apply the **population** batch normalization instead of the **batch/sample** batch normalization employed with `.train()`. Population refers to the entire dataset fed so far, while sample/batch refers to the batch.
+
+#### Benefits of Batch Normalization
+
+The main motivation of batch normalization is to improve the training; we can get overall better results, but the idea is to speed up the learning process so that we can try different hyperparameters in a shorter time.
+
+- By normalizing the inputs to the next layer, we reduce the oscillations, which **improves training speed and convergence**.
+- We **can use much higher learning rates**; therefore, we can train faster.
+- **Weight initialization is easier**, we can be much less careful.
+- **Activation functions work better**, because we input centered and scaled distributions.
+- **We can create deeper networks because of the previous 4 points**, and deeper networks learn more complex features.
+- **A little bit of regularization is added**, as shown experimentally; thus, we can reduce some dropout.
+- **We can obtain small inference improvements**; although the main motivation is to enhance the training to try different sets of hyperparameters.
+
+#### Notebook: Batch Normalization
+
+This notebook shows how to use batch normalization in a classification network which uses the MNIST dataset:
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ batch-norm`
+
+The implementation is done using MLPs. Two networks are instantiated:
+
+- one without batch normalization
+- and one with batch normalization.
+
+Apart from that difference, the training and testing is the same for both, i.e., the batch normalization appears only in the network layer definition and the `forward()` function.
+
+Both networks are compared and the one with batch normalization shows better learning curves (faster, lower loss) and accuracy on the test split.
+
+In the following, the definition of the networks, which is the most important part of the notebook:
+
+```python
+import torch.nn as nn
+import torch.nn.functional as F
+
+class NeuralNet(nn.Module):
+    def __init__(self, use_batch_norm, input_size=784, hidden_dim=256, output_size=10):
+        """
+        Creates a PyTorch net using the given parameters.
+        
+        :param use_batch_norm: bool
+            Pass True to create a network that uses batch normalization; False otherwise
+            Note: this network will not use batch normalization on layers that do not have an
+            activation function.
+        """
+        super(NeuralNet, self).__init__() # init super
+        
+        # Default layer sizes
+        self.input_size = input_size # (28*28 images)
+        self.hidden_dim = hidden_dim
+        self.output_size = output_size # (number of classes)
+        # Keep track of whether or not this network uses batch normalization.
+        self.use_batch_norm = use_batch_norm
+        
+        # define hidden linear layers, with optional batch norm on their outputs
+        # layers with batch_norm applied have no bias term
+        # Ioffe et al. explain that 
+        # "the bias b can be ignored since 
+        # its effect will be canceled by the subsequent mean subtraction 
+        # (the role of the bias is subsumed by beta)"
+        if use_batch_norm:
+            self.fc1 = nn.Linear(input_size, hidden_dim*2, bias=False)
+            self.batch_norm1 = nn.BatchNorm1d(hidden_dim*2)
+        else:
+            self.fc1 = nn.Linear(input_size, hidden_dim*2)
+            
+        # define *second* hidden linear layers, with optional batch norm on their outputs
+        if use_batch_norm:
+            self.fc2 = nn.Linear(hidden_dim*2, hidden_dim, bias=False)
+            self.batch_norm2 = nn.BatchNorm1d(hidden_dim)
+        else:
+            self.fc2 = nn.Linear(hidden_dim*2, hidden_dim)
+        
+        # third and final, fully-connected layer
+        self.fc3 = nn.Linear(hidden_dim, output_size)
+        
+        
+    def forward(self, x):
+        # flatten image
+        x = x.view(-1, 28*28)
+        # all hidden layers + optional batch norm + relu activation
+        x = self.fc1(x)
+        if self.use_batch_norm:
+            x = self.batch_norm1(x)
+        x = F.relu(x)
+        # second layer
+        x = self.fc2(x)
+        if self.use_batch_norm:
+            x = self.batch_norm2(x)
+        x = F.relu(x)
+        # third layer, no batch norm or activation
+        x = self.fc3(x)
+        return x
+```
+
+
+## 13. Using the Jetson Nano (CUDA)
 
 Notebooks can be executed on a CUDA device via SSH, e.g., on a Jetson Nano. In order to set up the Jetson Nano, we need to follow the steps in 
 
@@ -2162,7 +2320,7 @@ scp file.txt mxagar@jetson-nano.local:/path/to/folder/on/jetson
 scp -r /local/directory mxagar@jetson-nano.local:/remote/directory
 ```
 
-## 13. Recursive Neural Networks (RNN)
+## 14. Recursive Neural Networks (RNN)
 
 There is a complete module in my notes on the Udacity Deep Learning Nanodegree dedicated to Recursive Neural Networks; additionally, the Computer Vision Nanodegree has also a module which covers the topic extensively:
 
@@ -2434,13 +2592,13 @@ Note: in RNNs, "one" might be one sequence of fixed size.
     - How to implement [beam search](https://en.wikipedia.org/wiki/Beam_search).
   - Links to many papers.
 
-## 14. Recommendations for Hyperparameter Tuning
+## 15. Recommendations for Hyperparameter Tuning
 
 See the module `03_Advanced_CV_and_DL` of my notes on the Udacity Deep Learning Nanodegree: [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity/blob/main/03_Advanced_CV_and_DL/CVND_Advanced_CV_and_DL.md), Section 6: Hyperparameters.
 
 Also, check [Skorch: A Scikit-Learn Wrapper for Pytorch](https://github.com/skorch-dev/skorch); it should be possible to use Pytorch classifiers in `Pipeline` or `GridSearchCV`.
 
-## 15. Vanilla Inference Pipeline and Artifact
+## 16. Vanilla Inference Pipeline and Artifact
 
 Inference pipelines and artifacts are possible with pytorch.
 
@@ -2517,9 +2675,9 @@ with open("imagenet_classes.txt", "r") as f:
 print(f"Classification: {classes[proba.argmax()]}")
 ```
 
-## 16. Cloud Computing with AWS
+## 17. Cloud Computing with AWS
 
-### 16.1 Launch EC2 Instances
+### 17.1 Launch EC2 Instances
 
 EC2 = Elastic Compute Cloud. We can launch VM instances.
 
@@ -2570,7 +2728,7 @@ If we don't edit the security group, we won't be able to communicate with the in
 
 We can also set billing alarms.
 
-### 16.2 Connect to an Instance
+### 17.2 Connect to an Instance
 
 Once the instance is created, 
 
@@ -2626,13 +2784,13 @@ jupyter notebook --ip=0.0.0.0 --no-browser
 http://<public-IP>:8888/?token=<token-string>
 ```
 
-### 16.3 Pricing
+### 17.3 Pricing
 
 Always stop & terminate instances that we don't need! Terminates erases any data we have on the instance!
 
 [Amazon EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
 
-## 17. Beyond Classification: Object Detection and Semantic Segmentation
+## 18. Beyond Classification: Object Detection and Semantic Segmentation
 
 The Udacity Computer Vision Nanodegree covers in the 3rd module the topics of Object Detection and Semantic Segmentation, among others.
 
