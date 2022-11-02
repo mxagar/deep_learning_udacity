@@ -59,6 +59,7 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - [Example of a Simple Architecture](#example-of-a-simple-architecture)
     - [Summary of Guidelines for the Architecture Definition](#summary-of-guidelines-for-the-architecture-definition)
     - [Guidelines on Training and Hyperparameter Selection](#guidelines-on-training-and-hyperparameter-selection)
+    - [Other Layers and Configurations: Strided Convolutions and Transpose Convolutions](#other-layers-and-configurations-strided-convolutions-and-transpose-convolutions)
   - [11. Weight Initialization](#11-weight-initialization)
   - [12. Batch Normalization](#12-batch-normalization)
       - [Implementation](#implementation)
@@ -2062,6 +2063,87 @@ Depending on each case, we should act differently
     - Increase regularization: dropout in the final linear layers
     - Getting more epochs or more data is likely to help; but before doing that, we should use the samples we have and make sure that the learning curves decrease over time.
 
+### Other Layers and Configurations: Strided Convolutions and Transpose Convolutions
+
+There are other two important architectures that can use convolutional layers in a particular way:
+
+- [Convolutional Autoencoders](../03_CNN/DLND_CNN.md): Section `5.2 Autoencoders with CNNs: Upsampling for the Decoder`
+- [Deep Convolutional Generative Adversarial Networks](../05_GAN/DLND_GANs.md): Section `2. Deep Convolutional GANs: DCGANs`
+
+Both use **transpose convolutions** and DCGANs, additionally, replace pooling with **strided convolutions**.
+
+A **strided convolution** can halven the size of the image; given the size conversion formula
+
+`W_out = (W_in + 2P - F)/S + 1`
+
+and with
+
+- `padding, P = 1`
+- `kernel, F = 4 x 4`
+- `stride, S = 2`
+
+we have
+
+`W_out = (W_in + 2 - 4)/2 + 1 = W_in/2`
+
+Thus, the appropriate combination of stride, kernel size and padding makes the max-pooling unnecessary. There are other combinations of `F, S, P` parameters.
+
+A **transpose convolution** is also called a *deconvolution*, although it doesn't de-convolute; rather, it applies a convolution that upsamples the image or feature map. The link above explains how that works. 
+
+The layer which achieves transpose convolutions is `nn.ConvTranspose2d`:
+
+```python
+import torch.nn as nn
+
+# This is a transpose convolution of 2x2 swith stride 2
+# which upsamples the image to the double size without overlapping.
+# We need to manually specify stride=2,
+# otherwise, default is stride=1!
+# Similarly, note that channels start decreasing by the end,
+# since we are trying to go back to the original image shape!
+#
+# W_out = (W_in-1)*S - 2P + (F-1) + 1
+# with dilation=1 and output_padding = 0
+# and:
+# W: width/height
+# S: stride
+# P: padding
+# F: filter/kernel size
+#
+# Thus: F=2x2, S=2
+# W_out = (W_in-1)*2 - 0 + (2-1) + 1 = 2W_in
+nn.ConvTranspose2d(in_channels=16, 
+				   out_channels=4,
+				   kernel_size=2,
+				   stride=2)
+				   #stride=1,
+				   #padding=0,
+				   #output_padding=0,
+				   #groups=1,
+				   #bias=True,
+				   #dilation=1,
+				   #padding_mode='zeros'
+				   #...
+```
+
+As we see, in practice, it is like a convolutional layer that increases the image size; if the parameters are correctly set, the size can be doubled, following the transformation formula
+
+`W_out = (W_in-1)*S - 2P + (F-1) + 1`.
+
+Note that in the case of the Autoencoders `ConvTranspose2d` sometimes artifacts in the generated images. It has been shown that using `F.upsample(nn.Conv2d())` alleviates that issue; an example with MNIST is here:
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ autoencoders / convolutional-autoencoder / Upsampling_Solution.ipynb`
+
+In short, the equivalent of applying one `ConvTranspose2d` in the `forwad()` pass would be the following:
+
+```python
+# Upsample, followed by a conv layer, with relu activation function.
+# This function is called `interpolate` in some PyTorch versions.
+# The convolution does not change the image size,
+# but it modifies the depth (i.e., the number of channels).
+x = F.upsample(x, scale_factor=2, mode='nearest')
+x = F.relu(self.conv4(x))
+```
 
 ## 11. Weight Initialization
 
