@@ -52,3 +52,6 @@ SalimansGoodfellow_ImprovedTrainingGAN_2016.pdf
 Radford_DCGAN_2016.pdf
 
 Cooijmans_RecurrentBatchNorm_2017.pdf
+
+Gebru_CarDomainInvariance_2017.pdf
+Xie_AdversarialFeatureLearning_2018.pdf
