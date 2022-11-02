@@ -29,6 +29,14 @@ Additionally, note that:
       - [Difficulties with GANs](#difficulties-with-gans)
     - [1.3 Tips for Training GANs](#13-tips-for-training-gans)
     - [1.4 MNIST GAN](#14-mnist-gan)
+  - [2. Deep Convolutional GANs: DCGANs](#2-deep-convolutional-gans-dcgans)
+    - [2.1 DCGAN Discriminator](#21-dcgan-discriminator)
+    - [2.2 DCGAN Generator](#22-dcgan-generator)
+    - [2.3 Batch Normalization](#23-batch-normalization)
+      - [Implementation](#implementation)
+      - [Benefits of Batch Normalization](#benefits-of-batch-normalization)
+      - [Notebook: Batch Normalization](#notebook-batch-normalization)
+    - [2.4 Deep Convolutional GANs: DCGAN](#24-deep-convolutional-gans-dcgan)
   - [X. Interesting Links](#x-interesting-links)
   - [X. Diffusion Models](#x-diffusion-models)
   - [X. NERFs](#x-nerfs)
@@ -153,6 +161,7 @@ Let's consider the MNIST dataset with `28x28` grayscale images. For such small i
 
 In contrast to many other machine learning models, GANs require 2 losses, `g_loss` and `d_loss`, and 2 optimization algorithms running simultaneously. Additionally:
 
+- GANs are very sensitive to the optimization parameters; usually, much effort is put on selecting the right parameters so that the networks don't overpower the other.
 - Adam is a good choice.
 - For the discriminator, we should use the **binary cross-entropy loss, but its stable version that uses logits**! The logits are the values produced by the discriminator, right before the sigmoid.
 - For the discriminator, one GAN specific trick is to multiply the labels by 0.9 so that they are a little bit below their value. It regularizes the system and decreases extreme predictions.
@@ -624,6 +633,8 @@ This section is based on that paper. Radford et al. provide architectural guidel
 > - Use ReLU activation in generator for all layers except for the output, which uses Tanh.
 > - Use LeakyReLU activation in the discriminator for all layers.
 
+Note that the training function is basically the same as in the case of the MNIST; only, the parameters of the optimizers are different, and the Generator and the Discriminator are defined with convolutions and transpose convolutions.
+
 ### 2.1 DCGAN Discriminator
 
 The discriminator has the architecture shown in the following:
@@ -806,6 +817,621 @@ class NeuralNet(nn.Module):
         return x
 ```
 
+### 2.4 Implementing DCGAN
+
+This section centers around the DCGAN implementation notebook
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ dcgan-svhn`
+
+which follows the [DCGAN paper](https://arxiv.org/pdf/1511.06434.pdf).
+
+In the implementation, [The Street View House Numbers (SVHN) Dataset](http://ufldl.stanford.edu/housenumbers/) is used, which consists of `32 x 32 x 3` images of door numbers. The goal is to generate fake but realistic door numbers.
+
+Note that the training function is basically the same as in the case of the MNIST GAN; only, the parameters of the optimizers are different, and the Generator and the Discriminator are defined with convolutions and transpose convolutions.
+
+![DCGAN: SVHN](./pics/svhn_dcgan.png)
+
+The figures of the `Generator` and the `Discriminator` architectures are the following; however, note that the implemented channels depths are different: the figures use `conv_dim = 128`, whereas the implemented/suggested depth is based on `conv_dim = 32`:
+
+![DCGAN: SVHN Discriminator](./pics/conv_discriminator.png)
+
+![DCGAN: SVHN Generator](./pics/conv_generator.png)
+
+All in all, the following steps are implemented:
+
+1. Get and Prepare the Data
+2. Define the Generator and the Discriminator
+3. Loss Functions and Optimizers
+4. Training
+5. Evaluation / View Samples
+
+```python
+# import libraries
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle as pkl
+
+%matplotlib inline
+
+##
+## --- 1. Get and Prepare the Data
+##
+
+import torch
+from torchvision import datasets
+from torchvision import transforms
+
+# Tensor transform
+transform = transforms.ToTensor()
+
+# SVHN training datasets
+svhn_train = datasets.SVHN(root='data/', split='train', download=True, transform=transform)
+
+batch_size = 128
+num_workers = 0
+
+# build DataLoaders for SVHN dataset
+train_loader = torch.utils.data.DataLoader(dataset=svhn_train,
+                                          batch_size=batch_size,
+                                          shuffle=True,
+                                          num_workers=num_workers)
+
+## Visualize the Data
+
+# obtain one batch of training images
+dataiter = iter(train_loader)
+images, labels = dataiter.next()
+
+# plot the images in the batch, along with the corresponding labels
+fig = plt.figure(figsize=(25, 4))
+plot_size=20
+for idx in np.arange(plot_size):
+    ax = fig.add_subplot(2, plot_size/2, idx+1, xticks=[], yticks=[])
+    ax.imshow(np.transpose(images[idx], (1, 2, 0)))
+    # print out the correct label for each image
+    # .item() gets the value contained in a Tensor
+    ax.set_title(str(labels[idx].item()))
+
+## Scale the Data
+
+# current range
+img = images[0]
+img.shape # torch.Size([3, 32, 32])
+
+print('Min: ', img.min())
+print('Max: ', img.max())
+# Min:  tensor(1.00000e-02 * 8.6275)
+# Max:  tensor(0.9255)
+
+# helper scale function
+def scale(x, feature_range=(-1, 1)):
+    ''' Scale takes in an image x and returns that image, scaled
+       with a feature_range of pixel values from -1 to 1. 
+       This function assumes that the input x is already scaled from 0-1.'''
+    # assume x is scaled to (0, 1)
+    # scale to feature_range and return scaled x
+    # If that assumption is not true:
+    normalize = False
+    if normalize:
+        minimum = x.min()
+        maximum = x.max()
+        x = (x-minimum)/(maximum-minimum)
+    # Now, transform to the range
+    range_min, range_max = feature_range
+    x = x*(range_max-range_min) + range_min
+    
+    return x
+
+# scaled range
+scaled_img = scale(img)
+
+print('Scaled min: ', scaled_img.min())
+print('Scaled max: ', scaled_img.max())
+# Scaled min:  tensor(-0.8275)
+# Scaled max:  tensor(0.8510)
+
+##
+## --- 2. Define the Generator and the Discriminator
+##
+
+import torch.nn as nn
+import torch.nn.functional as F
+
+# helper conv function
+def conv(in_channels, out_channels, kernel_size, stride=2, padding=1, batch_norm=True):
+    """Creates a convolutional layer, with optional batch normalization.
+    """
+    layers = []
+    # Note that the bias term is switched off: Wx+b -> Wx;
+    # that is so because the batch normalization cancels it
+    # when subtracting the mean (i.e., the bias would be already in the mean)
+    conv_layer = nn.Conv2d(in_channels, out_channels, 
+                           kernel_size, stride, padding, bias=False)
+    
+    # append conv layer
+    layers.append(conv_layer)
+
+    if batch_norm:
+        # append batchnorm layer
+        layers.append(nn.BatchNorm2d(out_channels))
+     
+    # using Sequential container
+    return nn.Sequential(*layers)
+
+class Discriminator(nn.Module):
+
+    def __init__(self, conv_dim=32):
+        super(Discriminator, self).__init__()
+
+        self.conv_dim = conv_dim
+        # Default values for all conv layers
+        # so that the size of the image halvens
+        # without pooling
+        self.stride = 2
+        self.kernel = 4
+        self.padding = 1
+        # Default image size, width = height
+        self.size = 32
+        self.in_channels = 3
+        
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (32 + 2 - 4)/2 + 1 = 16
+        # Strided-Conv + LReLU
+        self.conv1 = conv(in_channels=self.in_channels, # 3
+                          out_channels=conv_dim, # 32
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=False)
+
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (16 + 2 - 4)/2 + 1 = 8
+        # Strided-Conv + BN + LReLU
+        self.conv2 = conv(in_channels=conv_dim, # 32
+                          out_channels=conv_dim*2, # 64
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=True)
+
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (8 + 2 - 4)/2 + 1 = 4
+        # Strided-Conv + BN + LReLU
+        self.conv3 = conv(in_channels=conv_dim*2, # 64
+                          out_channels=conv_dim*4, # 128
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=True)
+        
+        # 4 x 4 x conv_dim*4
+        W_out = int(self.size / self.stride**3) # 32/8 = 4
+        # 4 x 4 x 128 = 2048
+        self.fc = nn.Linear(W_out * W_out * conv_dim*(2**2), 1)
+        
+    def forward(self, x):
+        
+        x = F.leaky_relu(self.conv1(x), 0.2) # (input, negative_slope=0.2)
+        x = F.leaky_relu(self.conv2(x), 0.2)
+        x = F.leaky_relu(self.conv3(x), 0.2)
+
+        # Flatten
+        # x: (batch_size, channels, width, height)
+        # x_in: (batch_size, channels*width*height)
+        x = x.view(x.size(0), -1)
+        
+        # No activation = logits
+        # We apply Softmax in the loss function: BCEWithLogitsLoss
+        x = self.fc(x)
+        
+        return x
+    
+
+# helper deconv function
+def t_conv(in_channels, out_channels, kernel_size, stride=2, padding=1, batch_norm=True):
+    """Creates a transposed-convolutional layer, with optional batch normalization.
+    """
+    layers = []
+    # Note that the bias term is switched off: Wx+b -> Wx;
+    # that is so because the batch normalization cancels it
+    # when subtracting the mean (i.e., the bias would be already in the mean)
+    t_conv_layer = nn.ConvTranspose2d(in_channels,
+                                      out_channels,
+                                      kernel_size,
+                                      stride,
+                                      padding,
+                                      bias=False)
+    
+    # append conv layer
+    layers.append(t_conv_layer)
+
+    if batch_norm:
+        # append batchnorm layer
+        layers.append(nn.BatchNorm2d(out_channels))
+     
+    # using Sequential container
+    return nn.Sequential(*layers)
+
+
+class Generator(nn.Module):
+    
+    def __init__(self, z_size, conv_dim=32):
+        super(Generator, self).__init__()
+        
+        self.out_channels = 3
+        self.conv_dim = conv_dim
+        self.z_size = z_size
+        self.size_end = 32 # final image size, width = height
+        self.size_start = int(self.size_end / (2**3)) # 4 # initial image size
+        
+        # (conv_dim*4) * size/8 * size/8 = 32*4 * 4 * 4 = 2048
+        self.fc_out = self.conv_dim*4 * self.size_start * self.size_start
+        self.fc = nn.Linear(z_size, self.fc_out)
+
+        # W_out = (W_in-1)*S - 2P + (F-1) + 1
+        # A kernel of 4x4 with stride=2 and padding=1
+        # doubles the size:
+        # W_out = (W_in-1)*2 - 2 + (4-1) + 1 = 2W_in -2 -2 +3 +1 = 2W_in
+        # W_out = 2W_in
+        # W_out = 8 = 4*2
+        self.t_conv1 = t_conv(in_channels=self.conv_dim*4,
+                              out_channels=self.conv_dim*2,
+                              kernel_size=4,
+                              stride=2,
+                              padding=1,
+                              batch_norm=True)
+
+        # W_out = 2W_in
+        # W_out = 16 = 8*2
+        self.t_conv2 = t_conv(in_channels=self.conv_dim*2,
+                              out_channels=self.conv_dim,
+                              kernel_size=4,
+                              stride=2,
+                              padding=1,
+                              batch_norm=True)
+
+        # W_out = 2W_in
+        # W_out = 32 = 16*2
+        self.t_conv3 = t_conv(in_channels=self.conv_dim,
+                              out_channels=self.out_channels,
+                              kernel_size=4,
+                              stride=2,
+                              padding=1,
+                              batch_norm=False)
+
+    def forward(self, x):
+
+        # x in: (batch_size, z_size)
+        # x out: (batch_size, fc_out)
+        x = self.fc(x)
+        
+        # (batch_size, 4*conv_dim=128, 4, 4)
+        x = x.view(x.size(0), self.conv_dim*4, self.size_start, self.size_start)
+        
+        x = F.relu(self.t_conv1(x))
+        x = F.relu(self.t_conv2(x))
+        x = torch.tanh(self.t_conv3(x))
+        
+        return x
+
+## Build the network
+
+# Define hyperparams
+# In the image conv_dim = 128,
+# but the suggestion is to use conv_dim = 32.
+conv_dim = 32
+z_size = 100
+
+# define discriminator and generator
+D = Discriminator(conv_dim)
+G = Generator(z_size=z_size, conv_dim=conv_dim)
+
+print(D)
+print()
+print(G)
+
+## Test Feedforward
+
+# Get image
+dataiter = iter(train_loader)
+images, labels = dataiter.next()
+# scale
+scaled_images = scale(images)
+
+# Discriminator pass
+p = D(scaled_images)
+print("Discriminator output size: ", p.size())
+# Discriminator output size:  torch.Size([128, 1])
+
+# Generator pass
+z = np.random.uniform(-1, 1, size=(batch_size, z_size))
+z = torch.from_numpy(z).float()
+x = G(z)
+print("Generator output size: ", x.size())    
+# Generator output size:  torch.Size([128, 3, 32, 32])
+
+##
+## --- 3. Loss Functions and Optimizers
+##
+
+train_on_gpu = torch.cuda.is_available()
+
+if train_on_gpu:
+    # move models to GPU
+    G.cuda()
+    D.cuda()
+    print('GPU available for training. Models moved to GPU')
+else:
+    print('Training on CPU.')
+
+def real_loss(D_out, smooth=False):
+    batch_size = D_out.size(0)
+    # label smoothing
+    if smooth:
+        # smooth, real labels = 0.9
+        labels = torch.ones(batch_size)*0.9
+    else:
+        labels = torch.ones(batch_size) # real labels = 1
+    # move labels to GPU if available     
+    if train_on_gpu:
+        labels = labels.cuda()
+    # binary cross entropy with logits loss
+    criterion = nn.BCEWithLogitsLoss()
+    # calculate loss
+    loss = criterion(D_out.squeeze(), labels)
+    return loss
+
+def fake_loss(D_out):
+    batch_size = D_out.size(0)
+    labels = torch.zeros(batch_size) # fake labels = 0
+    if train_on_gpu:
+        labels = labels.cuda()
+    criterion = nn.BCEWithLogitsLoss()
+    # calculate loss
+    loss = criterion(D_out.squeeze(), labels)
+    return loss
+
+import torch.optim as optim
+
+# Parameters: from DCGAN paper
+lr = 0.0002
+beta1 = 0.5
+beta2 = 0.999 # default value
+
+# Create optimizers for the discriminator and generator
+# GANs are very sensible to hyperparameters of the optimizer
+# because they can start oscillating
+d_optimizer = optim.Adam(D.parameters(), lr, [beta1, beta2])
+g_optimizer = optim.Adam(G.parameters(), lr, [beta1, beta2])
+
+##
+## --- 4. Training
+##
+
+import pickle as pkl
+
+# training hyperparams
+num_epochs = 50
+
+# keep track of loss and generated, "fake" samples
+samples = []
+losses = []
+
+print_every = 300
+
+# Get some fixed data for sampling. These are images that are held
+# constant throughout training, and allow us to inspect the model's performance
+sample_size=16
+fixed_z = np.random.uniform(-1, 1, size=(sample_size, z_size))
+fixed_z = torch.from_numpy(fixed_z).float()
+
+# train the network
+from workspace_utils import active_session
+with active_session():
+    for epoch in range(num_epochs):
+
+        for batch_i, (real_images, _) in enumerate(train_loader):
+
+            batch_size = real_images.size(0)
+
+            # important rescaling step
+            real_images = scale(real_images)
+
+            # ============================================
+            #            TRAIN THE DISCRIMINATOR
+            # ============================================
+
+            d_optimizer.zero_grad()
+
+            # 1. Train with real images
+
+            # Compute the discriminator losses on real images 
+            if train_on_gpu:
+                real_images = real_images.cuda()
+
+            D_real = D(real_images)
+            d_real_loss = real_loss(D_real)
+
+            # 2. Train with fake images
+
+            # Generate fake images
+            z = np.random.uniform(-1, 1, size=(batch_size, z_size))
+            z = torch.from_numpy(z).float()
+            # move x to GPU, if available
+            if train_on_gpu:
+                z = z.cuda()
+            fake_images = G(z)
+
+            # Compute the discriminator losses on fake images
+            # In this concrete case label smoothing is off
+            # because we see experimentally that it works better so
+            D_fake = D(fake_images)
+            d_fake_loss = fake_loss(D_fake)
+
+            # add up loss and perform backprop
+            d_loss = d_real_loss + d_fake_loss
+            d_loss.backward()
+            d_optimizer.step()
+
+
+            # =========================================
+            #            TRAIN THE GENERATOR
+            # =========================================
+            g_optimizer.zero_grad()
+
+            # 1. Train with fake images and flipped labels
+
+            # Generate fake images
+            z = np.random.uniform(-1, 1, size=(batch_size, z_size))
+            z = torch.from_numpy(z).float()
+            if train_on_gpu:
+                z = z.cuda()
+            fake_images = G(z)
+
+            # Compute the discriminator losses on fake images 
+            # using flipped labels!
+            D_fake = D(fake_images)
+            g_loss = real_loss(D_fake) # use real loss to flip labels
+
+            # perform backprop
+            g_loss.backward()
+            g_optimizer.step()
+
+            # Print some loss stats
+            if batch_i % print_every == 0:
+                # append discriminator loss and generator loss
+                losses.append((d_loss.item(), g_loss.item()))
+                # print discriminator and generator loss
+                print('Epoch [{:5d}/{:5d}] | d_loss: {:6.4f} | g_loss: {:6.4f}'.format(
+                        epoch+1, num_epochs, d_loss.item(), g_loss.item()))
+
+
+        ## AFTER EACH EPOCH##    
+        # generate and save sample, fake images
+        G.eval() # for generating samples
+        # eval() turns off dropout, if any
+        # and batch norm uses population
+        # statistics instead of the batch
+        if train_on_gpu:
+            fixed_z = fixed_z.cuda()
+        samples_z = G(fixed_z)
+        samples.append(samples_z)
+        G.train() # back to training mode
+
+
+# Save training generator samples
+with open('train_samples.pkl', 'wb') as f:
+    pkl.dump(samples, f)
+
+
+##
+## --- 5. Evaluation / View Samples
+##
+
+## Plot Training Loss
+
+fig, ax = plt.subplots()
+losses = np.array(losses)
+plt.plot(losses.T[0], label='Discriminator', alpha=0.5)
+plt.plot(losses.T[1], label='Generator', alpha=0.5)
+plt.title("Training Losses")
+plt.legend()
+
+# helper function for viewing a list of passed in sample images
+def view_samples(epoch, samples):
+    fig, axes = plt.subplots(figsize=(16,4), nrows=2, ncols=8, sharey=True, sharex=True)
+    for ax, img in zip(axes.flatten(), samples[epoch]):
+        img = img.detach().cpu().numpy()
+        img = np.transpose(img, (1, 2, 0))
+        img = ((img +1)*255 / (2)).astype(np.uint8) # rescale to pixel range (0-255)
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+        im = ax.imshow(img.reshape((32,32,3)))
+
+_ = view_samples(-1, samples)
+
+```
+
+### 2.5 Other Applications of GANs
+
+GANs can be used to **detect vulnerabilities in existing architectures**, as shown in the blog post [Adversarial Example Research, by OpenAI](https://openai.com/blog/adversarial-example-research/). In it, a GAN learns to add noise which is imperceptible to the human eye but which causes large classification errors:
+
+![OpenAI: Adversarial Attack](./pics/open_ai_adversarial_attack.png)
+
+In addition to that, many more applications are appearing, since GANs are relatively new. In the following, some cases are described.
+
+#### Semi-Supervised Learning
+
+Deep learning models which perform classification need vasts amounts of labelled data to outperform human performance. However, we need to take into account that their entire training time occurs during the training phase. Humans, in contrast, are training their entire lives; additionally, we perceive multi-sensory data, from many angles, with noise, etc. That means our training is much more holistic.
+
+Probably because of our basis training and experiences, we are able to learn from few examples! That's how learning probably occurs in human beings. 
+
+![SVHN Classification](./pics/svhn_classification.jpg)
+
+Additionally, note that many data perceived by humans is unlabelled. The idea behind **semi-supervised learning** is to train the model with labelled and unlabelled data. To that end, the discriminator output is transformed to be the class `fake` or the other real classes: `[fake, class_1, class_2, class_3, ...]`; in other words, we have split the output to be more detailed.
+
+![Semi-Supervised Classification](./pics/gan_semi_supervised_learning.jpg)
+
+When GANs are used to generate images, the discriminator is used for training and then thrown away; in contrast, when we perform semi-supervised classification, the generator is used to train and thrown away, whereas the discriminator with the classification outputs is used in the final application! The advantage is that **we can use unlabelled data, which is much cheaper, a thus, probably more abundant**!
+
+The final setup with the optimizers is the following:
+
+![Semi-Supervised Classification Setup](./pics/gan_semi_supervised_learning_optimization.jpg)
+
+We need an extra thing so that everything works: **feature matching**. It consists in adding a term to the cost function of the generator which is related to the features of discriminator (?).
+
+![Semi-supervised Learning: Feature Matching](./pics/feature_matching.jpg)
+
+OpenAI showed improved performance using smalls sets of labelled data enriched with unlabelled datasets; but still below purely supervised learning setups:
+
+[Improved Techniques for Training GANs, 2016](https://arxiv.org/abs/1606.03498)
+Tim Salimans, Ian Goodfellow, Wojciech Zaremba, Vicki Cheung, Alec Radford, Xi Chen
+
+![Semi-supervised Learning Error](./pics/gan_semi_supervised_error.jpg)
+
+Note that the labelled data is usually the bottleneck which determines whether an application can be implemented or not!
+
+Example repository: [Semi-supervised GAN](https://github.com/Sleepychord/ImprovedGAN-pytorch)
+
+#### Domain Invariance
+
+Sometimes the domains or sources of data can be completely different and the classifier must perform the same classification task. Domain invariance consists in learning the features that independent from each domain/source.
+
+Example **classify car type** and predict further variables, such as income + carbon emission of car drivers, etc.; but using data from two sources:
+
+- Street view
+- cars.com
+
+Obviously, the images are different in both platforms:
+
+- Street view images are real world images.
+- cars.com images are nice, with characteristic backgrounds, etc.
+
+And as such, they might lead to different values for the regressed variables (income, CO2, etc.); however, if we learn domain invariant features of the images to classify the cars, we might remove the bias introduced by the platform!
+
+The idea would be to create an adversarial network with two classifiers instead of a generator:
+
+- One classifier recognizes car types
+- The other classifier tells whether the image is from Street View or cars.com
+
+The first classifier tries to trick the second so that the second cannot distinguish between both domains. Thus, **we find features that are domain invariant**.
+
+Papers:
+
+- [Fine-Grained Car Detection for Visual Census Estimation, 2017](https://arxiv.org/pdf/1709.02480.pdf)
+- [Controllable Invariance through Adversarial Feature Learning, 2018](https://arxiv.org/pdf/1705.11122.pdf)
+
+#### Ethical and Artistic Applications
+
+Interesting articles:
+
+- [In the Age of AI, Is Seeing Still Believing?](https://www.newyorker.com/magazine/2018/11/12/in-the-age-of-ai-is-seeing-still-believing)
+- [Do Androids Dream in Balenciaga?](https://www.ssense.com/en-us/editorial/fashion/do-androids-dream-of-balenciaga-ss29)
+
+
+## 3. Pix2Pix & CycleGAN
+
+
 
 ## X. Interesting Links
 
@@ -816,16 +1442,22 @@ class NeuralNet(nn.Module):
 - [Improved Techniques for Training GANs, 2016](https://arxiv.org/abs/1606.03498).
 - [DCGAN Paper, 2016](https://arxiv.org/abs/1511.06434v2).
 
-
 ## X. Diffusion Models
 
 - [What are Diffusion Models?](https://www.youtube.com/watch?v=fbLgFrlTnGU&list=LL)
 - [Introduction to Diffusion Models for Machine Learning](https://www.assemblyai.com/blog/diffusion-models-for-machine-learning-introduction/)
 - [Understanding Diffusion Models: A Unified Perspective](https://arxiv.org/abs/2208.11970)
-
+- [Diffusion Models Clearly Explained](https://medium.com/@PhysicistMarianna/diffusion-models-clearly-explained-1fbd5afa36b3)
+- DALL-e
 
 ## X. NERFs
 
 - [NeRFs: Neural Radiance Fields - Paper Explained](https://www.youtube.com/watch?v=WSfEfZ0ilw4)
 - [NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis](https://arxiv.org/abs/2003.08934)
 - [Jon Barron - Understanding and Extending Neural Radiance Fields](https://www.youtube.com/watch?v=HfJpQCBTqZs)
+
+## X. GPT
+
+
+
+
