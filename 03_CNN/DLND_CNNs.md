@@ -1649,7 +1649,7 @@ Typically, transpose convolutions have filters that are 2x2 and a stride of 2: t
 
 ![Transpose convolution](./pics/transpose_convolution_2by2.png)
 
-In summary, the weights of the transpose convolution layer are learned to expand from one pixel to a patch and using 2x2 filters witha stride of 2 doubles the image.
+In summary, the weights of the transpose convolution layer are learned to expand from one pixel to a patch and using 2x2 filters with a stride of 2 doubles the image.
 
 In Pytorch, transpose convolutions are defined with `ConvTranspose2d`:
 
@@ -1662,6 +1662,17 @@ import torch.nn as nn
 # otherwise, default is stride=1!
 # Similarly, note that channels start decreasing by the end,
 # since we are trying to go back to the original image shape!
+#
+# W_out = (W_in-1)*S - 2P + (F-1) + 1
+# with dilation=1 and output_padding = 0
+# and:
+# W: width/height
+# S: stride
+# P: padding
+# F: filter/kernel size
+#
+# Thus: F=2x2, S=2
+# W_out = (W_in-1)*2 - 0 + (2-1) + 1 = 2W_in
 nn.ConvTranspose2d(in_channels=16, 
 				   out_channels=4,
 				   kernel_size=2,
