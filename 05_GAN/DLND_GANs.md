@@ -1429,8 +1429,141 @@ Interesting articles:
 - [Do Androids Dream in Balenciaga?](https://www.ssense.com/en-us/editorial/fashion/do-androids-dream-of-balenciaga-ss29)
 
 
-## 3. Pix2Pix & CycleGAN
+## 3. Pix2Pix & CycleGAN: Image to Image Translation
 
+GANs are able to generate completely new images with the input of a noise vector; if we train the GAN with cat images, we can have artificial images of cats. The GAN somehow learns the underlying structures of the objects in the images and it is able to use them to create new unseen images with relate objects.
+
+Another application of GANs consists in **image to image translation**: we can take in input image in one domain and transform it to another domain, i.e., generate a related new image.
+
+![Image to Image Translation](./pics/image_to_image.jpg)
+
+Some applications of image to image translation:
+
+- Semantic segmentation.
+- Edge detection.
+- Automatic colorization.
+- Increase resolution.
+
+This section, first, explains how to compare images; then, two specific techniques for image to image translation are shown:
+
+1. Pix2Pix
+2. CycleGAN
+
+### 3.1 Designing Loss Functions that Compare Images
+
+We want to find a loss function which makes a good job at comparing images from two domains.
+
+The typical loss functions are:
+
+- Binary cross entropy (binary classification).
+- Cross entropy (classification).
+- Mean square error (regression), which is the mean Euclidean distance, or L2.
+
+We could choose to take the MSE loss, however it presents several problems if we want to compare images:
+
+1. In colorization tasks, if the network thinks a pixel is equally likely to be red or blue, a color in between is chosen, because the loss is the average of all square distances.
+2. When we are translating between domains, the content could be the same, but the pixel values are completely different (e.g., two different dogs); in contrast, we can have two very different contents that have very similar pixels (e.g., a basket ball and an orange).
+
+![MSE: Colorization Problem](./pics/mse_colorization.jpg)
+
+![MSE: Content Problem](./pics/mse_content_problem.jpg)
+
+We see that it's not trivial... **one way of approaching the problem is to use a GAN which determines whether a generated image is real or not.**
+
+### 3.2 GAN Recap
+
+GANs have a `Discriminator, D` and a `Generator, G`. `D(x)` classifies images `x` to be real or fake; `x = G(z)` maps a latent noise vector into image space, trying to fool `D`, i.e., making it believe `D(G(z))` should yield the fake image is real.
+
+![GAN Recap](./pics/gan_recap.jpg)
+
+Even though `G()` doesn't see real images, it is able to learn through the gradients of `D`; **therefore, we can say that `D` acts as a loss function for `G`: instead of defining an analytical loss function, we have defined a loss function which is able to learn how to compute the cost/loss.**
+
+
+### 3.3 Pix2Pix and Paired Data
+
+In the Pix2Pix framework we have **paired data**:
+
+- `x_i`: images of sketches, i.e., edges
+- `y_i`: the original images from which the edges have been produced
+
+The `y_i` images are the desired output or target, and we want to learn a mapping `G: x_i -> y_i` so that the output `G(x_i)` is as close as possible to `y_i`.
+
+![Pix2Pix: Paired Data](./pics/pix2pix_paired_data.jpg)
+
+Pix2Pix uses a GAN as the mapping function; this GAN has a Generator and a Discriminator, but with some differences as compared to typical GANs.
+
+#### Pix2Pix Generator
+
+Typical Generators take a random/latent vector and produce an image. In Pix2Pix, they take a sketch/edges image and they produce a realistic image.
+
+That is achieved by introducing encoding layers before the Generator, so that the Generator becomes a **encoder-decoder** architecture.
+
+![Pix2Pix: Generator](./pics/pix2pix_generator.jpg)
+
+![Pix2Pix: Encoder-Decoder](./pics/pix2pix_encoder_decoder.jpg)
+
+The **encoder** part of the Generator has convolutional layers (with batch normalization and ReLU) that compress the sketch image into a feature level representation, which would be equivalent to the latent vector!
+
+![Pix2Pix: Encoder](./pics/pix2pix_encoder.jpg)
+
+The **decoder** part of the Generator looks like a typical Generator: by using transpose convolutions (and batch normalization and ReLU) the latent vector is upscaled to to realistic image.
+
+![Pix2Pix: Decoder](./pics/pix2pix_decoder.jpg)
+
+#### Discriminator
+
+The Discriminator from Pix2Pix takes two images as input:
+
+- the realistic image, `y_i`
+- and the sketch/edged representation, `x_i`
+
+It is necessary to pass the pair, because otherwise it's not possible to correctly learn the association!
+
+Note that we can feed 4 combinations to the Discriminator:
+
+- a real image with its matching sketch (real pair)
+- a generated image with its matching sketch (real pair)
+- a real image with a non-matching sketch (fake pair)
+- a generated image with a non-matching sketch (fake pair)
+
+![Pix2Pix: Discriminator, Pairs](./pics/pix2pix_discriminator_pairs_1.jpg)
+
+![Pix2Pix: Discriminator, Pairs](./pics/pix2pix_discriminator_pairs_2.jpg)
+
+![Pix2Pix: Discriminator, Pairs](./pics/pix2pix_discriminator_pairs_3.jpg)
+
+![Pix2Pix: Discriminator, Pairs](./pics/pix2pix_discriminator_pairs_4.jpg)
+
+As with normal GANs, both networks are trained together, but with different losses; in other words: the Generator is trying to fool the Discriminator, i.e., maximizing the Discriminator's loss. As a result, the Generator learns to create realistic images from sketches.
+
+The GAN is called **conditional** because it is conditional on both the input and output of the Generator.
+
+The nice thing of the Pix2Pix architecture is that the Discriminator acts as a learned loss function which compares the pair of images; the Generator itself is not doing any assumptions about paired images!
+
+The following image shows some very nice applications of Pix2Pix:
+
+- Labels to scene.
+- Colorization.
+- Day to night.
+- Sketches to image.
+- Image to sketches.
+
+![Pix2Pix Applications](./pics/pix2pix_applications.jpg)
+
+
+### 3.4 CycleGAN and Unpaired Data
+
+
+
+### 3.X Papers and Links to Check
+
+- [iGAN: Interactive GANs](https://github.com/junyanz/iGAN)
+- Original Pix2Pix paper: [Image-to-Image Translation with Conditional Adversarial Networks, Isola et al.](https://arxiv.org/pdf/1611.07004.pdf)
+- [High-Resolution Image Synthesis and Semantic Manipulation with Conditional GANs](https://arxiv.org/pdf/1711.11585.pdf)
+- [Image to Image demo](https://affinelayer.com/pixsrv/)
+- Original CycleGAN paper: [Unpaired Image-to-Image Translation
+using Cycle-Consistent Adversarial Networks](https://arxiv.org/pdf/1703.10593.pdf)
+- [CyCleGAN & Pix2Pix Repo with Pytorch (by author Zhu)](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix)
 
 
 ## X. Interesting Links

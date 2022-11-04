@@ -55,3 +55,12 @@ Cooijmans_RecurrentBatchNorm_2017.pdf
 
 Gebru_CarDomainInvariance_2017.pdf
 Xie_AdversarialFeatureLearning_2018.pdf
+
+Jin_CycleGAN_FaceOff_2018.pdf
+
+Zhu_iGAN_2018.pdf
+
+Wang_HiResImageSythesisGAN_2018.pdf
+IsolaZhu_Pix2Pix_2018.pdf
+
+Zhu_CycleGAN_2020.pdf
