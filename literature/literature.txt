@@ -64,3 +64,5 @@ Wang_HiResImageSythesisGAN_2018.pdf
 IsolaZhu_Pix2Pix_2018.pdf
 
 Zhu_CycleGAN_2020.pdf
+
+Mao_LSGAN_2017.pdf
