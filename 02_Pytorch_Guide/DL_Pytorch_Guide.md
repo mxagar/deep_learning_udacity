@@ -60,6 +60,7 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - [Summary of Guidelines for the Architecture Definition](#summary-of-guidelines-for-the-architecture-definition)
     - [Guidelines on Training and Hyperparameter Selection](#guidelines-on-training-and-hyperparameter-selection)
     - [Other Layers and Configurations: Strided Convolutions and Transpose Convolutions](#other-layers-and-configurations-strided-convolutions-and-transpose-convolutions)
+    - [ReNets](#renets)
   - [11. Weight Initialization](#11-weight-initialization)
   - [12. Batch Normalization](#12-batch-normalization)
       - [Implementation](#implementation)
@@ -95,6 +96,7 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - [Automatically Reload Modules](#automatically-reload-modules)
     - [Improving the Training: Learning Rate Scheduler and Optimization Algorithms](#improving-the-training-learning-rate-scheduler-and-optimization-algorithms)
     - [Print Memory Usage During Training](#print-memory-usage-during-training)
+    - [Show / Plot Mini-Batch Image Grid](#show--plot-mini-batch-image-grid)
   - [Appendix: Lab - Example Projects](#appendix-lab---example-projects)
   - [Appendix: Important Links](#appendix-important-links)
 
@@ -2145,6 +2147,104 @@ x = F.upsample(x, scale_factor=2, mode='nearest')
 x = F.relu(self.conv4(x))
 ```
 
+### ReNets
+
+A very important CNN architecture is the ResNet, introduced in the following paper:
+
+[Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385)  
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
+
+The section [Popular CNN Networks](../03_CNN/DLND_CNN.md) from the CNN module introduces ResNets along with other common architectures. However, I have decided to include this section here, too, because the ResNet is one of the most typical backbones.
+
+Deep learning neural networks have the **vanishing/exploding gradient problem**: since the error is backpropagated with chain multiplications, large or small values are magnified, thus, loosing information. This problem is more accute when the number of layers increases.
+
+ResNets, in contrast, can have many layers but they avoid the vanishing/exploding gradient problem. They achieve that with skip/shortcut connections: inputs from previous layers are taken without any modifications.
+
+![ResNet Building Blocks](./pics/resnet_building_block.png)
+
+Therefore, the network learns the residual between two layers. When the gradient is backpropagated, the shortcut connections prevent it from increasing/decreasing exponentially. The result is that we can add many layers without decreasing the performance; more layers mean more training time, but also the ability to learn more complex patterns. ResNets achieve super-human accuracy.
+
+The equations of the residual block are the following:
+
+    M(x) = y          regular mapping
+    F(x) = M(x) - x   residual function
+    M(x) = F(x) + x   mapping in residual block
+    y = F(x) + x      F(x) is 2x conv + batchnorm
+
+It is easier to optimize the residual function `F(x)` than it is to optimize the mapping `M(x)`. Note that in order to be able to sum `F(x) + x`, the layers in the residual block cannot change the size of the signal, i.e., the shape is unchanged in the residual block.
+
+Apart from these shortcuts, ResNets have similar building elements as, e.g., VGG nets: convolutions of 3x3 and max-pooling.
+
+![ResNet Architecture](./pics/resnet_architecture.png)
+
+In the following the code of a possible residual block implementation is provided (note that parameters might change depending on the application):
+
+```python
+import torch.nn as nn
+import torch.nn.functional as F
+
+# Helper conv function
+def conv(in_channels, out_channels, kernel_size, stride=2, padding=1, batch_norm=True):
+    """Creates a convolutional layer, with optional batch normalization.
+    """
+    layers = []
+    conv_layer = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, 
+                           kernel_size=kernel_size, stride=stride, padding=padding, bias=False)
+    
+    layers.append(conv_layer)
+
+    if batch_norm:
+        layers.append(nn.BatchNorm2d(out_channels))
+    return nn.Sequential(*layers)
+
+# Residual block class
+class ResidualBlock(nn.Module):
+    """Defines a residual block.
+       This adds an input x to a convolutional layer (applied to x) with the same size input and output.
+       These blocks allow a model to learn an effective transformation from one domain to another.
+    """
+    def __init__(self, conv_dim):
+        super(ResidualBlock, self).__init__()
+        # conv_dim = number of inputs
+        
+        # define two convolutional layers + batch normalization that will act as our residual function, F(x)
+        # layers should have the same shape input as output; I suggest a kernel_size of 3
+        
+        self.conv_layer1 = conv(in_channels=conv_dim, out_channels=conv_dim, 
+                                kernel_size=3, stride=1, padding=1, batch_norm=True)
+        
+        self.conv_layer2 = conv(in_channels=conv_dim, out_channels=conv_dim, 
+                               kernel_size=3, stride=1, padding=1, batch_norm=True)
+        
+    def forward(self, x):
+        # apply a ReLu activation the outputs of the first layer
+        # return a summed output, x + resnet_block(x)
+        out_1 = F.relu(self.conv_layer1(x))
+        out_2 = x + self.conv_layer2(out_1)
+        return out_2
+```
+
+All in all, ResNets applied of these important features:
+
+1. **Skip/shortcut connections**: even with vanishing/exploding gradients the information is not lost, because the inputs from previous layers are preserved. However, the weights are optimized with the residual mapping (removing the previous input). These connections can link layers that are very far ways from each other in the network, and they have been shown to be very important in segmentation tasks, which require preserving spatial information; see for instance this paper: [The Importance of Skip Connections in Biomedical Image Segmentation](https://arxiv.org/abs/1608.04117).
+
+2. **Bottleneck design with 1x1 convolutions**: 1x1 convolutions preserve the WxH size of the feature map but can reduce its depth. Therefore, they can reduce complexity. With them, it is possible to ad more layers!
+
+The result is that:
+
+- Deeper networks with less parameters: faster to train and use.
+- Increased accuracy.
+- No training degradation occurs; training degradation is the phenomenon that happens when the network stops improving from a point on.
+
+As we increase the layers, the accuracy increases, but the speed decreases; **ResNet-50 is a good trade-off**.
+
+More information:
+
+- Medium article: [Review: ResNet, by Sik-Ho Tsang](https://towardsdatascience.com/review-resnet-winner-of-ilsvrc-2015-image-classification-localization-detection-e39402bfa5d8).
+- Medium article: [An Intuitive Guide to Deep Network Architectures](https://towardsdatascience.com/an-intuitive-guide-to-deep-network-architectures-65fdc477db41).
+- Medium article: [Understanding ResNet and its Variants](https://towardsdatascience.com/understanding-resnet-and-its-variants-719e5b8d2298).
+- Look at the paper in the `literature/` folder.
+
 ## 11. Weight Initialization
 
 Weight initialization can affect dramatically the performance of the training.
@@ -3028,6 +3128,29 @@ print("use_cuda: ",use_cuda," -> ", torch.cuda.get_device_name(0))
 print('Memory Usage:')
 print('\tAllocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
 print('\tCached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+```
+
+### Show / Plot Mini-Batch Image Grid
+
+```python
+import torchvision
+
+# helper imshow function
+def imshow(img):
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)))
+
+# get some images from the data loader
+dataiter = iter(dataloader)
+# the "_" is a placeholder for no labels
+images, _ = dataiter.next()
+
+# show images
+fig = plt.figure(figsize=(12, 10))
+imshow(torchvision.utils.make_grid(images, nrow=4))
+# remove all ticks & labels
+plt.tick_params(left = False, right = False , labelleft = False ,
+                labelbottom = False, bottom = False)
 ```
 
 ## Appendix: Lab - Example Projects
