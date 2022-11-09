@@ -36,10 +36,27 @@ Additionally, note that:
       - [Implementation](#implementation)
       - [Benefits of Batch Normalization](#benefits-of-batch-normalization)
       - [Notebook: Batch Normalization](#notebook-batch-normalization)
-    - [2.4 Deep Convolutional GANs: DCGAN](#24-deep-convolutional-gans-dcgan)
+    - [2.4 Implementing DCGAN](#24-implementing-dcgan)
+    - [2.5 Other Applications of GANs](#25-other-applications-of-gans)
+      - [Semi-Supervised Learning](#semi-supervised-learning)
+      - [Domain Invariance](#domain-invariance)
+      - [Ethical and Artistic Applications](#ethical-and-artistic-applications)
+  - [3. Pix2Pix & CycleGAN: Image to Image Translation](#3-pix2pix--cyclegan-image-to-image-translation)
+    - [3.1 Designing Loss Functions that Compare Images](#31-designing-loss-functions-that-compare-images)
+    - [3.2 GAN Recap](#32-gan-recap)
+    - [3.3 Pix2Pix and Paired Data](#33-pix2pix-and-paired-data)
+      - [Pix2Pix Generator](#pix2pix-generator)
+      - [Discriminator](#discriminator)
+    - [3.4 CycleGAN and Unpaired Data](#34-cyclegan-and-unpaired-data)
+    - [3.5 Cycle Consistency Loss](#35-cycle-consistency-loss)
+    - [3.6 How Does This Work?](#36-how-does-this-work)
+    - [3.7 Beyond CycleGANs](#37-beyond-cyclegans)
+    - [3.8 Implementing the CycleGAN](#38-implementing-the-cyclegan)
+    - [3.X Papers and Links to Check](#3x-papers-and-links-to-check)
   - [X. Interesting Links](#x-interesting-links)
   - [X. Diffusion Models](#x-diffusion-models)
   - [X. NERFs](#x-nerfs)
+  - [X. GPT](#x-gpt)
 
 ## 1. Generative Adversarial Networks (GANs)
 
@@ -1431,9 +1448,9 @@ Interesting articles:
 
 ## 3. Pix2Pix & CycleGAN: Image to Image Translation
 
-GANs are able to generate completely new images with the input of a noise vector; if we train the GAN with cat images, we can have artificial images of cats. The GAN somehow learns the underlying structures of the objects in the images and it is able to use them to create new unseen images with relate objects.
+GANs are able to generate completely new images with the input of a noise vector; if we train the GAN with cat images, we can have artificial images of cats. The GAN somehow learns the underlying structures of the objects in the images and it is able to use them to create new unseen images with related objects.
 
-Another application of GANs consists in **image to image translation**: we can take in input image in one domain and transform it to another domain, i.e., generate a related new image.
+Another application of GANs consists in **image to image translation**: we can take an input image in one domain and transform it to another domain, i.e., generate a related new image.
 
 ![Image to Image Translation](./pics/image_to_image.jpg)
 
@@ -1472,7 +1489,7 @@ We see that it's not trivial... **one way of approaching the problem is to use a
 
 ### 3.2 GAN Recap
 
-GANs have a `Discriminator, D` and a `Generator, G`. `D(x)` classifies images `x` to be real or fake; `x = G(z)` maps a latent noise vector into image space, trying to fool `D`, i.e., making it believe `D(G(z))` should yield the fake image is real.
+GANs have a `Discriminator, D` and a `Generator, G`. `D(x)` classifies images `x` to be real or fake; `x = G(z)` maps a latent noise vector into image space, trying to fool `D`, i.e., making it believe `D(G(z))` should yield that the fake image is real.
 
 ![GAN Recap](./pics/gan_recap.jpg)
 
@@ -1553,6 +1570,211 @@ The following image shows some very nice applications of Pix2Pix:
 
 ### 3.4 CycleGAN and Unpaired Data
 
+Pix2Pix works with paired data; however, paired data is expensive and difficult to collect. For instance, if we want to map a horse to be a zebra we can't ask a zebra to have the same pose as the horse to pair the images.
+
+In contrast, unpaired data is both **less expensive** and **much more feasible to collect**.
+
+We define two unpaired datasets `X` and `Y`, such that `X` needs to be mapped to `Y` with a function `G`:
+
+`G: X -> Y`; `G(x)` should look like as it came from `Y`.
+
+For instance, let's consider `X` are horses and `Y` are zebras.
+
+![Unpaired Data](./pics/undapired_data.jpg)
+
+We can, as before, chain the `G` and the `D` and apply and use regular GAN architecture which discriminates between real and fake zebras. However, such a framework risks **mode collapse**.
+
+![Unpaired Data: Chain](./pics/unpaired_chain.jpg)
+
+**Mode collapse** occurs when the Generator learns to map any horse (`x`) to the same sebra image `y`.
+
+![Mode Collapse](./pics/mode_collapse.jpg)
+
+To avoid mode collapse in image to image translation, a **cycle consistency constraint** is applied. Cycle consistency consists in defining both mapping functions from `X -> Y` and `Y -> X` (the inverse). The idea behind is that we add a constraint to all possible mappings so that the mode collapse can be prevented: without that constraint, all mappings could indeed collapse to one zebra image; meanwhile, going from the same zebra image to the different original images is not possible. Thus, the cycle consistency constraint forces to learn good mappings that don't collapse.
+
+Note that this is possible because we have the original image as input, not a noise vector.
+
+It is as if with one mapping we translate from English to French a text; then, we translate with the inverse from French to English, and we should get the same sentence as the original one. It's the same with images, or horses and zebras.
+
+`G_XtoY(G_YtoX(x)) = x`
+
+![Cycle Consistency](./pics/cycle_consistency.jpg)
+
+![Cycle Consistency](./pics/cycle_consistency_2.jpg)
+
+### 3.5 Cycle Consistency Loss
+
+Let's take as example a style transfer application: we have images `X` and Cézanne paintings `Y`; the goals is to transfer the Cézanne style (color palette and brushwork) to the images.
+
+![Style Transfer](./pics/style_transfer.jpg)
+
+A CycleGAN network has two adversarial discriminator networks: `D_X` and `D_Y`. `D_Y` tries to classify:
+
+- `y` image as real
+- `G_XtoY(x)` images as fake (although it's fooled by the generator)
+
+![Cycle GAN: D_Y](./pics/cyclegan_d_y.jpg)
+
+`D_Y` has the adversarial loss `L_Y`.
+
+Similarly, we have `D_X` tries to classify:
+
+- `x` image as real
+- `G_YtoX(y)` images as fake (although it's fooled by the generator)
+
+![Cycle GAN: D_X](./pics/cyclegan_d_x.jpg)
+
+`D_X` has the adversarial loss `L_X`.
+
+In addition to those loss terms `L_Y` and `L_X`, we have other two terms related to the reconstruction error: we compare `x` and `x_hat = G_YtoX(G_XtoY(x))` and `y` and `y_hat` and the difference makes the error:
+
+- Forward consistency loss: `diff(x, x_hat = G_YtoX(G_XtoY(x)))`
+- Backward consistency loss: `diff(y, y_hat = G_XtoY(G_YtoX(y)))`
+
+Indeed, the original and the reconstructed image should be the same.
+
+![Reconstruction Error](./pics/cyclegan_reconstruction_error.jpg)
+
+The complete loss is the sum of all losses:
+
+`L_Y + L_X + lambda*L_cycle_consistency`
+
+with 
+
+- `L_cycle_consistency`: forward + backward consistency losses.
+- `lambda`: hyperparameter for weighting the consistency constraint.
+
+### 3.6 How Does This Work?
+
+The Generators, with the encoders, remove the style and keep the content. The Discriminators, learn the style.
+
+![Cycle GAN: Style and Content](./pics/cycle_gan_style_content.jpg)
+
+This separation of style and content opens different applications for CycleGANs:
+
+- Style transfer for images.
+- Photo transformations: summer to winter.
+- Transform apples to oranges, dogs into cats, etc.
+- Google maps to satellite images.
+- Speech from one voice to another.
+
+![Cycle GAN: Style Transfer](./pics/cycle_gan_style_transfer.jpg)
+
+![Cycle GAN: Summer to Winter](./pics/cycle_gan_summer_winter.jpg)
+
+![Cycle GAN: Apples to Orange](./pics/cycle_gan_apple_orange.jpg)
+
+
+### 3.7 Beyond CycleGANs
+
+CycleGANs have also shortcomings:
+
+- They produce one output, one mapping, although there are in reality many. But there are works that show how to learn one to many mappings: [Augmented CycleGAN](https://arxiv.org/abs/1802.10151).
+- They usually produce low resolution images. But there are high resolution approaches: [pix2pixHD](https://github.com/NVIDIA/pix2pixHD).
+- They can also fail to map texture.
+
+An interesting work on GANs is the [StarGAN](https://github.com/yunjey/StarGAN), which can work with multiple domains: hair color, gender, age, skin color, emotion, etc.
+
+
+### 3.8 Implementing the CycleGAN
+
+This section centers around the CycleGAN implementation notebook
+
+[deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch) `/ cycle-gan`
+
+which follows the [CycleGAN paper](https://arxiv.org/pdf/1703.10593.pdf) and the [CyCleGAN & Pix2Pix Repo with Pytorch (by author Zhu)](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix).
+
+In this notebook, we use images from Yosemite Park; we have two domains: 
+
+- winter images 
+- and summer images.
+
+The goal is to define and train a CycleGAN which is able to transform images from one domain to the other.
+
+All the typical steps in model definition, training and evaluation are followed, adapted for the CycleGAN network.
+
+Note that a CycleGAN is made of two discriminator and two generator networks.
+
+The discriminators have the following architecture:
+
+![CycleGAN: Discriminator](./pics/discriminator_layers_cycle_gan.png)
+
+A custom convolutional block function `conv()` is provided, which consists in `Conv2d` and `BatchNorm2d` layers; strided convolutions are used, i.e., no pooling is applied, instead, image sizes are halvened adjusting the kernel size, stride and padding correctly.
+
+The discriminators have the following architecture:
+
+![CycleGAN: Generator](./pics/cyclegan_generator_cycle_gan.png)
+
+The Generator of the CycleGAN reminds the architecture of the Autoencoder. However, as we can see, **residual blocks** are used between the encoder and the decoder. Residual blocks are the building block of [ResNets](https://arxiv.org/pdf/1512.03385.pdf):
+
+![Residual Block](./pics/resnet_block.png)
+
+In a residual block, the input of the previous layer is connected to the output of the current layer, having typically two convolution layers and a normalization between the connection points. The effect is that the layers in the block learn the residual; that helps against two issues, which are probably related:
+
+- The vanishing gradient problem: the gradients are propagated with the chain rule, which is a series of products of derivatives; the deeper the network, the larger the chain. Multiplying an increasing number of small values very quickly decreases the final output, and we loose information. With the residual block the signal passes between layers, we don't lose it. Therefore, deeper networks are possible, enabling better learning.
+- Training degradation: in deep networks, *training degradation* occurs when the network stops learning or its accuracy decreases from a point on.
+
+The equations of the residual block are the following:
+
+    M(x) = y          regular mapping
+    F(x) = M(x) - x   residual function
+    M(x) = F(x) + x   mapping in residual block
+    y = F(x) + x      F(x) is 2x conv + batchnorm
+
+It is easier to optimize the residual function `F(x)` than it is to optimize the mapping `M(x)`.
+
+Additional notes on the residual blocks:
+
+- In order to be able to sum `F(x) + x`, the layers in the residual block cannot change the size of the signal, i.e., the shape is unchanged in the residual block.
+- The connections that links the start and end of the residual block are called **skip connections**. These connections can link layers that are very far ways from each other in the network, and they have been shown to be very important in segmentation tasks, which require preserving spatial information; see for instance this paper: [The Importance of Skip Connections in Biomedical Image Segmentation](https://arxiv.org/abs/1608.04117).
+- A medium post on different ResNet architectures: [Understanding ResNet and its Variants](https://towardsdatascience.com/understanding-resnet-and-its-variants-719e5b8d2298).
+
+On the other hand, a custom transpose convolutional block function `deconv()` is provided, which consists in `ConvTranspose2d` and `BatchNorm2d` layers; image sizes are doubled adjusting the kernel size, stride and padding correctly.
+
+All in all, we instantiate the following models:
+
+- Two Discriminators: `D_X` and `D_Y`
+- Two Generators: `G_XtoY` (called `G` in the paper) and `G_YtoX` (called `F` in the paper)
+
+![CycleGAN Network and Losses](./pics/CycleGAN_loss.png)
+
+[Least Square Loss GANs](https://arxiv.org/abs/1611.04076)
+
+Summary of steps:
+
+1. Dataset loading
+2. Preprocessing functions for images
+3. Define the Generator and the Discriminator
+4. Loss Functions and Optimizers
+5. Training
+6. Evaluation / View Samples
+
+```python
+
+### -- 1. Dataset loading
+
+
+
+### -- 2. Preprocessing functions for images
+
+
+
+### -- 3. Define the Generator and the Discriminator
+
+
+
+### -- 4. Loss Functions and Optimizers
+
+
+
+### -- 5. Training
+
+
+
+### -- 6. Evaluation / View Samples
+
+
+```
 
 
 ### 3.X Papers and Links to Check
