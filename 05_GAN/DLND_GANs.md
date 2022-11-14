@@ -1693,7 +1693,9 @@ The goal is to define and train a CycleGAN which is able to transform images fro
 
 All the typical steps in model definition, training and evaluation are followed, adapted for the CycleGAN network.
 
-Note that a CycleGAN is made of two discriminator and two generator networks.
+#### Architecture: Generators and Discriminators
+
+The CycleGAN is made of two discriminator and two generator networks.
 
 The discriminators have the following architecture:
 
@@ -1736,9 +1738,60 @@ All in all, we instantiate the following models:
 - Two Discriminators: `D_X` and `D_Y`
 - Two Generators: `G_XtoY` (called `G` in the paper) and `G_YtoX` (called `F` in the paper)
 
+#### Loss Functions
+
+In addition to the common losses in the Generator, we have a reconstruction loss, aka. the **cycle consistency loss**, i.e., the loss produced when reconstructing an `x` or `y` sample. The L1 metric is recommended for the cycle consistency loss. Therefore, the **total generator loss** has these terms:
+
+- Real loss of `G_XtoY` (i.e., flipped labels)
+- Real loss of `G_YtoX` (i.e., flipped labels)
+- Forward consistency loss: `L1(x, x_hat = G_YtoX(G_XtoY(x)))`
+- Backward consistency loss: `L1(y, y_hat = G_XtoY(G_YtoX(y)))`
+
 ![CycleGAN Network and Losses](./pics/CycleGAN_loss.png)
 
-[Least Square Loss GANs](https://arxiv.org/abs/1611.04076)
+![CycleGAN: Cycle Consistency Losss](./pics/cycle_consistency_ex.png)
+
+Additionally, note that recent research has shown that in image generation tasks, cross-entropy loss of the Discriminator is associated with the vanishing gradient problem. It has been shown that [Least Square Loss GANs](https://arxiv.org/abs/1611.04076) perform better; using a lest squares loss function instead of the usual cross-entropy loss is very simple:
+
+```python
+out_x = D_X(x)
+target = 1 # or 0
+real_err = torch.mean((out_x-target)**2)
+```
+
+Altogether, the **total discriminator loss** has these terms:
+
+- Real + Fake loss of `D_X` using least squares.
+- Real + Fake loss of `D_Y` using least squares.
+
+#### Training
+
+Every batch from `X` and `Y`, we train first the Discriminator and then the Generator, following these steps:
+
+**Training the Discriminators**
+
+1. Compute the discriminator `D_X` loss on real images
+2. Generate fake images that look like domain `X` based on real images in domain $Y$
+3. Compute the fake loss for `D_X`
+4. Compute the total loss and perform backpropagation and `D_X` optimization
+5. Repeat steps 1-4 only with `D_Y` and your domains switched
+
+**Training the Generators**
+
+1. Generate fake images that look like domain $X$ based on real images in domain `Y`
+2. Compute the generator loss based on how $D_X$ responds to fake `X`
+3. Generate *reconstructed* `Y_hat` images based on the fake `X` images generated in step 1
+4. Compute the cycle consistency loss by comparing the reconstructions with real `Y` images
+5. Repeat steps 1-4 only swapping domains
+6. Add up all the generator and reconstruction losses and perform backpropagation + optimization
+
+The notebook describes the following **learning curve patterns**:
+
+> **Discriminator Losses**: When you display the generator and discriminator losses you should see that there is always some discriminator loss; recall that we are trying to design a model that can generate good "fake" images. So, the ideal discriminator will not be able to tell the difference between real and fake images and, as such, will always have some loss. You should also see that  `D_X` and `D_Y` are roughly at the same loss levels; if they are not, this indicates that your training is favoring one type of discriminator over the and you may need to look at biases in your models or data.
+
+> **Generator Loss**: The generator's loss should start significantly higher than the discriminator losses because it is accounting for the loss of both generators and weighted reconstruction errors. You should see this loss decrease a lot at the start of training because initial, generated images are often far-off from being good fakes. After some time it may level off; this is normal since the generator and discriminator are both improving as they train. If you see that the loss is jumping around a lot, over time, you may want to try decreasing your learning rates or changing your cycle consistency loss to be a little more/less weighted.
+
+#### Code
 
 Summary of steps:
 
