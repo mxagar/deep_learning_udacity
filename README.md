@@ -5,7 +5,7 @@ These are my personal notes taken while following the [Udacity Deep Learning Nan
 The nanodegree is composed of six modules:
 
 1. [Introduction to Deep Learning](01_Intro_Deep_Learning)
-2. [Neural Networks and Pytorch Guide](02_Neural_Networks)
+2. [Neural Networks and Pytorch/Keras Guides](02_Neural_Networks)
 3. [Convolutional Neural Networks (CNN)](03_CNN)
 4. [Recurrent Neural Networks (RNN)](04_RNN)
 5. [Generative Adversarial Networks (GAN)](05_GAN)
@@ -16,7 +16,8 @@ Each module has a folder with its respective notes; **you need to go to each mod
 
 Additionally, note that:
 
-- I have also notes on the [Udacity Computer Vision Nanodegree](https://www.udacity.com/course/computer-vision-nanodegree--nd891) in my repository [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity); that MOOC is strongly related and has complementary material. 
+- I have also notes on the [Udacity Computer Vision Nanodegree](https://www.udacity.com/course/computer-vision-nanodegree--nd891) in my repository [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity); that MOOC is strongly related and has complementary material.
+- In addition to the [Pytorch guide](02_Pytorch_Guide), I have a [Keras guide](02_Keras_Guide); both condense the most important features of both frameworks. Currently, the Pytorch guide is more detailed.
 - I have many hand-written notes you can check, too (see the PDFs).
 - The exercises are commented in the Markdown files and linked to their location; most of the exercises are located in other repositories, originally forked from Udacity and extended/completed by me:
 	- [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch)
