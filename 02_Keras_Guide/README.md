@@ -1,4 +1,4 @@
-# Keras Guide
+# Keras/Tensorflow Guide
 
 This guide has been moved to the following repository:
 
