@@ -2580,6 +2580,7 @@ view_samples(1000, 'samples_cyclegan')
 
 ## 4. Project: Generating Faces
 
+See project repository: [face_generator_gan](https://github.com/mxagar/face_generator_gan).
 
 ## 5. Papers and Links to Check
 
@@ -2596,6 +2597,9 @@ using Cycle-Consistent Adversarial Networks](https://arxiv.org/pdf/1703.10593.pd
 - [Generative Adversarial Networks, 2014](https://arxiv.org/abs/1406.2661).
 - [Improved Techniques for Training GANs, 2016](https://arxiv.org/abs/1606.03498).
 - [DCGAN Paper, 2016](https://arxiv.org/abs/1511.06434v2).
+- [StyleGAN, 2019](https://arxiv.org/abs/1710.10196/).
+- [StyleGAN 2, 2020](https://paperswithcode.com/method/stylegan2).
+- [StyleGAN 3, 2021](https://nvlabs.github.io/stylegan3/).
 
 ### Diffusion Models
 
