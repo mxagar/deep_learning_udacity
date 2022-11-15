@@ -1804,33 +1804,784 @@ Summary of steps:
 
 ```python
 
+# loading in and transforming data
+import os
+import torch
+from torch.utils.data import DataLoader
+import torchvision
+import torchvision.datasets as datasets
+import torchvision.transforms as transforms
+
+# visualizing data
+import matplotlib.pyplot as plt
+import numpy as np
+import warnings
+
+%matplotlib inline
+
 ### -- 1. Dataset loading
 
+def get_data_loader(image_type, image_dir='summer2winter_yosemite', 
+                    image_size=128, batch_size=16, num_workers=0):
+    """Returns training and test data loaders for a given image type, either 'summer' or 'winter'. 
+    These images will be resized to 128x128x3, by default, converted into Tensors, and normalized.
+    
+    Args:
+        image_type: 'summer' or 'winter'
+        image_dir: path to images
+        image_size: size to resize in transform
+        bacth_size: number of images per mini-batch
+    Returns:
+    """
+    
+    # resize and normalize the images
+    transform = transforms.Compose([transforms.Resize(image_size), # resize to 128x128
+                                    transforms.ToTensor()])
 
+    # get training and test directories
+    image_path = './' + image_dir
+    train_path = os.path.join(image_path, image_type)
+    test_path = os.path.join(image_path, 'test_{}'.format(image_type))
+
+    # define datasets using ImageFolder
+    train_dataset = datasets.ImageFolder(train_path, transform)
+    test_dataset = datasets.ImageFolder(test_path, transform)
+
+    # create and return DataLoaders
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+    return train_loader, test_loader
+
+# Create train and test dataloaders for images from the two domains X and Y
+# image_type = directory names for our data
+dataloader_X, test_dataloader_X = get_data_loader(image_type='summer')
+dataloader_Y, test_dataloader_Y = get_data_loader(image_type='winter')
+
+# helper imshow function
+def imshow(img):
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)))
+
+# get some images from X
+dataiter = iter(dataloader_X)
+# the "_" is a placeholder for no labels
+images, _ = dataiter.next()
+
+# show images
+fig = plt.figure(figsize=(12, 10))
+imshow(torchvision.utils.make_grid(images, nrow=4))
+# remove all ticks & labels
+plt.tick_params(left = False, right = False , labelleft = False ,
+                labelbottom = False, bottom = False)
+
+
+# get some images from Y
+dataiter = iter(dataloader_Y)
+images, _ = dataiter.next()
+
+# show images
+fig = plt.figure(figsize=(12,12))
+imshow(torchvision.utils.make_grid(images))
+plt.tick_params(left = False, right = False , labelleft = False ,
+                labelbottom = False, bottom = False)
 
 ### -- 2. Preprocessing functions for images
 
+# current range
+img = images[0]
+# print the min/max values of an image
+print('Min: ', img.min())
+print('Max: ', img.max())
 
+# helper scale function
+# we assume that the image pixel values ar in [0,1]
+# however, since we use tanh in the generator, we need to map them to [-1,1]
+def scale(x, feature_range=(-1, 1)):
+    ''' Scale takes in an image x and returns that image, scaled
+       with a feature_range of pixel values from -1 to 1. 
+       This function assumes that the input x is already scaled from 0-1.'''
+    
+    # scale from 0-1 to feature_range
+    min_, max_ = feature_range
+    x = x * (max_ - min_) + min_
+    return x
+
+# scaled range
+scaled_img = scale(img)
+# check the new range
+print('Scaled min: ', scaled_img.min())
+print('Scaled max: ', scaled_img.max())
 
 ### -- 3. Define the Generator and the Discriminator
 
+import torch.nn as nn
+import torch.nn.functional as F
 
+# helper conv function
+def conv(in_channels, out_channels, kernel_size, stride=2, padding=1, batch_norm=True):
+    """Creates a convolutional layer, with optional batch normalization.
+    """
+    layers = []
+    conv_layer = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, 
+                           kernel_size=kernel_size, stride=stride, padding=padding, bias=False)
+    
+    layers.append(conv_layer)
+
+    if batch_norm:
+        layers.append(nn.BatchNorm2d(out_channels))
+    return nn.Sequential(*layers)
+
+class Discriminator(nn.Module):
+    
+    def __init__(self, conv_dim=64):
+        super(Discriminator, self).__init__()
+
+        # Define all convolutional layers
+        # Should accept an RGB image as input and output a single value
+        
+        self.conv_dim = conv_dim
+        # Default values for all conv layers
+        # so that the size of the image halvens
+        # without pooling
+        self.stride = 2
+        self.kernel = 4
+        self.padding = 1
+        # Default image size, width = height
+        self.size = 128
+        self.in_channels = 3
+        
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (128 + 2 - 4)/2 + 1 = 64
+        # Strided-Conv + ReLU
+        self.conv1 = conv(in_channels=self.in_channels, # 3
+                          out_channels=self.conv_dim, # 64
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=False)
+
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (64 + 2 - 4)/2 + 1 = 32
+        # Strided-Conv + BatchNorm + ReLU
+        self.conv2 = conv(in_channels=self.conv_dim, # 64
+                          out_channels=self.conv_dim*2, # 128
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=True)
+
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (32 + 2 - 4)/2 + 1 = 16
+        # Strided-Conv + BatchNorm + ReLU
+        self.conv3 = conv(in_channels=self.conv_dim*2, # 128
+                          out_channels=self.conv_dim*4, # 256
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=True)
+
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (16 + 2 - 4)/2 + 1 = 8
+        # Strided-Conv + BatchNorm + ReLU
+        self.conv4 = conv(in_channels=self.conv_dim*4, # 256
+                          out_channels=self.conv_dim*8, # 512
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=True)
+
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (8 + 0 - 8)/2 + 1 = 1
+        # Strided-Conv
+        self.conv5 = conv(in_channels=self.conv_dim*8, # 512
+                          out_channels=1, # 1
+                          kernel_size=8,
+                          stride=self.stride,
+                          padding=0,
+                          batch_norm=False)
+        
+    def forward(self, x):
+        # define feedforward behavior
+        
+        x = F.relu(self.conv1(x)) # out: (batch_size, 64, 64, 64)
+        x = F.relu(self.conv2(x)) # out: (batch_size, 128, 32, 32)
+        x = F.relu(self.conv3(x)) # out: (batch_size, 256, 16, 16)
+        x = F.relu(self.conv4(x)) # out: (batch_size, 512, 8, 8)
+        x = self.conv5(x) # out: (batch_size, 1, 1, 1)
+
+        # Flatten
+        # x: (batch_size, channels, width, height)
+        # x_in: (batch_size, channels*width*height)
+        x = x.view(x.size(0), -1)
+        
+        # No activation = logits
+        # We apply Softmax in the loss function: BCEWithLogitsLoss        
+        return x
+
+# Test Forward Pass
+
+# Instantiate Discriminator
+d = Discriminator()
+
+# get some images from X
+dataiter = iter(dataloader_X)
+# the "_" is a placeholder for no labels
+images, _ = dataiter.next()
+print(f"input, size: {images.size()}") # torch.Size([16, 3, 128, 128])
+# input, size: torch.Size([16, 3, 128, 128])
+
+out = d(images)
+print(f"output, size: {out.size()}") # torch.Size([16, 1])
+# output, size: torch.Size([16, 1])
+
+
+# residual block class
+class ResidualBlock(nn.Module):
+    """Defines a residual block.
+       This adds an input x to a convolutional layer (applied to x) with the same size input and output.
+       These blocks allow a model to learn an effective transformation from one domain to another.
+    """
+    def __init__(self, conv_dim):
+        super(ResidualBlock, self).__init__()
+        
+        # conv_dim = number of inputs  
+        self.conv_dim = conv_dim
+        self.kernel = 3
+        self.stride = 1
+        self.padding = 1
+        
+        # define two convolutional layers + batch normalization that will act as our residual function, F(x)
+        # layers should have the same shape input as output; I suggest a kernel_size of 3
+        
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (W_in + 2 - 3)/1 + 1 = W_in
+        self.conv1 = conv(in_channels=self.conv_dim, # conv_dim
+                          out_channels=self.conv_dim, # conv_dim
+                          kernel_size=self.kernel, # 3
+                          stride=self.stride, # 1
+                          padding=self.padding, # 1
+                          batch_norm=True)
+
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (W_in + 2 - 3)/1 + 1 = W_in
+        self.conv2 = conv(in_channels=self.conv_dim, # conv_dim
+                          out_channels=self.conv_dim, # conv_dim
+                          kernel_size=self.kernel, # 3
+                          stride=self.stride, # 1
+                          padding=self.padding, # 1
+                          batch_norm=True)
+        
+    def forward(self, x):
+        # apply a ReLu activation the outputs of the first layer
+        # return a summed output, x + resnet_block(x)
+
+        out = F.relu(self.conv1(x))
+        out = self.conv2(out)
+        out = out + x
+
+        return out
+
+# helper deconv function
+def deconv(in_channels, out_channels, kernel_size, stride=2, padding=1, batch_norm=True):
+    """Creates a transpose convolutional layer, with optional batch normalization.
+    """
+    layers = []
+    # append transpose conv layer
+    layers.append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding, bias=False))
+    # optional batch norm layer
+    if batch_norm:
+        layers.append(nn.BatchNorm2d(out_channels))
+    return nn.Sequential(*layers)
+
+
+class CycleGenerator(nn.Module):
+    
+    def __init__(self, conv_dim=64, n_res_blocks=6):
+        super(CycleGenerator, self).__init__()
+        self.conv_dim = conv_dim
+        self.n_res_blocks = n_res_blocks
+        self.kernel = 4
+        self.padding = 1
+        self.stride = 2
+        self.size = 128 # image size, width = height
+        self.in_channes = 3
+        self.out_channels = 3
+        
+        ## 1. Define the encoder part of the generator
+        
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (W_in + 2 - 4)/2 + 1 = W_in/2
+        # Image size: 128 -> 64
+        # out shape: (batch_size, 64, 64, 64)
+        self.conv1 = conv(in_channels=self.in_channes, # 3
+                          out_channels=self.conv_dim, # conv_dim = 64
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=True)
+
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (W_in + 2 - 4)/2 + 1 = W_in/2
+        # Image size: 64 -> 32
+        # out shape: (batch_size, 128, 32, 32)
+        self.conv2 = conv(in_channels=self.conv_dim, # 64
+                          out_channels=self.conv_dim*2, # 128
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=True)
+        
+        # W_out = (W_in + 2P - F)/S + 1
+        # W_out = (W_in + 2 - 4)/2 + 1 = W_in/2
+        # Image size: 32 -> 16
+        # out shape: (batch_size, 256, 16, 16)
+        self.conv3 = conv(in_channels=self.conv_dim*2, # 128
+                          out_channels=self.conv_dim*4, # 256
+                          kernel_size=self.kernel,
+                          stride=self.stride,
+                          padding=self.padding,
+                          batch_norm=True)
+        
+        ## 2. Define the resnet part of the generator
+        self.residual_layers = []
+        for i in range(self.n_res_blocks):
+            r = ResidualBlock(self.conv_dim*4)
+            self.residual_layers.append(r)
+        # Use sequential to create these layers
+        self.residual_blocks = nn.Sequential(*self.residual_layers)
+            
+        ## 3. Define the decoder part of the generator
+        
+        # W_out = (W_in-1)*S - 2P + (F-1) + 1
+        # A kernel of 4x4 with stride=2 and padding=1
+        # doubles the size:
+        # W_out = (W_in-1)*2 - 2 + (4-1) + 1 = 2W_in -2 -2 +3 +1 = 2W_in
+        # W_out = 2W_in
+        # out shape: (batch_size, 128, 32, 32)
+        self.t_conv1 = deconv(in_channels=self.conv_dim*4, # 256
+                              out_channels=self.conv_dim*2, # 128
+                              kernel_size=4,
+                              stride=2,
+                              padding=1,
+                              batch_norm=True)
+
+        # W_out = 2W_in
+        # out shape: (batch_size, 64, 64, 64)
+        self.t_conv2 = deconv(in_channels=self.conv_dim*2, # 128
+                              out_channels=self.conv_dim, # 64
+                              kernel_size=4,
+                              stride=2,
+                              padding=1,
+                              batch_norm=True)
+
+        # W_out = 2W_in
+        # out shape: (batch_size, 3, 128, 128)
+        self.t_conv3 = deconv(in_channels=self.conv_dim, # 64
+                              out_channels=self.out_channels, # 3
+                              kernel_size=4,
+                              stride=2,
+                              padding=1,
+                              batch_norm=True)
+        
+    def forward(self, x):
+        """Given an image x, returns a transformed image."""
+        ## Define feedforward behavior, applying activations as necessary
+        
+        # Encoder
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        
+        ## Residual blocks
+        # No ReLU!
+        x = self.residual_blocks(x)
+        # Another option, without Sequential
+        # BUT: The residual blocks in CycleGAN are not activated with ReLU!
+        # for i in range(self.n_res_blocks)
+        #     x = self.residual_blocks[i](x)
+        #     x = F.relu(x)
+        
+        # Decoder (typical Generator)
+        x = F.relu(self.t_conv1(x))
+        x = F.relu(self.t_conv2(x))
+        x = torch.tanh(self.t_conv3(x))
+        
+        return x
+
+# Test Generator Forward Pass
+
+# Instantiate Generator
+g = CycleGenerator()
+
+# get some images from X
+dataiter = iter(dataloader_X)
+# the "_" is a placeholder for no labels
+images, _ = dataiter.next()
+print(f"input, size: {images.size()}") # torch.Size([16, 3, 128, 128])
+# input, size: torch.Size([16, 3, 128, 128])
+
+out = g(images)
+print(f"output, size: {out.size()}") # torch.Size([16, 1])
+# output, size: torch.Size([16, 3, 128, 128])
+
+# Instantiate the models
+
+def create_model(g_conv_dim=64, d_conv_dim=64, n_res_blocks=6):
+    """Builds the generators and discriminators."""
+    
+    # Instantiate generators
+    G_XtoY = CycleGenerator(conv_dim=g_conv_dim, n_res_blocks=n_res_blocks)
+    G_YtoX = CycleGenerator(conv_dim=g_conv_dim, n_res_blocks=n_res_blocks)
+    # Instantiate discriminators
+    D_X = Discriminator(conv_dim=d_conv_dim)
+    D_Y = Discriminator(conv_dim=d_conv_dim)
+
+    # move models to GPU, if available
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        G_XtoY.to(device)
+        G_YtoX.to(device)
+        D_X.to(device)
+        D_Y.to(device)
+        print('Models moved to GPU.')
+    else:
+        print('Only CPU available.')
+
+    return G_XtoY, G_YtoX, D_X, D_Y
+
+# call the function to get models
+G_XtoY, G_YtoX, D_X, D_Y = create_model()
+
+# helper function for printing the model architecture
+def print_models(G_XtoY, G_YtoX, D_X, D_Y):
+    """Prints model information for the generators and discriminators.
+    """
+    print("                     G_XtoY                    ")
+    print("-----------------------------------------------")
+    print(G_XtoY)
+    print()
+
+    print("                     G_YtoX                    ")
+    print("-----------------------------------------------")
+    print(G_YtoX)
+    print()
+
+    print("                      D_X                      ")
+    print("-----------------------------------------------")
+    print(D_X)
+    print()
+
+    print("                      D_Y                      ")
+    print("-----------------------------------------------")
+    print(D_Y)
+    print()
+    
+
+# print all of the models
+print_models(G_XtoY, G_YtoX, D_X, D_Y)
 
 ### -- 4. Loss Functions and Optimizers
 
+def real_mse_loss(D_out):
+    # How close is the produced output from being "real"?
+    batch_size = D_out.size(0)
+    labels = torch.ones(batch_size) # real labels = 1
+    # Move labels to GPU if available     
+    if torch.cuda.is_available():
+        labels = labels.cuda()
+    # Mean Squares Error
+    criterion = nn.MSELoss()
+    # Calculate loss
+    # Note:
+    # torch.ones(batch_size).size() -> torch.Size([batch_size])
+    # D_out.size() -> torch.Size([batch_size, 1]); thus, I use squeeze()
+    # Also, note that D returns logits!
+    loss = criterion(D_out.squeeze(), labels)
+    return loss
+    # Alternative
+    # return torch.mean((D_out-1)**2)
 
+def fake_mse_loss(D_out):
+    # How close is the produced output from being "fake"?
+    batch_size = D_out.size(0)
+    labels = torch.zeros(batch_size) # fake labels = 0
+    if torch.cuda.is_available():
+        labels = labels.cuda()
+    criterion = nn.MSELoss()
+    # Calculate loss
+    # Note:
+    # torch.ones(batch_size).size() -> torch.Size([batch_size])
+    # D_out.size() -> torch.Size([batch_size, 1]); thus, I use squeeze()
+    # Also, note that D returns logits!
+    loss = criterion(D_out.squeeze(), labels)
+    return loss
+    # Alternative
+    # return torch.mean(D_out**2)
+
+def cycle_consistency_loss(real_im, reconstructed_im, lambda_weight):
+    # L1 loss
+    criterion = nn.L1Loss()
+    # Calculate reconstruction loss 
+    # We need to .detach() the reference image from the computation graph
+    # https://discuss.pytorch.org/t/assertionerror-nn-criterions-dont-compute-the-gradient-w-r-t-targets-please-mark-these-variables-as-volatile-or-not-requiring-gradients/21542/5
+    loss = criterion(reconstructed_im, real_im.detach())
+    # Return weighted loss
+    return lambda_weight*loss
+    # Alternative
+    # return lambda_weight*torch.mean(torch.abs(real_im - reconstructed_im))
+
+
+import torch.optim as optim
+
+# hyperparams for Adam optimizers
+lr = 0.0002 # from the CycleGAN paper
+beta1 = 0.5
+beta2 = 0.999 # default value
+
+g_params = list(G_XtoY.parameters()) + list(G_YtoX.parameters())  # Get generator parameters
+
+# Create optimizers for the generators and discriminators
+g_optimizer = optim.Adam(g_params, lr, [beta1, beta2])
+d_x_optimizer = optim.Adam(D_X.parameters(), lr, [beta1, beta2])
+d_y_optimizer = optim.Adam(D_Y.parameters(), lr, [beta1, beta2])
 
 ### -- 5. Training
 
+# import save code
+from helpers import save_samples, checkpoint
 
+# With a batch_size = 16
+# We have altogether only 61 batches in the X & Y datasets
+iter_X = iter(dataloader_X)
+iter_Y = iter(dataloader_Y)
+batches_per_epoch = min(len(iter_X), len(iter_Y))
+print(batches_per_epoch) # 61
+
+# train the network
+def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader_Y, 
+                  n_epochs=1000):
+    
+    print_every = 10
+    
+    # keep track of losses over time
+    losses = []
+
+    test_iter_X = iter(test_dataloader_X)
+    test_iter_Y = iter(test_dataloader_Y)
+
+    # Get some fixed data from domains X and Y for sampling. These are images that are held
+    # constant throughout training, that allow us to inspect the model's performance.
+    fixed_X = test_iter_X.next()[0]
+    fixed_Y = test_iter_Y.next()[0]
+    fixed_X = scale(fixed_X) # make sure to scale to a range -1 to 1
+    fixed_Y = scale(fixed_Y)
+
+    # batches per epoch
+    iter_X = iter(dataloader_X)
+    iter_Y = iter(dataloader_Y)
+    # Both X and Y need to deliver the same amount of batches
+    # so we choose the minimum of them both
+    batches_per_epoch = min(len(iter_X), len(iter_Y))
+
+    # Here, epoch is called one D-G training cycle with one batch
+    # it is a bit missleading...
+    # Not ethat we have only 61 batches if batch_size = 16
+    # Thus, every 61 batches, i.e., every 61 epochs,
+    # the iterators are reset
+    for epoch in range(1, n_epochs+1):
+
+        # Reset iterators for each epoch
+        if epoch % batches_per_epoch == 0:
+            iter_X = iter(dataloader_X)
+            iter_Y = iter(dataloader_Y)
+
+        images_X, _ = iter_X.next()
+        images_X = scale(images_X) # make sure to scale to a range -1 to 1
+
+        images_Y, _ = iter_Y.next()
+        images_Y = scale(images_Y)
+        
+        # move images to GPU if available (otherwise stay on CPU)
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        images_X = images_X.to(device)
+        images_Y = images_Y.to(device)
+
+        # ============================================
+        #            TRAIN THE DISCRIMINATORS
+        # ============================================
+
+        # Functions/Objects available:
+        # g_optimizer
+        # d_x_optimizer
+        # d_y_optimizer
+        # real_mse_loss
+        # fake_mse_loss
+        # cycle_consistency_loss
+        # G_XtoY, G_YtoX, D_X, D_Y
+        
+        ##   First: D_X, real and fake loss components   ##
+        d_x_optimizer.zero_grad()
+
+        # 1. Compute the discriminator losses on real images
+        D_x_real = D_X(images_X)
+        d_x_real_loss = real_mse_loss(D_x_real)
+            
+        # 2. Generate fake images that look like domain X based on real images in domain Y
+        images_YtoX = G_YtoX(images_Y)
+
+        # 3. Compute the fake loss for D_X
+        D_x_fake = D_X(images_YtoX)
+        d_x_fake_loss = fake_mse_loss(D_x_fake)
+        
+        # 4. Compute the total loss and perform backprop
+        d_x_loss = d_x_real_loss + d_x_fake_loss
+        d_x_loss.backward()
+        d_x_optimizer.step()
+        
+        ##   Second: D_Y, real and fake loss components   ##
+        d_y_optimizer.zero_grad()
+
+        # 1. Compute the discriminator losses on real images
+        D_y_real = D_Y(images_Y)
+        d_y_real_loss = real_mse_loss(D_y_real)
+        
+        # 2. Generate fake images that look like domain Y based on real images in domain X
+        images_XtoY = G_XtoY(images_X)
+        
+        # 3. Compute the fake loss for D_Y
+        D_y_fake = D_Y(images_XtoY)
+        d_y_fake_loss = fake_mse_loss(D_y_fake)
+        
+        # 4. Compute the total loss and perform backprop
+        d_y_loss = d_y_real_loss + d_y_fake_loss
+        d_y_loss.backward()
+        d_y_optimizer.step()
+
+        # =========================================
+        #            TRAIN THE GENERATORS
+        # =========================================
+
+        ##    First: generate fake X images and reconstructed Y images    ##
+        g_optimizer.zero_grad()
+
+        # 1. Generate fake images that look like domain X based on real images in domain Y
+        images_YtoX = G_YtoX(images_Y)
+        
+        # 2. Compute the generator loss based on domain X
+        D_x_fake = D_X(images_YtoX)
+        g_x_loss = real_mse_loss(D_x_fake) # use real loss to flip labels
+            
+        # 3. Create a reconstructed y
+        images_Y_hat = G_XtoY(images_YtoX)
+        
+        # 4. Compute the cycle consistency loss (the reconstruction loss)
+        # lambda value from the CycleGAN paper        
+        g_x_ccl = cycle_consistency_loss(images_Y, images_Y_hat, lambda_weight=10)
+
+        ##    Second: generate fake Y images and reconstructed X images    ##
+        
+        # 1. Generate fake images that look like domain Y based on real images in domain X
+        images_XtoY = G_XtoY(images_X)
+
+        # 2. Compute the generator loss based on domain Y
+        D_y_fake = D_Y(images_XtoY)
+        g_y_loss = real_mse_loss(D_y_fake) # use real loss to flip labels
+
+        # 3. Create a reconstructed x
+        images_X_hat = G_YtoX(images_XtoY)
+        
+        # 4. Compute the cycle consistency loss (the reconstruction loss)
+        # lambda value from the CycleGAN paper
+        g_y_ccl = cycle_consistency_loss(images_X, images_X_hat, lambda_weight=10)
+        
+        ##    Third: add up everything
+        
+        # Add up all generator and reconstructed losses and perform backprop
+        g_total_loss = g_x_loss + g_y_loss + g_x_ccl + g_y_ccl
+        g_total_loss.backward()
+        g_optimizer.step()
+            
+        # Print the log info
+        if epoch % print_every == 0:
+            # append real and fake discriminator losses and the generator loss
+            losses.append((d_x_loss.item(), d_y_loss.item(), g_total_loss.item()))
+            print('Epoch [{:5d}/{:5d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | g_total_loss: {:6.4f}'.format(
+                    epoch, n_epochs, d_x_loss.item(), d_y_loss.item(), g_total_loss.item()))
+
+            
+        sample_every=100
+        # Save the generated samples
+        if epoch % sample_every == 0:
+            G_YtoX.eval() # set generators to eval mode for sample generation
+            G_XtoY.eval()
+            save_samples(epoch, fixed_Y, fixed_X, G_YtoX, G_XtoY, batch_size=16)
+            G_YtoX.train()
+            G_XtoY.train()
+
+        # uncomment these lines, if you want to save your model
+        checkpoint_every=1000
+        # Save the model parameters
+        if epoch % checkpoint_every == 0:
+            checkpoint(epoch, G_XtoY, G_YtoX, D_X, D_Y)
+
+    return losses
+
+from workspace_utils import active_session
+n_epochs = 4000 # keep this small when testing if a model first works, then increase it to >=1000
+
+with active_session():
+    losses = training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader_Y, n_epochs=n_epochs)
+# Epoch [   10/ 4000] | d_X_loss: 0.1970 | d_Y_loss: 0.4358 | g_total_loss: 13.8147
+# ...
 
 ### -- 6. Evaluation / View Samples
+
+# Plot learning curves
+fig, ax = plt.subplots(figsize=(12,8))
+losses = np.array(losses)
+plt.plot(losses.T[0], label='Discriminator, X', alpha=0.5)
+plt.plot(losses.T[1], label='Discriminator, Y', alpha=0.5)
+plt.plot(losses.T[2], label='Generators', alpha=0.5)
+plt.title("Training Losses")
+plt.legend()
+
+
+import matplotlib.image as mpimg
+
+# helper visualization code
+def view_samples(iteration, sample_dir='samples_cyclegan'):
+    
+    # samples are named by iteration
+    path_XtoY = os.path.join(sample_dir, 'sample-{:06d}-X-Y.png'.format(iteration))
+    path_YtoX = os.path.join(sample_dir, 'sample-{:06d}-Y-X.png'.format(iteration))
+    
+    # read in those samples
+    try: 
+        x2y = mpimg.imread(path_XtoY)
+        y2x = mpimg.imread(path_YtoX)
+    except:
+        print('Invalid number of iterations.')
+    
+    fig, (ax1, ax2) = plt.subplots(figsize=(18,20), nrows=2, ncols=1, sharey=True, sharex=True)
+    ax1.imshow(x2y)
+    ax1.set_title('X to Y')
+    ax2.imshow(y2x)
+    ax2.set_title('Y to X')
+
+# view samples at iteration 100
+view_samples(100, 'samples_cyclegan')
+
+# view samples at iteration 1000
+view_samples(1000, 'samples_cyclegan')
 
 
 ```
 
+## 4. Project: Generating Faces
 
-### 3.X Papers and Links to Check
+
+## 5. Papers and Links to Check
 
 - [iGAN: Interactive GANs](https://github.com/junyanz/iGAN)
 - Original Pix2Pix paper: [Image-to-Image Translation with Conditional Adversarial Networks, Isola et al.](https://arxiv.org/pdf/1611.07004.pdf)
@@ -1839,10 +2590,6 @@ Summary of steps:
 - Original CycleGAN paper: [Unpaired Image-to-Image Translation
 using Cycle-Consistent Adversarial Networks](https://arxiv.org/pdf/1703.10593.pdf)
 - [CyCleGAN & Pix2Pix Repo with Pytorch (by author Zhu)](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix)
-
-
-## X. Interesting Links
-
 - [DCGAN Tutorial, Pytorch](https://pytorch.org/tutorials/beginner/dcgan_faces_tutorial.html)
 - [Cool GAN Applications](https://jonathan-hui.medium.com/gan-some-cool-applications-of-gans-4c9ecca35900)
 - [Compilation of Cool GAN Projects](https://github.com/nashory/gans-awesome-applications).
@@ -1850,7 +2597,7 @@ using Cycle-Consistent Adversarial Networks](https://arxiv.org/pdf/1703.10593.pd
 - [Improved Techniques for Training GANs, 2016](https://arxiv.org/abs/1606.03498).
 - [DCGAN Paper, 2016](https://arxiv.org/abs/1511.06434v2).
 
-## X. Diffusion Models
+### Diffusion Models
 
 - [What are Diffusion Models?](https://www.youtube.com/watch?v=fbLgFrlTnGU&list=LL)
 - [Introduction to Diffusion Models for Machine Learning](https://www.assemblyai.com/blog/diffusion-models-for-machine-learning-introduction/)
@@ -1858,14 +2605,27 @@ using Cycle-Consistent Adversarial Networks](https://arxiv.org/pdf/1703.10593.pd
 - [Diffusion Models Clearly Explained](https://medium.com/@PhysicistMarianna/diffusion-models-clearly-explained-1fbd5afa36b3)
 - DALL-e
 
-## X. NERFs
+:construction:
+
+### NERFs
 
 - [NeRFs: Neural Radiance Fields - Paper Explained](https://www.youtube.com/watch?v=WSfEfZ0ilw4)
 - [NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis](https://arxiv.org/abs/2003.08934)
 - [Jon Barron - Understanding and Extending Neural Radiance Fields](https://www.youtube.com/watch?v=HfJpQCBTqZs)
 
-## X. GPT
+:construction:
+
+### GPT and Large Language Models
+
+TBD.
+
+:construction:
 
 
+### Whisper
+
+TBD.
+
+:construction:
 
 
