@@ -10,11 +10,12 @@ The nanodegree is composed of six modules:
 4. [Recurrent Neural Networks (RNN)](04_RNN)
 5. [Generative Adversarial Networks (GAN)](05_GAN)
 6. [Deploying a Model](06_Deployment)
-7. Excurs: Transformers & [Vision Transformers](https://iaml-it.github.io/posts/2021-04-28-transformers-in-vision/)
+
+Additionally, I have added an extra module/subfolder which I will extend with *new* architectures and applications that appeared post 2018: [Extra](07_Extra).
 
 Each module has a folder with its respective notes; **you need to go to each module folder and follow the Markdown file in them**.
 
-Additionally, note that:
+Finally, note that:
 
 - I have also notes on the [Udacity Computer Vision Nanodegree](https://www.udacity.com/course/computer-vision-nanodegree--nd891) in my repository [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity); that MOOC is strongly related and has complementary material.
 - In addition to the [Pytorch guide](02_Pytorch_Guide), I have a [Keras guide](02_Keras_Guide); both condense the most important features of both frameworks. Currently, the Pytorch guide is more detailed.
@@ -24,6 +25,7 @@ Additionally, note that:
 	- [CVND_Exercises](https://github.com/mxagar/CVND_Exercises)
 	- [DL_PyTorch](https://github.com/mxagar/DL_PyTorch)
 	- [CVND_Localization_Exercises](https://github.com/mxagar/CVND_Localization_Exercises)
+	- [sagemaker-deployment](https://github.com/mxagar/sagemaker-deployment)
 
 ## Projects
 

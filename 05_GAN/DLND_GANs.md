@@ -16,7 +16,10 @@ Each module has a folder with its respective notes. This folder is the one of th
 Additionally, note that:
 
 - I made many hand-written notes; check the PDFs.
-- I forked the Udacity repository for the exercises [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch); all the material and notebooks are there.
+- I forked the Udacity repositories for the exercises; most the material and notebooks are there:
+  - [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch)
+  - [DL_PyTorch](https://github.com/mxagar/DL_PyTorch)
+  - [sagemaker-deployment](https://github.com/mxagar/sagemer-deployment)
 
 ## Overview of Contents
 
@@ -52,11 +55,12 @@ Additionally, note that:
     - [3.6 How Does This Work?](#36-how-does-this-work)
     - [3.7 Beyond CycleGANs](#37-beyond-cyclegans)
     - [3.8 Implementing the CycleGAN](#38-implementing-the-cyclegan)
-    - [3.X Papers and Links to Check](#3x-papers-and-links-to-check)
-  - [X. Interesting Links](#x-interesting-links)
-  - [X. Diffusion Models](#x-diffusion-models)
-  - [X. NERFs](#x-nerfs)
-  - [X. GPT](#x-gpt)
+      - [Architecture: Generators and Discriminators](#architecture-generators-and-discriminators)
+      - [Loss Functions](#loss-functions)
+      - [Training](#training)
+      - [Code](#code)
+  - [4. Project: Generating Faces](#4-project-generating-faces)
+  - [5. Papers and Links to Check](#5-papers-and-links-to-check)
 
 ## 1. Generative Adversarial Networks (GANs)
 
@@ -2582,6 +2586,30 @@ view_samples(1000, 'samples_cyclegan')
 
 See project repository: [face_generator_gan](https://github.com/mxagar/face_generator_gan).
 
+The obtained results are far from high quality faces such as in [StyleGAN 3, 2021](https://arxiv.org/abs/2106.12423); however, as mentioned in the introduction, I think it's remarkable that the defined simple model with untuned hyperparameters from the literature is able to generate those faces with only 1.5h of GPU training.
+
+In case I have time, I will try to improve the results applying these items:
+
+- [ ] Try the [Wasserstein distance](https://guimperarnau.com/blog/2017/03/Fantastic-GANs-and-where-to-find-them#wassGANs) in the loss function, since it correlates better with the image quality. That way, it's more clear when we should stop training.
+- [ ] Increase the image size to `64 x 64` to create bigger images.
+- [ ] Increase the number of channels (e.g., 2x or 4x), controlled with `conv_dim`.
+- [ ] Padding and normalization techniques can achieve better qualities? Check literature.
+- [ ] Vary the learning rate during training; example: [Original CycleGAN repository](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix).
+- [ ] Try other weight initializations, e.g., the [Xavier Initialization](https://prateekvjoshi.com/2016/03/29/understanding-xavier-initialization-in-deep-neural-networks/).
+- [ ] Currently, label smoothing is implemented but deactivated; activate it.
+- [ ] Read thoroughly and the techniques commented in the paper [Improved Techniques for Training GANs](https://arxiv.org/abs/1606.03498).
+- [ ] I have barely varied the hyperparameters! I should systematically search in the paramater space; e.g.:
+  - [ ] The number of epochs.
+  - [ ] The `batch_size`; check [this Standford / Karpathy article](https://cs231n.github.io/neural-networks-3/#hyper).
+  - [ ] The `beta` values for the optimizer; check [this article by Sebastian Ruder](https://ruder.io/optimizing-gradient-descent/index.html#adam).
+  - [ ] The size of the random/noise vector `z_size`.
+  - [ ] The slope of the leaky ReLU.
+  - [ ] etc.
+- [ ] Address the bias in the dataset: many white, blonde and female faces are generated.
+  - [ ] Re-sample the training dataset?
+  - [ ] Use another dataset?
+- [ ] Try architectures like [PairedCycleGAN](https://gfx.cs.princeton.edu/pubs/Chang_2018_PAS/Chang-CVPR-2018.pdf), in which face properties are mapped from one domain to another. I have implemented an example of a CycleGAN in which winter and summer domain image properties are mapped from one set to another: [CycleGAN Summer/Winter](https://github.com/mxagar/deep-learning-v2-pytorch/tree/master/cycle-gan).
+
 ## 5. Papers and Links to Check
 
 - [iGAN: Interactive GANs](https://github.com/junyanz/iGAN)
@@ -2601,35 +2629,5 @@ using Cycle-Consistent Adversarial Networks](https://arxiv.org/pdf/1703.10593.pd
 - [StyleGAN 2, 2020](https://paperswithcode.com/method/stylegan2).
 - [StyleGAN 3, 2021](https://nvlabs.github.io/stylegan3/).
 
-### Diffusion Models
-
-- [What are Diffusion Models?](https://www.youtube.com/watch?v=fbLgFrlTnGU&list=LL)
-- [Introduction to Diffusion Models for Machine Learning](https://www.assemblyai.com/blog/diffusion-models-for-machine-learning-introduction/)
-- [Understanding Diffusion Models: A Unified Perspective](https://arxiv.org/abs/2208.11970)
-- [Diffusion Models Clearly Explained](https://medium.com/@PhysicistMarianna/diffusion-models-clearly-explained-1fbd5afa36b3)
-- DALL-e
-
-:construction:
-
-### NERFs
-
-- [NeRFs: Neural Radiance Fields - Paper Explained](https://www.youtube.com/watch?v=WSfEfZ0ilw4)
-- [NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis](https://arxiv.org/abs/2003.08934)
-- [Jon Barron - Understanding and Extending Neural Radiance Fields](https://www.youtube.com/watch?v=HfJpQCBTqZs)
-
-:construction:
-
-### GPT and Large Language Models
-
-TBD.
-
-:construction:
-
-
-### Whisper
-
-TBD.
-
-:construction:
 
 

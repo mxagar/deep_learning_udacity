@@ -16,7 +16,11 @@ Each module has a folder with its respective notes. This folder is the one of th
 Additionally, note that:
 
 - I made many hand-written notes; check the PDFs.
-- I forked the Udacity repository for the exercises [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch); all the material and notebooks are there.
+- I made many hand-written notes; check the PDFs.
+- I forked the Udacity repositories for the exercises; most the material and notebooks are there:
+  - [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch)
+  - [DL_PyTorch](https://github.com/mxagar/DL_PyTorch)
+  - [sagemaker-deployment](https://github.com/mxagar/sagemer-deployment)
 
 ## Overview of Contents
 
