@@ -22,6 +22,8 @@ However, **the present module/folder contains my personal notes on *new* archite
   - [NERFs](#nerfs)
   - [GPT and Large Language Models](#gpt-and-large-language-models)
   - [Whisper](#whisper)
+  - [BERT](#bert)
+  - [GPT](#gpt)
 
 ## Transformers
 
@@ -54,3 +56,12 @@ However, **the present module/folder contains my personal notes on *new* archite
 ## Whisper
 
 :construction:
+
+## BERT
+
+:construction:
+
+## GPT
+
+:construction:
+
