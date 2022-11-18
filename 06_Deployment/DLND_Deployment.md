@@ -23,3 +23,167 @@ Additionally, note that:
   - [sagemaker-deployment](https://github.com/mxagar/sagemer-deployment)
 
 ## Overview of Contents
+
+- [Geneartive Adversarial Networks (GAN)](#geneartive-adversarial-networks-gan)
+  - [Overview of Contents](#overview-of-contents)
+  - [1. Introduction to Deployment](#1-introduction-to-deployment)
+  - [2. Building a Model Using SageMaker](#2-building-a-model-using-sagemaker)
+  - [3. Deploying and Using a Model](#3-deploying-and-using-a-model)
+  - [4. Hyperparamter Tuning](#4-hyperparamter-tuning)
+  - [5. Updating a Model](#5-updating-a-model)
+  - [6. Project: Deploying a Sentiment Analysis Model](#6-project-deploying-a-sentiment-analysis-model)
+
+## 1. Introduction to Deployment
+
+Deployment in the Cloud is the focus of this module, concentrating on AWS SageMaker. However, the concepts are valid for any cloud platform.
+
+Learned questions:
+
+- What's the machine learning workflow?
+- How does deployment fit into the machine learning workflow?
+- What is cloud computing?
+- Why would we use cloud computing for deploying machine learning models?
+- Why isn't deployment a part of many machine learning curriculums?
+- What does it mean for a model to be deployed?
+- What are the essential characteristics associated with the code of deployed models?
+- What are different cloud computing platforms we might use to deploy our machine learning models?
+
+### 1.1 Machine Learning Workflow
+
+The general machine learning workflow has these primary components with their sub-steps:
+
+- Explore & Process
+  - Retrieve data
+  - Clean data
+  - Explore data
+  - Prepare/transform
+  - Split: train/validation/test
+- Modeling
+  - Develop model
+  - Train
+  - Validate: tune, select best model
+  - Evaluate model: test split
+- Deployment: **we focus here**
+  - Deploy to production
+  - Monitor
+  - Update
+
+Note this is **cyclical**! We start again when we see we need to update out model!
+
+![Machine Learning Workflow](./pics/ml_workflow.jpg)
+
+The different cloud providers describe their machine learning workflow as follows:
+
+- [Machine Learning with Amazon SageMaker](https://docs.aws.amazon.com/sagemaker/latest/dg/how-it-works-mlconcepts.html)
+- [Machine learning workflow on GCloud](https://cloud.google.com/ai-platform/docs/ml-solutions-overview)
+- [Azure Machine Learning](https://learn.microsoft.com/en-us/azure/machine-learning/overview-what-is-azure-machine-learning)
+
+
+### 1.2 Cloud Computing
+
+An abstract definition of cloud computing: convert an IT product into an IT service; e.g., USB stick becomes GDrive.
+
+The nice thing of a cloud service is that its capacity scales with the demand; that doesn't happen with traditional infrastructure.
+
+![Cloud Services: Capacity Scales](./pics/cloud_capacity.png)
+
+Note that the capacity can be understood as the number of IT resources (storage, compute, network, etc.), and it has a cost associated to it.
+
+Ideally we want to follow the black demand curve, otherwise, with a traditional infrastructure we have either:
+
+- wasted capacity (area below the blue curve bounded by the black)
+- or insufficient capacity (area below the black curve bounded by the blue).
+
+That is clearly a missuse of resources: we are either loosing customers or money, i.e., in any case we're always loosing money.
+
+With cloud infrastructures we can follow the demand (registered users) and trigger automatically increased/decreased capacity. The area between the black and the yellow curves is the dynamic capacity.
+
+#### Pros and Cons
+
+**Benefits** of cloud computing:
+
+- Reduced investments, proportional costs: we don't need to buy and maintain servers, but we use them and pay proportionally to our usage.
+- Scalability, better capacity planning: automatic triggers allocate more resources depending on users registered, i.e., demand.
+- Increased availability and reliability (thus, organizational agility).
+
+But cloud computing has also **risks**:
+
+- (Potential) Increase in Security Vulnerabilities
+- Reduced Operational Governance Control (over cloud resources)
+- Limited Portability Between Cloud Providers
+- Multi-regional Compliance and Legal Issues
+
+> Indeed, the **Service Level Agreements (SLA)** provided for a cloud service often highlight security responsibilities of the cloud provider and **those assumed by the cloud user**.
+
+In other words, the cloud providers assume responsibilities of the user regarding the risk surface they have.
+
+More on [AWS Security](https://aws.amazon.com/security/security-learning/?cards-top.sort-by=item.additionalFields.sortDate&cards-top.sort-order=desc&awsf.Types=*all).
+
+#### Definitions (NIST)
+
+The National Institute of Standards and Technology (NIST) defined in 2011 cloud computing using 
+
+1. service models,
+2. deployment models,
+3. and essential characteristics
+
+as shown in the following image:
+
+![NIST: Definition of Cloud Computing](./pics/nist_cloud_computing.png)
+
+Since the, each cloud provider updated their definition, but we can take the NIST definition as reference.
+
+There are three **software service models** depending on 
+
+- which **cloud components** they comprise
+- how the **responsibility** is delegated between the cloud provider and the customer.
+
+![NIST: Software Services](./pics/nist_cloud_computing_service_models_saas.png)
+
+The **service model** examples are:
+
+- Software as a Service (SaaS): Google Docs, GMail; as opposed to *software as a product*, in SaaS the application is on the cloud and we access it via browser. The user has the unique responsibility of the login and the administration of the application and the content.
+- Platform as a Service (PaaS): Heroku; we can use PaaS to e-commerce websites, deploy an app which is reachable via web or a REST API, etc. usually, easy deployments at the application level are done. Obviously, the user that deploys the application has more responsibilities.
+- Infrastructure as a Service (IaaS): AWS; they offer virtual machines on which the user needs to do everything: virtual machine provisioning, networking, app deployment, etc.
+
+The **deployment models** are distinguished by the group for which the service is being provided:
+
+- Public: for use by the general public; AWS, GCloud, Azure, etc. They are the least secure, but they also enable virtual private clouds.
+- Community: Government Clouds; they are more secure, because of restricted access.
+- Private and Hybrid Clouds: Company clouds, with servers in the company.
+
+The **essential characteristics** are 
+
+- On-Demand Self Service: no human interaction, customer performs automatic provisioning.
+- Broad Network Access: we can access from any device with internet.
+- Resource Pooling: many customers with very different requirements need to be served.
+- Rapid Elasticity: scaling of compute capabilities depending on demand.
+- Measured Service: the cloud provider automatically controls and optimizes resource usage.
+
+#### Cloud Computing Guidelines
+
+Cloud computing is perfect for **start ups**, because
+
+- They don't have infrastructure overhead costs, they pay as they go.
+- It requires fewer staff.
+- It can scale.
+- It enables placing the product to market faster.
+
+For established companies, cloud computing is not always the way to go, because they might have legacy architecture and their staff lacks the skillset.
+
+Successful examples:
+
+- [Instagram](https://instagram-engineering.com/migrating-from-aws-to-aws-f4b16a65e13c), which started from scratch at AWS in 2010. They migrated to Facebook serves after their purchas in 2012: [Migrating From AWS to FB](https://instagram-engineering.com/migrating-from-aws-to-fb-86b16f6766e2).
+- [Netflix](https://aws.amazon.com/solutions/case-studies/netflix/) migrated from using its own servers in 2009 to AWS in 2010.
+
+
+## 2. Building a Model Using SageMaker
+
+## 3. Deploying and Using a Model
+
+## 4. Hyperparamter Tuning
+
+## 5. Updating a Model
+
+## 6. Project: Deploying a Sentiment Analysis Model
+
