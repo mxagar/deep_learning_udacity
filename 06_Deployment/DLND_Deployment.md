@@ -196,9 +196,118 @@ It is also quite common to have only the deployment component on the cloud due t
 
 ### 1.3 Paths to Deployment
 
+The most common ways to deploy a machine learning model have been:
+
+1. Recode the python model into C++/java
+2. Recode the model into Predictive Model Markup Language (PMML) or Portable Format Analytics (PFA).
+3. **Convert python model into a format used in the production environment.** This format can be a binary or code that is compiled; the keyword is **convert**, i.e., we don't recode anything.
+
+In recent years, the last way has become popular and seems to be the future. It's the easiest and fastest way and many frameworks (Scikit-Learn, Pytorch, etc.) are already able to do that. Sometimes intermediate formats are used, such as [ONNX](https://onnx.ai/).
+
+Another aspect in the deployment process is who does it. Traditionally, deployment has belonged to operations and software/platform/DevOps engineers were in charge of it. However, in recent years data scientists/analysts/ML engineers have started to be responsible for it because tools for easy deployment have appeared or evolved, such as:
+
+- Containers
+- Tools for creating REST APIs
+- AWS SageMaker
+- Google ML Engine / [Google Vertex AI](https://cloud.google.com/vertex-ai) (equivalent to SageMaker)
+
+![Machine Learning Workflow and DevOps](./pics/mlworkflow-devops.png)
+
+### 1.4 Production and Test Environments
+
+Usually, machine learning applications are deployed with the following architecture:
+
+![Production Environment](./pics/production_environment.jpg)
+
+We have these parts:
+
+- The users, who input data and get predictions associated with that data.
+- The application, which is the interface to the users and the model; the application is in the **production environment**.
+- The model, which usually is not in the application, but its interfaced by it. The interface between the application and the model happens in the so called **end points**, which get the user data and provide the prediction.
+
+Note that instead of the production environment we can have a **test environment** if we are performing tests, i.e., there's no real user, but a tester (person or bot). A **production environment** is characterized by the fact that it's being used by real users.
+
+Thus, the **type of environment (test/production)** is determined by who uses the service.
+
+### 1.5 Endpoints and REST APIs
+
+One way of understanding endpoints is the following:
+
+- the ENDPOINT itself is like a function call
+- the function itself would be the model and
+- the Python program is the APPLICATION.
+
+```python
+# APPLICATION = The python program/script
+def main():
+    input_user_data = get_user_data()
+    # ENDPOINT = Function call
+    predictions = ml_model(input_user_data)
+    display_predictions_to_user(predictions)
+
+def ml_model(user_data):
+    loaded_data = load_user_data(user_data)
+    # ...
+    return predictions
+```
+
+Often, the connection to the endpoint is done using a **REST API**: REpresentational State Transfer Application Programming Interface. Basically, we have a service in which the model is contained and that service is able to
+
+- receive a **HTTP request**,
+- process the request and feed it to the model,
+- package the model output,
+- and send a **HTTP responses** which contains the model output.
+
+An **HTTP request** has four parts:
+
+1. Endpoint: that's the URL which targets a specific function.
+2. HTTP Method: any of these four (CRUD):
+    - GET: Read
+    - POST: Create (usually that's the one when we're trying to send data to get a prediction)
+    - PUT: Update
+    - DELETE: Delete
+3. HTTP Headers: data format in the message, additional info, etc.
+4. Message: the input data sent by the user.
+
+![HTTP Methods](./pics/http_methods.png)
+
+An **HTTP response** has three parts:
+
+1. HTTP Status Code: if data successfully received, code should start with 2, e.g., 200.
+2. HTTP Headers: data format in the message, additional info, etc.
+3. Message: the output data sent to the user, i.e., the prediction.
+
+It is the application's responsibility to format the input/output data correctly for/from the model interfacing with the user. Usually, the data is formatted in CSV/JSON format.
 
 
-### 1.4 Production Environments
+### 1.6 Containers
+
+The model and the application need a computing environment; often, that computing environment is a **container** (one for each). Docker is the most popular container technology.
+
+A container is an isolated computational environment which contains all the libraries and software necessary to run an application or the part of an application.
+
+A container can be mistaken with a virtual machine (VM), but it's not a VM, because it uses the resources of the underlying operating system via the container engine. However, for instance, we can run Linux-based container on Mac/Windows. Since they're not virtual machines, they're much lighter.
+
+![Containers](./pics/containers.png)
+
+Containers are defined in image scripts which specify in layers the software components that build the container.
+
+In Docker:
+
+- Images are Dockerfile scripts
+- Built/instantiated images are containers
+- DockerHub is an image registry, i.e., a repository where container images are hosted.
+
+Advantages of containers:
+
+- Application is isolated, i.e., more secure.
+- Requires only software to run the application.
+- Application creation, replication, sharing, deletion is easier.
+- We package the application in a container and it runs everywhere!
+
+Udacity workspaces run on containers.
+
+### 1.7 Characteristics of Deployment and Modeling
 
 
 
