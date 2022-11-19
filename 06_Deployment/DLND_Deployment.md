@@ -309,7 +309,57 @@ Udacity workspaces run on containers.
 
 ### 1.7 Characteristics of Deployment and Modeling
 
+The steps of modeling and deployment have characteristic features that we need to take into account. Cloud platforms make it easier to deal with these features.
 
+Modeling requires **hyperparameter tuning**, finding the parameters that cannot be learned from the data.
+
+![ML Workflow: Hyperparameter Tuning](mlworkflow-modeling-hyperparameter.png)
+
+Deployment requires tracking the model performance; to that end, we need to perform the following tasks:
+
+- Model versioning
+- Model monitoring: we track the performance of the model; that way, we can detect drifts and update it.
+- Model updating and routing: we deploy new updated models in parallel; we need to be able to route user requests to different models to compare them.
+
+Additionally, note that model predictions can be
+
+- On-demand / online: via API with JSON/XML
+    - done all the time, i.e., typical phone web app
+    - low latency
+    - volume variability, but typically up to 5 MB
+- In batch / offline: via files stored on cloud provider (e.g., S3)
+    - large volume, done regularly (e.g., weekly)
+    - latency is higher, but it's not an issue
+
+![ML Workflow: Hyperparameter Tuning](mlworkflow-deployment.png)
+
+### 1.8 Comparing Cloud Providers
+
+Equivalent / similar systems that cover all 3 steps in the Machine Learning Workflow (explore & process, modeling, deployment):
+
+- [Amazon / AWS SageMaker](https://aws.amazon.com/sagemaker/)
+- [Google Vertex AI](https://cloud.google.com/vertex-ai): very similar to SageMaker; maybe SageMaker has more features at the point of the course.
+- [Azure AI](https://azure.microsoft.com/en-us/solutions/ai/#platform)
+
+Characteristics of SageMaker:
+
+- It has [built in algorithms](https://docs.aws.amazon.com/sagemaker/latest/dg/algos.html), e.g.
+    - [Linear learner](https://docs.aws.amazon.com/sagemaker/latest/dg/linear-learner.html)
+    - [XGBoost](https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.html)
+    - [Factorization machines](https://docs.aws.amazon.com/sagemaker/latest/dg/fact-machines.html)
+    - [K-means](https://docs.aws.amazon.com/sagemaker/latest/dg/k-means.html)
+    - [Image classification](https://docs.aws.amazon.com/sagemaker/latest/dg/image-classification.html)
+- It also has common frameworks: Scikit-Learn, Pytorch, etc.
+- We can use [docker containers](https://docs.aws.amazon.com/sagemaker/latest/dg/docker-containers.html) in which we implement our own algorithms
+- We can use [Jupyter notebooks](https://docs.aws.amazon.com/sagemaker/latest/dg/nbi.html)
+- We can perform automatic [hyperparameter tuning](https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning.html)
+- We can [monitor models](https://docs.aws.amazon.com/sagemaker/latest/dg/monitoring-overview.html); we can check the traffic, apply routing, etc.
+- We can perform on-demand (online) and batch (offline) predictions; for offline predictions, files need to be stored in S3.
+
+Other systems or cloud providers:
+
+- [Paperspace](https://www.paperspace.com/)
+- [Cloud Foundry](https://www.cloudfoundry.org/)
 
 ## 2. Building a Model Using SageMaker
 
