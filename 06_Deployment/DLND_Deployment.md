@@ -356,6 +356,8 @@ Characteristics of SageMaker:
 - We can [monitor models](https://docs.aws.amazon.com/sagemaker/latest/dg/monitoring-overview.html); we can check the traffic, apply routing, etc.
 - We can perform on-demand (online) and batch (offline) predictions; for offline predictions, files need to be stored in S3.
 
+Note that Google doesn't have all these features.
+
 Other systems or cloud providers:
 
 - [Paperspace](https://www.paperspace.com/)
@@ -363,11 +365,150 @@ Other systems or cloud providers:
 
 ## 2. Building a Model Using SageMaker
 
+SageMaker is basically 2 things:
+
+- Managed **Jupyer notebooks** that run on a virtual machine.
+- Access to **AWS APIs** that make all 3 steps of the ML workflow (explore & process, modeling, deployment) much easier. Especially, training and deploying models becomes much easier.
+
+The SageMaker manager notebooks have access to the API. Both the training and the inference tasks performed in the notebooks using the APIs are carried out in a virtual machine. The training task generates model artifacts and the inference task uses those model artifacts, along with the user data.
+
+![SageMaker: Inference Process](./pics/sagemaker_inference.jpg)
+
+### 2.1 Account Setup
+
 ## 3. Deploying and Using a Model
 
 ## 4. Hyperparamter Tuning
 
 ## 5. Updating a Model
 
-## 6. Project: Deploying a Sentiment Analysis Model
+## 6. Cloud Computing with AWS EC2
+
+We need to perform two tasks:
+
+1. Launch an EC2 instance
+2. Connect from our computer to that EC2 instance
+
+Note: I copied this section from my other notes in [`CVND_CloudComputing.md`](https://github.com/mxagar/computer_vision_udacity/blob/main/02_Cloud_Computing/CVND_CloudComputing.md).
+
+### 6.1 Launch EC2 Instances
+
+EC2 = Elastic Compute Cloud. We can launch VM instances.
+
+Create an AWS account, log in to the AWS console & search for "EC2" in the services.
+
+Select region on menu, top-right: Ireland, `eu-west-1`. Selecting a region **very important**, since everything is server region specific. Take into account that won't see the instances you have in different regions than the one you select in the menu! Additionally, we should select the region which is closest to us. Not also that not all regions have the same services and the service prices vary between regions!
+
+Press: **Launch Instance**.
+
+Follow these steps:
+
+1. Choose an Amazon Machine Image (AMI) - An AMI is a template that contains the software configuration (operating system, application server, and applications) required to launch your instance. I looked for specific AMIs on the search bar (keyword "deep learning") and selected `Deep Learning AMI (Amazon Linux 2) Version 61.3` and `Deep Learning AMI (Amazon Linux 2) Version 61.3` for different instances. Depending on which we use, we need to install different dependencies.
+
+2. Choose an Instance Type - Instance Type offers varying combinations of CPUs, memory (GB), storage (GB), types of network performance, and availability of IPv6 support. AWS offers a variety of Instance Types, broadly categorized in 5 categories. You can choose an Instance Type that fits our use case. The specific type of GPU instance you should launch for this tutorial is called `p2.xlarge` (P2 family). I asked to increase the limit for EC2 in the support/EC2-Limits menu option to select `p2.xlarge`, but they did not grant it to me; meanwhile, I chose `t2.micro`, elegible for the free tier.
+
+3. Configure Instance Details - Provide the instance count and configuration details, such as, network, subnet, behavior, monitoring, etc.
+
+4. Add Storage - You can choose to attach either SSD or Standard Magnetic drive to your instance. Each instance type has its own minimum storage requirement.
+
+5. Add Tags - A tag serves as a label that you can attach to multiple AWS resources, such as volumes, instances or both.
+
+6. Configure Security Group - Attach a set of firewall rules to your instance(s) that controls the incoming traffic to your instance(s). You can select or create a new security group; when you create one:
+    - Select: Allow SSH traffic from anywhere
+    - Then, when you launch the instance, **you edit the security group later**
+    - We can also select an existing security group
+
+7. Review - Review your instance launch details before the launch.
+
+8. I was asked to create a key-pair; I created one with the name `face-keypoints` using RSA. You can use a key pair to securely connect to your instance. Ensure that you have access to the selected key pair before you launch the instance. A file `face-keypoints.pem` was automatically downloaded.
+
+More on [P2 instances](https://aws.amazon.com/ec2/instance-types/p2/)
+
+Important: Edittting the security group: left menu, `Network & Security` > `Security Groups`:
+
+- Select the security group associated with the created instance (look in EC2 dashboard table)
+- Inbound rules (manage/create/add rule):
+    - SSH, 0.0.0.0/0, Port 22
+    - Jupyter, 0.0.0.0/0, Port 8888
+    - HTTPS (Github), 0.0.0.0/0, Port 443
+- Outbound rules (manage/create/add rule):
+    - SSH, 0.0.0.0/0, Port 22
+    - Jupyter, 0.0.0.0/0, Port 8888
+    - HTTPS (Github), 0.0.0.0/0, Port 443
+
+If we don't edit the security group, we won't be able to communicate with the instance in the required ports!
+
+**Important: Always shut down / stop all instances if not in use to avoid costs! We can re-start afterwards!**. AWS charges primarily for running instances, so most of the charges will cease once you stop the instance. However, there are smaller storage charges that continue to accrue until you **terminate** (i.e. delete) the instance.
+
+We can also set billing alarms.
+
+### 6.2 Connect to an Instance
+
+Once the instance is created, 
+
+1. We `start` it: 
+
+    - EC2 dashboard
+    - Instances
+    - Select instance
+    - Instance state > Start
+
+2. We connect to it from our local shell
+
+```bash
+# Go to the folder where the instance key pem file is located
+cd .../project
+# Make sure the pem file is only readable by me
+chmod 400 face-keypoints.pem
+# Connect to instance
+# user: 'ec2-user' if Amazon Image, 'ubuntu' if Ubuntu image
+# Public IP: DNS or IP number specified in AWS EC2 instance properties
+# ssh -i <pem-filename>.pem <user>@<public-IP>
+ssh -i face-keypoints.pem ec2-user@3.248.188.159
+# We need to generate a jupyter config file
+jupyter notebook --generate-config
+# Make sure that
+# ~/.jupyter/jupyter_notebook_config.py
+# contains 
+# c.NotebookApp.ip = '*'
+# Or, alternatively, directly change it:
+sed -ie "s/#c.NotebookApp.ip = 'localhost'/#c.NotebookApp.ip = '*'/g" ~/.jupyter/jupyter_notebook_config.py
+# Clone or download the code
+# Note that the SSH version of the repo URL cannot be downloaded;
+# I understand that's because the SSH version is user-bound 
+git clone https://github.com/mxagar/P1_Facial_Keypoints.git
+# Go to downloaded repo
+cd P1_Facial_Keypoints
+# When I tried to install the repo dependencies
+# I got some version errors, so I stopped and
+# I did not install the dependencies.
+# However, in a regular situation, we would need to install them.
+# Also, maybe:
+# pip install --upgrade setuptools.
+sudo python3 -m pip install -r requirements.txt
+# Launch the Jupyter notebook without a browser
+jupyter notebook --ip=0.0.0.0 --no-browser
+# IMPORTANT: catch/copy the token string value displayed:
+# http://127.0.0.1:8888/?token=<token-string>
+```
+
+3. Open our local browser on this URL, composed by the public IP of the EC2 instance we have running and the Jupyter token:
+
+```
+http://<public-IP>:8888/?token=<token-string>
+```
+
+### 6.3 Pricing
+
+Always stop & terminate instances that we don't need! Terminates erases any data we have on the instance!
+
+[Amazon EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
+
+## 7. Google Colab
+
+See [`Google_Colab_Notes.md`](https://github.com/mxagar/computer_vision_udacity/blob/main/02_Cloud_Computing/Google_Colab_Notes.md).
+
+## 8. Project: Deploying a Sentiment Analysis Model
+
+See repository: []().
 
