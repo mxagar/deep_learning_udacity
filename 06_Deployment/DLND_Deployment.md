@@ -52,18 +52,18 @@ Learned questions:
 
 The general machine learning workflow has these primary components with their sub-steps:
 
-- Explore & Process
+1. Explore & Process
   - Retrieve data
   - Clean data
   - Explore data
   - Prepare/transform
   - Split: train/validation/test
-- Modeling
+2. Modeling
   - Develop model
   - Train
   - Validate: tune, select best model
   - Evaluate model: test split
-- Deployment: **we focus here**
+3. Deployment: **we focus here**
   - Deploy to production
   - Monitor
   - Update
@@ -71,6 +71,8 @@ The general machine learning workflow has these primary components with their su
 Note this is **cyclical**! We start again when we see we need to update out model!
 
 ![Machine Learning Workflow](./pics/ml_workflow.jpg)
+
+The third component, **deployment**, is where the section and the module focus on. Note that in the personal and the academic environment deployment is not relevant &mdash; but in the work environment is!
 
 The different cloud providers describe their machine learning workflow as follows:
 
@@ -175,6 +177,29 @@ Successful examples:
 
 - [Instagram](https://instagram-engineering.com/migrating-from-aws-to-aws-f4b16a65e13c), which started from scratch at AWS in 2010. They migrated to Facebook serves after their purchas in 2012: [Migrating From AWS to FB](https://instagram-engineering.com/migrating-from-aws-to-fb-86b16f6766e2).
 - [Netflix](https://aws.amazon.com/solutions/case-studies/netflix/) migrated from using its own servers in 2009 to AWS in 2010.
+
+#### Cloud Computing within the Machine Learning Workflow
+
+Depending on the amount of on-premise infratructure available at our organization and the amount of risk associated to the cloud technology we'd like to face, we can choose to:
+
+- Implement all three components on-premises
+- Implement all three components on the cloud
+- Implement any of the last two components on the cloud: modeling and/or deployment.
+
+Amazon SageMaker allows for having all 3 components on the cloud.
+
+It is also quite common to have only the deployment component on the cloud due to security reasons.
+
+![ML Workflow: All in Cloud vs None](mlworkflow-allornocloud.png)
+
+![ML Workflow: Parts in Cloud](mlworkflow-differentcloudservices.png)
+
+### 1.3 Paths to Deployment
+
+
+
+### 1.4 Production Environments
+
 
 
 ## 2. Building a Model Using SageMaker
