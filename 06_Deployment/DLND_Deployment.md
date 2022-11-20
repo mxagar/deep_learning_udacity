@@ -363,7 +363,7 @@ Other systems or cloud providers:
 - [Paperspace](https://www.paperspace.com/)
 - [Cloud Foundry](https://www.cloudfoundry.org/)
 
-## 2. Building a Model Using SageMaker
+## 2. Building a Model Using AWS SageMaker
 
 SageMaker is basically 2 things:
 
@@ -375,6 +375,200 @@ The SageMaker manager notebooks have access to the API. Both the training and th
 ![SageMaker: Inference Process](./pics/sagemaker_inference.jpg)
 
 ### 2.1 Account Setup
+
+- Create a new account to use the [free tier](https://aws.amazon.com/premiumsupport/knowledge-center/what-is-free-tier/)
+    - mxagar@gmail.com
+- All [Free Tier Offerings](https://aws.amazon.com/free/)
+    - 750h EC2: t2.micro or t3.micro
+    - 5GB S3
+    - 750h RDS (SQL Databases, e.g., PostgreSQL)
+    - 750h OpenSearch (log analytics, monitoring, etc.)
+    - 1 million API Gateway calls
+    - ...
+    - 2 Months SageMaker
+    - 2 Months RedShift (warehousing)
+- After the Free Tier: [Pricing](https://aws.amazon.com/pricing/)
+
+Important: 
+
+- We have an AWS console when we log in.
+- All AWS services are accessible from that console: we choose the one we want and create an instance.
+- Most important services for machine learning:
+    - **S3**: Data Storage
+    - **EC2**: Compute, virtual machine instances
+    - **SageMaker**: a full solution to perform machine learning; it consists of
+        - Notebooks
+        - AWS API
+
+#### Regions
+
+Regions are large geographical locations:
+
+- US East
+- US West
+- Europe
+- South America
+- ...
+
+Every region has its own independent water and power supply; thus, I understand that system robustness is assured. We need to account for latencies, though. Additionally, **data compliance** issues are handled with regions: EU or US data compliance policies are different.
+
+Availability zones are groups of 1+ data centers within regions, each with independent water and power supply.
+
+Note that:
+
+- We should take the region/zone closest to us, but
+- Some services are not available in all regions/zones
+- Some services are cheaper in some regions/zones
+- They recently opened the EU (Spain) region, but I need to enable it
+
+#### Amazon IAM: Identity and Access Management
+
+Independently of region and tier, we can create user groups and manage their permissions.
+
+By default, we access with our `root account`, which has all permissions, but we should avoid that: instead, we create IAM users immediately and work with them; the `root account` should be used only for minor management tasks.
+
+Imagine that somebody steals your root account and they start mining bitcoin!
+
+### 2.2 Amazon S3: Simple Storage Service
+
+We use S3 to store the dataset and the model artifacts.
+
+We have **buckets** or general folders with a global unique name in which we can create sub-folders where files are stored.
+
+Bucket size is unlimited, but each object must be max. of 5 TB.
+
+We can access the data through URIs:
+
+`s3://<bucket_id>.s3.amazonaws.com/<folder>/<file>`
+
+`s3://my-pretty-bucket.s3.amazonaws.com/images/cat.jpg`
+
+`s3://sagemaker-practical-mikel/XGBoost/train/salary.csv`
+
+#### Storage Tiers
+
+Depending on which tier we use, we can be charged more. In general, tiers are defined according to how often we access the data:
+
+- S3 Standard: frequent access (the most expensive)
+- S3 Intelligent-Tiering: varying access
+- S3 Standard Infrequent Access (IA): less frequent
+- Amazon S3 Glacier: long-term archives, seldom accessed
+
+We assign a tier to a bucket and we can change the tier in time.
+
+#### Creating a Bucket
+
+AWS Dashboard / Management Console > Services > (Storage) S3 > Create Bucket
+
+- Bucket name (unique id): `sagemaker-practical-mikel`
+- AWS Region: select one, e.g. `eu-west-3` or `us-east-1`
+- ACLs disabled: all object in the bucket owned by the same user
+- Block all public access
+- Versioning: leave default: disabled
+- Encryption: leave default: disabled
+- Create bucket!
+
+#### Setting Up the Bucket
+
+After creating it, we click on its id URL: `sagemaker-practical-mikel`
+
+We can upload files, create folders, etc.:
+
+- Create folder: `XGBoost` (encryption: by default, we don't use it)
+- We click on folder `XGBoost` and inside of it we select create folder again: `train`
+- In `sagemaker-practical-mikel/XGBoost/train`, upload data: `salary.csv`
+
+The URI of the file is 
+
+`s3://sagemaker-practical-mikel/XGBoost/train/salary.csv`
+
+### 2.3 Amazon EC2 Overview: Elastic Compute Cloud
+
+With EC2 we can rent servers in the cloud with different properties and we can easily resize them.
+
+There are several instance types, depending on 
+
+- the compute (CPU, GPU)
+- memory capabilities
+- and network capabilities we choose.
+
+The more powerful the instance type, the more expensive:
+
+- [Amazon SageMaker Instance Pricing](https://aws.amazon.com/sagemaker/pricing/)
+- [Available SageMaker Studio Instance Types](https://docs.aws.amazon.com/sagemaker/latest/dg/notebooks-available-instance-types.html)
+
+Some generic classification of instance types (SageMaker)
+
+- Standard: `ml.t3.medium`, ...
+- Compute optimized: `ml.c5.large`, ...
+- Memory optimized: `ml.r5.large`, ...
+- Accelerated computing (GPU): `ml.p3.2xlarge`, ...
+
+For instance, in the free tier, currently, we have 250 hours of `ml.t3.medium`.
+
+An example of how to use is given in [Cloud Computing with AWS EC2](#6.-Cloud-Computing-with-AWS-EC2).
+
+In SageMaker, we need to specify the instances we use in our code (usually, in the notebook):
+
+```python
+Xgboost_regressor = sagemaker.estimator.Estimator (...,
+                                                   train_instance_count=1,
+                                                   train_instance_type='ml.t3.medium'
+                                                   ...)
+```
+
+We have also **inference acceleration** achieved with **Elastic Inference**. With it, we can get realtime inferences. Example: we use train our model and we deploy it to an endpoint t perform inferences. Instead of using a compute instance with GPU, we use one with CPU only, but attach a dedicated GPU to it which accelerates the inference to make it real time.
+
+#### Instance Pricing
+
+See:
+
+- [Amazon SageMaker Instance Pricing](https://aws.amazon.com/sagemaker/pricing/)
+- [Available SageMaker Studio Instance Types](https://docs.aws.amazon.com/sagemaker/latest/dg/notebooks-available-instance-types.html)
+
+**Important**: SageMaker and EC2 instance types are different and their availability depends on the region we choose:
+
+- [SageMaker Instance Pricing](https://aws.amazon.com/sagemaker/pricing/)
+- [EC2 Instance Pricing](https://aws.amazon.com/ec2/instance-types/)
+
+
+Models of pricing (business):
+
+- On-demand: available, pay-per-use, scalable
+- Spot instances: we compete with other users, price is much lower (-90%)
+- Reserved instances: capacity reserved for 1-3 years (discounts up to 75%)
+- Dedicated hosts: physical dedicated server.
+
+### 2.4 Amazon SageMaker: Overview
+
+- Log in to AWS
+- In AWS console, choose SageMaker
+
+In SageMaker, everything is organized according to the 3 components of the ML workflow (explore & process, modeling, deployment). Additionally, SageMaker is modular: we can re-use models built in other projects.
+
+In the dashboard, we have many options in the panel of the left:
+
+- Ground Truth: labeling jobs, datasets, etc.
+- Notebook: create Jupyter notebook instances, configure the lifecycle of the notebooks, attach Git repositories, etc.
+- Training: choose an ML algorithm, define the training jobs, and tune the hyperparameters, etc.
+- Inference: compile and configure the trained models, and endpoints for deployments, etc.
+
+![AWS SageMaker Dashboard](./pics/sagemaker_dashboard.png)
+
+#### Quotas
+
+AWS assigns quotas or limits to users related to specific services.
+
+We can check the quotas from the AWS Console: Search for Quotas; then search for service SageMaker.
+
+We can request quota increases on the [same quota page](https://us-east-1.console.aws.amazon.com/servicequotas), or in the [AWS support center](https://support.console.aws.amazon.com/support/home?region=us-east-1#/), if desired; usually, we should have the following quotas:
+
+- `ml.m4.xlarge`: 20
+- `ml.p2.xlarge`: 1
+
+Note: ALWAYS see in which region we're!
+
+### 2.5 
 
 ## 3. Deploying and Using a Model
 
