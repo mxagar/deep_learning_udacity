@@ -636,8 +636,7 @@ Left panel > Notebook > Notebook Instances > Create Notebook
     - Click on 'Stop'. Status changes to 'Stopping'.
     - To restart: Click on 'Start' and wait again.
 - **To OPEN** the notebook: Click on 'Open JupyterLab' on the notebook instance list.
-
-**QUESTION**: How can I clone an SSH repository from Github? I tried to create credentials, but it didn't work...
+- The type of notebook instance we choose determines the compute capacities of it (CPU, RAM, GPU). Usually, it is preferable to use medium/small instances, because the training is performed in other containers. Additionally, note that if we take a small instance, the RAM memory might be limited; thus, it is frequent to remove variables that are persisted to disk, e.g. with `df_train = None`.
 
 #### Notebook
 
@@ -1225,12 +1224,170 @@ plt.title("Median Price vs Predicted Price")
 
 ## 3. Deploying and Using a Model
 
-In this section:
+In this section the model is deployed so that it can be used from the outside (production). In SageMaker, deploying a model means to run it in a virtual machine with an endpoint (an URL API); that endpoint is accessible only inside AWS, but later on we add a simple web app which can communicated with the exterior world.
 
-- The model is deployed so that it can be used from the outside.
-- 
+![Model Deployment in Production](./pics/production_environment.jpg)
 
-## 4. Hyperparamter Tuning
+As explained in the section [2.6 Examples: Boston Housing and IMDB Sentiment Analysis](#2.6-Examples:-Boston-Housing-and-IMDB-Sentiment-Analysis), we have several notebooks for the Boston Housing and IMDB Sentiment Analysis datasets. This section deals with the ones that have the *deploy* and *web app* keywords:
+
+- `Boston Housing - XGBoost (Deploy) - High Level.ipynb`
+- `Boston Housing - XGBoost (Deploy) - Low Level.ipynb`
+- `IMDB Sentiment Analysis - XGBoost - Web App.ipynb`
+
+### 3.1 Example: Boston Housing: XGBoost Model Deploy - High Level
+
+When we carry out the deployment in SageMaker, instead of running the transform job as before, we `deploy()` the model and send the data to it. The high level API makes that very easy.
+
+So the example notebook is the same as before, but now, after `xgb.fit()`, we run `xgb.deploy()`.
+
+That command creates a virtual machine in which the model is up and we have an **endpoint** waiting for data inputs and ready to send back outputs; that endpoint is basically a URL that is accessible from within AWS for now. The `xgb_predictor` object created by `xgb.deploy()` takes care of all that communication for us! However, the data input/output is serialized.
+
+**VERY IMPORTANT**: We need to stop any deployed model endpoint with `xgb_predictor.delete_endpoint()` when it's not required anymore, because 
+
+Thus, **deployments are endpoints in AWS**; we can check them on the AWS web interface: Inference > Endpoints / Endpoint configurations. Note that *endpoint configurations* only appear in the low level API.
+
+
+```python
+### All as before, until Training...
+xgb.fit({'train': s3_input_train, 'validation': s3_input_validation})
+
+### Deployment
+
+# When we deploy, we create a virtual machine in which the model is up
+# and we have an endpoint waiting for data inputs and ready to send back outputs;
+# that endpoint is basically a URL that is accessible from within AWS for now.
+# The xgb_predictor object takes care of all that communication for us!
+xgb_predictor = xgb.deploy(initial_instance_count=1, instance_type='ml.m4.xlarge')
+
+# We need to tell the endpoint what format the data we are sending is in
+# and the data needs to be serialized
+#xgb_predictor.content_type = 'text/csv' # this is not necessary anymore
+xgb_predictor.serializer = csv_serializer
+
+Y_pred = xgb_predictor.predict(X_test.values).decode('utf-8')
+# predictions is currently a serialized comma delimited string
+# and so we would like to break it up as a numpy array.
+Y_pred = np.fromstring(Y_pred, sep=',')
+
+# Plot
+plt.scatter(Y_test, Y_pred)
+plt.xlabel("Median Price")
+plt.ylabel("Predicted Price")
+plt.title("Median Price vs Predicted Price")
+
+# This is VERY IMPORTANT: the deployed model is running on a virtual machine!
+# We need to stop it when not needed, otherwise we need to pay!
+# Remember that the costs are proportional to the time up
+xgb_predictor.delete_endpoint()
+
+### Clean Up
+
+# First we will remove all of the files contained in the data_dir directory
+!rm $data_dir/*
+
+# And then we delete the directory itself
+!rmdir $data_dir
+```
+
+### 3.2 Example: Boston Housing: XGBoost Model Deploy - Low Level / In Depth
+
+The notebook in which the low level API is used for the model deployment is very similar to the one with the batch transform, but instead of creating a transform job, we create a deployment endpoint manually.
+
+When the low level API is used, both the *endpoint configuration* and the *endpoint* are created. They can be seen on the AWS SageMaker web interface: Inference > Enpoints / configurations.
+
+```python
+### After the model is trained and built
+
+# First, we need to create an endpoint configuration
+# As before, we need to give our endpoint configuration a name which should be unique
+endpoint_config_name = "boston-xgboost-endpoint-config-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# And then we ask SageMaker to construct the endpoint configuration
+# The endpoint is like a uniform interface which received/sends data;
+# but beneath, we can have several models or ProductionVariants running in parallel.
+# We can manually specify the different ProductionVariants/models.
+# For now, we deploy a single model.
+endpoint_config_info = session.sagemaker_client.create_endpoint_config(
+                            EndpointConfigName = endpoint_config_name,
+                            ProductionVariants = [{
+                                "InstanceType": "ml.m4.xlarge",
+                                "InitialVariantWeight": 1,
+                                "InitialInstanceCount": 1,
+                                "ModelName": model_name,
+                                "VariantName": "AllTraffic"
+                            }])
+
+# After creating an endpoint configuration
+# we create an endpoint = deployment of a built model with an URL for IO data transfer.
+# Again, we need a unique name for our endpoint
+endpoint_name = "boston-xgboost-endpoint-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# And then we can deploy our endpoint
+endpoint_info = session.sagemaker_client.create_endpoint(
+                    EndpointName = endpoint_name,
+                    EndpointConfigName = endpoint_config_name)
+
+endpoint_dec = session.wait_for_endpoint(endpoint_name)
+
+### Use the Model: Send data to the Endpoint
+
+# First we need to serialize the input data.
+# In this case we want to send the test data as a csv and
+# so we manually do this. Of course, there are many other ways to do this.
+payload = [[str(entry) for entry in row] for row in X_test.values]
+payload = '\n'.join([','.join(row) for row in payload])
+
+# This time we use the sagemaker runtime client rather than the sagemaker client so that we can invoke
+# the endpoint that we created.
+response = session.sagemaker_runtime_client.invoke_endpoint(
+                                                EndpointName = endpoint_name,
+                                                ContentType = 'text/csv',
+                                                Body = payload)
+
+# We need to make sure that we deserialize the result of our endpoint call.
+result = response['Body'].read().decode("utf-8")
+Y_pred = np.fromstring(result, sep=',')
+
+# Plot
+plt.scatter(Y_test, Y_pred)
+plt.xlabel("Median Price")
+plt.ylabel("Predicted Price")
+plt.title("Median Price vs Predicted Price")
+
+### Shut Down Endpoint!
+
+# We can shut down the endpoint also on the AWS SageMaker web interface:
+session.sagemaker_client.delete_endpoint(EndpointName = endpoint_name)
+
+### Clean Up!
+
+# First we will remove all of the files contained in the data_dir directory
+!rm $data_dir/*
+
+# And then we delete the directory itself
+!rmdir $data_dir
+
+```
+
+### 3.3 Mini-Project: IMDB Sentiment Analysis: XGBoost Deploy - Web App
+
+This section deals with the notebook
+
+`IMDB Sentiment Analysis - XGBoost - Web App.ipynb`
+
+This notebook is very similar to the notebook
+
+`Mini-Projects / IMDB Sentiment Analysis - XGBoost (Batch Transform).ipynb`
+
+These are the differences:
+
+- Dependencies to NLTK and BeautifulSoup are dropped; instead of using them, punctuation & co. are removed with python regex and the `CountVectorizer` performs the tokenization. this simplification eases things with Amazon Lambda, used later.
+- After we test with a transform job that the model is correctly trained/built, we deploy it with a web app.
+
+So, my comments focus on the web app part.
+
+
+## 4. Hyperparameter Tuning
 
 ## 5. Updating a Model
 
