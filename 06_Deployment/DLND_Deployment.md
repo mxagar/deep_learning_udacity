@@ -1375,19 +1375,419 @@ This section deals with the notebook
 
 `IMDB Sentiment Analysis - XGBoost - Web App.ipynb`
 
-This notebook is very similar to the notebook
+This notebook uses the high level API and it is very similar to the notebook
 
 `Mini-Projects / IMDB Sentiment Analysis - XGBoost (Batch Transform).ipynb`
 
 These are the differences:
 
-- Dependencies to NLTK and BeautifulSoup are dropped; instead of using them, punctuation & co. are removed with python regex and the `CountVectorizer` performs the tokenization. this simplification eases things with Amazon Lambda, used later.
+- Dependencies to NLTK and BeautifulSoup are dropped; instead of using them, punctuation & co. are removed with python regex and the `CountVectorizer` performs the tokenization directly. These simplification eases things with Amazon Lambda, used later.
 - After we test with a transform job that the model is correctly trained/built, we deploy it with a web app.
 
-So, my comments focus on the web app part.
+So, my comments and code below focus on the web app part.
 
+#### Test the Endpoint
+
+We can test that the endpoint works by sending the test split to it, as done in the batch transform job. The differences are the following:
+
+- The batch transform job creates a container for the job; with the endpoint, we have a container in a VM already running!
+- The endpoint cannot handle big chunks of data, so we need to split our test dataset.
+
+Don't forget to stop the endpoint deployment when it's not used!
+
+```python
+### Deploy
+
+xgb_predictor = xgb.deploy(initial_instance_count = 1, instance_type = 'ml.m4.xlarge')
+
+### Test Endpoint
+
+from sagemaker.predictor import csv_serializer
+
+# We need to tell the endpoint what format the data we are sending is in so that SageMaker can perform the serialization.
+#xgb_predictor.content_type = 'text/csv' # variable not existing anymore
+xgb_predictor.serializer = csv_serializer
+
+# We split the data into chunks and send each chunk seperately, accumulating the results.
+
+def predict(data, rows=512):
+    split_array = np.array_split(data, int(data.shape[0] / float(rows) + 1))
+    predictions = ''
+    for array in split_array:
+        predictions = ','.join([predictions, xgb_predictor.predict(array).decode('utf-8')])
+    
+    return np.fromstring(predictions[1:], sep=',')
+
+test_X = pd.read_csv(os.path.join(data_dir, 'test.csv'), header=None).values
+
+predictions = predict(test_X)
+predictions = [round(num) for num in predictions]
+
+from sklearn.metrics import accuracy_score
+accuracy_score(test_y, predictions)
+
+### Clean Up!
+
+xgb_predictor.delete_endpoint()
+```
+
+#### Web App Architecture
+
+This is the web app GUI we'd like for the user:
+
+![Web App GUI](./pics/web_app_gui.jpg)
+
+He/she introduces a review in plain text and the UI should determine whether it's a positive or negative review.
+
+The following figure shows the architecture we're going to use to create that web app:
+
+![Web App Architecture](./pics/web_app_architecture.jpg)
+
+We have the following issues, so far:
+
+- The endpoint of the deployment is accessible to AWS authenticated objects only.
+- The user should introduce a plain text, which needs to be processed as a bag or words for the model.
+
+In order to deal with those issues, we're going to generate a new endpoint visible to the world which processes a text string to be a bag of words. To achieve that we use two new AWS technologies/services:
+
+- API Gateway: 
+- Lambda functions
+
+**Lambda** is a **function as a service**: until now, we needed to spin up servers/VMs/containers to perform jobs; with lambda we can simply define functions and execute them without spinning up any server. We don't need to have a server running all the time. We tell AWS we want a specific function to be run whenever a specific event occurs. That way, we don't have to pay for a whole server running all the time, but we pay each lambda function call.
+
+**API Gateway** is a service that creates APIs which can connect the outside world with AWS objects. HTTP methods can be used as in a REST API -- see section [1.5 Endpoints and REST APIs](1.5-Endpoints-and-REST-APIs). Thus, we have a public URL to which we can send requests and from which we receive responses. We're going to configure everything so that the API Gateway receives/sends requests/responses and transfers that data to a lambda function. The lambda function will take care of all pre-processing (convert the text into a vector, etc.) and it will communicate with the internal SageMaker endpoint, which is connected to the model.
+
+Anybody can send/receive from the API Gateway. To make things easier, we'll connect a simple HTML web app with a text field that connects to the API Gateway.
+
+Therefore, these are the steps that occur in our we app:
+
+> 1. To begin with, a user will type out a review and enter it into our web app.
+> 2. Then, our web app will send that review to an endpoint that we created using API Gateway. This endpoint will be constructed so that anyone (including our web app) can use it.
+> 3. API Gateway will forward the data on to the Lambda function
+> 4. Once the Lambda function receives the user's review, it will process that review by tokenizing it and then creating a bag of words encoding of the result. After that, it will send the processed review off to our deployed model, i.e., to its original endpoint.
+> 5. Once the deployed model performs inference on the processed review, the resulting sentiment will be returned back to the Lambda function.
+> 6. Our Lambda function will then return the sentiment result back to our web app using the endpoint that was constructed using API Gateway.
+
+#### Processing a Single Review
+
+We first write the function that, given a plain text, vectorizes the the text according to the vocabulary we have created with `CountVectorizer`
+
+```python
+## Proccessing a single review
+
+# Plain text
+test_review = "Nothing but a disgusting materialistic pageant of glistening abed remote control greed zombies, totally devoid of any heart or heat. A romantic comedy that has zero romantic chemestry and zero laughs!"
+
+# We use the function we created to clean up: punctuation, HTML
+test_words = review_to_words(test_review)
+print(test_words)
+
+# We use the vocabulary to create a BoW
+# We could use the vectorizer.transform(), too?
+def bow_encoding(words, vocabulary):
+    bow = [0] * len(vocabulary) # Start by setting the count for each word in the vocabulary to zero.
+    for word in words.split():  # For each word in the string
+        if word in vocabulary:  # If the word is one that occurs in the vocabulary, increase its count.
+            bow[vocabulary[word]] += 1
+    return bow
+
+test_bow = bow_encoding(test_words, vocabulary)
+print(test_bow)
+
+len(test_bow) # 5000
+```
+
+#### Using the SageMaker Endpoint from Outside SageMaker
+
+The deployment endpoints created in a SageMaker session are visible inside SageMaker. In our application we need to connect to them in a Lambda function, which is not in SageMaker. To that end, we can use the `boto3` library, with which we `invoke_endpoint()` given the unique name of the endpoint.
+
+In that invocation, we pass the BoW vector and expect a result from the model. Recall that the input to the endpoint must be a serialized text.
+
+The following code shows
+
+- How to spin up / create a SageMaker endpoint (nothing new).
+- How to connect to that endpoint and request a response using `boto3`.
+
+```python
+# We create the SageMaker endpoint as always
+xgb_predictor = xgb.deploy(initial_instance_count = 1, instance_type = 'ml.m4.xlarge')
+
+# The (unique) name of the endpoint within SageMaker
+# WATCH OUT: this property is deprecated, check the new one
+xgb_predictor.endpoint # 'xgboost-2022-11-23-09-27-15-131'
+
+import boto3
+# We open a connection to the SageMaker runtime session
+runtime = boto3.Session().client('sagemaker-runtime')
+
+# We invoke the endpoint in the SageMaker runtime session we connected to,
+# i.e., we send and receive data from that endpoint-model
+# Recall that we need to pass the serialized vector as a text/string
+response = runtime.invoke_endpoint(EndpointName = xgb_predictor.endpoint, # The name of the endpoint we created
+                                       ContentType = 'text/csv',                     # The data format that is expected
+                                       Body = ','.join([str(val) for val in test_bow]).encode('utf-8'))
+
+# The response is an HTML object
+# We need the Body object within it
+print(response)
+# {'ResponseMetadata': ... 'Body': <botocore.response.StreamingBody object at 0x7f59aae6b4c0>}
+
+# We extract the Body part of the response
+# THAT'S THE SENTIMENT SCORE!
+response = response['Body'].read().decode('utf-8')
+print(response) # 0.37377044558525085
+
+# Terminate SageMaker endpoint if not used
+xgb_predictor.delete_endpoint()
+```
+
+#### Building an AWS Lambda Function
+
+Our goal is to create and connect the following elements:
+
+- An HTML web app which reads a text field and connects to a REST API
+- An AWS API Gateway which works as a public REST API
+- An AWS Lambda function which is connected to the AWS API Gateway: it receives the text, processes it and sends it to the SageMaker deployment endpoint, which is reachable only within AWS.
+- An AWS SageMaker deployment endpoint, which contains the model on a VM and communicates with the lambda function.
+
+In this section, we'll focus on the Lambda function. Recall that lambda functions act like *serverless* functions that are executed on an event. Our event will be an input from the AWS Gateway.
+
+Another typical use of Lambda: When data is uploaded to an S3 bucket, process that data and insert it into a database.
+
+Basic requirements of Lambda functions:
+
+- The amount of code contained in a Lambda should be relatively small.
+- We need to have an IAM role for Lambda which has full access to SageMaker.
+
+Thus, **first, we need to create an IAM role**:
+
+- AWS Console, Search IAM = Identity and Access Management
+- IAM Dashboard: Roles
+- Create role
+- Select: AWS Service, Lambda; Next; (our role is going to be for Lambda)
+- Search 'SageMaker' and select the policy 'AmazonSageMakerFullAccess'; Next
+- Role name: LambdaSageMakerRole; we can choose another one, but this is quite descriptive
+- Create role
+
+**Second, we create the Lambda function**:
+
+- AWS Console, Search Lambda
+- Lambda Dashborad: Create a Lambda function
+- Author from scratch
+- Function name: sentiment_lambda_function
+- Runtime: Python 3.X
+- Under Permissions: Change default existing role
+- Use existing role: LambdaSageMakerRole
+- Create function
+
+If we scroll down on the AWS Lambda function page, we'll see the box where the lambda function code needs to be added. The code is below.
+
+Note that the structure of a Lambda function code is the following:
+
+- All imports necessary.
+- The definition of all functions and variables used.
+- `lambda_handler()`: the lambda function executed; it has an `event` object which contains the information used inside the function -- in our case, that's the plain text from the API Gateway.
+
+In the particular case of our web app, we need to get two values from the SageMaker notebook:
+
+- The vocabulary dictionary: `print(str(vocabulary))`.
+- The name of the SageMaker endpoint to which we'd like to connect: `xgb_predictor.endpoint`
+
+```python
+# We need to use the low-level library to interact with SageMaker since the SageMaker API
+# is not available natively through Lambda.
+import boto3
+
+# And we need the regular expression library to do some of the data processing
+import re
+
+REPLACE_NO_SPACE = re.compile("(\.)|(\;)|(\:)|(\!)|(\')|(\?)|(\,)|(\")|(\()|(\))|(\[)|(\])")
+REPLACE_WITH_SPACE = re.compile("(<br\s*/><br\s*/>)|(\-)|(\/)")
+
+def review_to_words(review):
+    words = REPLACE_NO_SPACE.sub("", review.lower())
+    words = REPLACE_WITH_SPACE.sub(" ", words)
+    return words
+
+def bow_encoding(words, vocabulary):
+    bow = [0] * len(vocabulary) # Start by setting the count for each word in the vocabulary to zero.
+    for word in words.split():  # For each word in the string
+        if word in vocabulary:  # If the word is one that occurs in the vocabulary, increase its count.
+            bow[vocabulary[word]] += 1
+    return bow
+
+
+def lambda_handler(event, context):
+
+    # In our SageMaker notebook, we print the vocabulary
+    # print(str(vocabulary))
+    # and copy all its printed value here!
+    # {'was': 4805, 'really': 3556, ...}
+    vocab = "*** ACTUAL VOCABULARY GOES HERE ***"
+
+    # The event object is accessed here: it contains the plain text!
+    words = review_to_words(event['body'])
+    bow = bow_encoding(words, vocab)
+
+    # The SageMaker runtime is what allows us to invoke the endpoint that we've created.
+    runtime = boto3.Session().client('sagemaker-runtime')
+
+    # Now we use the SageMaker runtime to invoke our endpoint, sending the review we were given
+    # In our SageMaker notebook, we print the name of the endpoint
+    # xgb_predictor.endpoint: 'xgboost-2022-11-23-12-04-57-086'
+    # and copy all its printed value here!
+    # Don't forget to serialize the vectorized text!
+    response = runtime.invoke_endpoint(EndpointName = '***ENDPOINT NAME HERE***',# The name of the endpoint we created
+                                       ContentType = 'text/csv',                 # The data format that is expected
+                                       Body = ','.join([str(val) for val in bow]).encode('utf-8')) # The actual review
+
+    # The response is an HTTP response whose body contains the result of our inference
+    result = response['Body'].read().decode('utf-8')
+
+    # Round the result so that our web app only gets '1' or '0' as a response.
+    result = round(float(result))
+
+    # We need to return a result, which is an HTTP response with 3 elements:
+    # - Status Code: if data successfully received, code should start with 2, e.g., 200.
+    # - HTTP Headers: data format in the message, additional info, etc.
+    # - Message: the output data sent to the user, i.e., the prediction.
+    return {
+        'statusCode' : 200,
+        'headers' : { 'Content-Type' : 'text/plain', 'Access-Control-Allow-Origin' : '*' },
+        'body' : str(result)
+    }
+```
+
+**Finally, we can perform **Lambda Tests** on the AWS Lambda web interface:
+
+- Above the code window, on the Test button, select drop-down arrow and click on 'Configure test events'
+- Create new event
+- Template: API Gateway AWS Proxy
+- Event name: testEvent
+- We get a event JSON which will be sent to our Lambda function for testing purposes. Note that this object is passed as `event` to the `lambda_handler()`; and the element from that object which is used is `event['body']`, i.e., the review plain text.
+- We add a test review to the `'body'` key from the event JSON, e.g., "This movie was terrible. Nobody should watch it!"
+- Save/create test event
+- Deploy
+- Test
+
+Now, we should get a response like this:
+
+```json
+Response
+{
+  "statusCode": 200,
+  "headers": {
+    "Content-Type": "text/plain",
+    "Access-Control-Allow-Origin": "*"
+  },
+  "body": "0"
+}
+```
+
+The Lambda function is deployed and the test works: we get a response in "body" of 0, i.e., negative sentiment to the bad test review text we wrote!
+
+#### Creating an AWS API Gateway
+
+The AWS API Gateway is necessary to connect our Lambda function and the internal SageMaker endpoint hanging from it to the world.
+
+- AWS Console, Search API Gateway
+- Create/Build, REST API (not private)
+- Select: REST, New API
+- API name: sentimentAnalysis
+- Endpoint type: Regional (default)
+- Create API
+
+Now, we can **define the API**:
+
+- Actions, Create method: POST; select checkmark
+- Integration type: Lambda
+- Select: Use Lambda Proxy Integration; that means the API Gateway is not going to do any data checking/processing, i.e., the API Gateway will only send the data to the lambda and receive and return its response.
+- Lambda function: sentiment_lambda_function (start typing and TAB; the name we entered before appears).
+- Save; accept we want to give permissions.
+
+Now, we have defined the API and we need to **deploy the API**:
+
+- Actions, Deploy API
+- Deployment stage: Create new, call it prod, for production; a deployment stage is like a deployment environment: production, test, etc.
+- Save changes
+
+That's it. We get an invoke URL, e.g.,
+
+`https://55yo1tq9p2.execute-api.us-east-1.amazonaws.com/prod`
+
+If we send a POST request with a plan text review, we'll get as a response the sentiment score!
+
+#### Web App HTML File
+
+In the folder of the SageMaker notebook we have a web GUI template with a text field: `index.html`.
+
+We need to add our API Gateway URL to it, download the `index.html`, open it with the browser locally, and there we have our web app!
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Sentiment Analysis Web App</title>
+        <meta charset="utf-8">
+        <meta name="viewport"  content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+        <script>
+         "use strict";
+         function submitForm(oFormElement) {
+             var xhr = new XMLHttpRequest();
+             xhr.onload = function() {
+                 var result = parseFloat(xhr.responseText);
+                 var resultElement = document.getElementById('result');
+                 if (result == 0) {
+                     resultElement.className = 'bg-danger';
+                     resultElement.innerHTML = 'Your review was NEGATIVE!';
+                 } else {
+                     resultElement.className = 'bg-success';
+                     resultElement.innerHTML = 'Your review was POSITIVE!';
+                 }
+             }
+             xhr.open (oFormElement.method, oFormElement.action, true);
+             var review = document.getElementById('review');
+             xhr.send (review.value);
+             return false;
+         }
+        </script>
+
+    </head>
+    <body>
+
+        <div class="container">
+            <h1>Is your review positive, or negative?</h1>
+            <p>Enter your review below and click submit to find out...</p>
+            <form method="POST"
+                  action="https://55yo1tq9p2.execute-api.us-east-1.amazonaws.com/prod"
+                  onsubmit="return submitForm(this);" >                     <!-- HERE IS WHERE YOU NEED TO ENTER THE API URL -->
+                <div class="form-group">
+                    <label for="review">Review:</label>
+                    <textarea class="form-control"  rows="5" id="review">Please write your review here.</textarea>
+                </div>
+                <button type="submit" class="btn btn-default">Submit</button>
+            </form>
+            <h1 class="bg-success" id="result"></h1>
+        </div>
+    </body>
+</html>
+
+```
+
+#### Shut Everything Down
+
+- **Very important**: terminate the SageMaker endpoint, via the web interface or with `xgb_predictor.delete_endpoint()` in the SageMaker notebook.
+- Clean up the data in the SageMaker notebook instance VM.
+- Remove the API Gateway (via the web interface: select the API, Actions, Delete). We could leave it, because the cost is per use, but just in case.
+- Remove the Lambda (via the web interface: select the function, Actions, Delete). We could leave it, because the cost is per use, but just in case.
 
 ## 4. Hyperparameter Tuning
+
+
 
 ## 5. Updating a Model
 
