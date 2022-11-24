@@ -16,3 +16,5 @@ bike_sharing_udacity
 jetson_nano_howto.txt
 raspberry_pi_howto.txt
 literature/*.pdf
+sagemaker-deployment
+Google_Colab_Notes.md

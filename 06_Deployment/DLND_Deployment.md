@@ -867,7 +867,7 @@ Once the data has been uploaded to the buckets, we can access it:
 
 In order to train a model, we need to create a docker container for that. With the high-level API, these are the steps:
 
-- We create a training container which has the scripts for training; we need to pass the region we're in and the model/algorithm we'd like to use, i.e., `xgboost`.
+- We create a training container which has the scripts for training; we need to pass the region we're in and the model/algorithm we'd like to use, i.e., `xgboost`. This is **very important**: this is how we choose the type of model; we create a container of the type of model we'd like to use (`xgboost`, `linear-learner`, etc.).
 - We create an estimator and pass the container to it, as well as additional parameters: instance type, output path, etc.
 - We set the [hyperparameters of the estimator](https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost_hyperparameters.html).
 - We set the dataset (train and validation splits) to the estimator.
@@ -897,6 +897,10 @@ Note that models have also unique names.
 # IMPORTANT: In SageMaker v 2.x, get_image_uri() has been deprecated in favor of
 # sagemaker.image_uris.retrieve()
 container = get_image_uri(session.boto_region_name, 'xgboost')
+# VERY IMPORTANT: this is how we choose the type of model
+# We create a container of the type of model we'd like to use:
+# 'xgboost', 'linear-learner', etc.
+# Then, that container is passed to an Estimator
 
 # Now that we know which container to use, we can construct the estimator object.
 xgb = sagemaker.estimator.Estimator(container, # The image name of the training container
@@ -1019,10 +1023,16 @@ Additionally,
 - We need to create the training job manually; we can check the logs or any metadata of the training job on the AWS SageMaker web interface, as explained in the *low level* implementation: Training > Training jobs.
 - We need to **build** the model after it's trained. Building the model in AWS means to package the trained model artifact with metadata and instructions on how to use it. We can check those models on the AWS SageMaker web interface, as explained in the *high level* implementation: Inference > Models. 
 
+Important note: when we use the *high level* API and train the model with `fit()`, in reality, no SageMaker model is built. With the *high level* API, the model is built when we `deploy()` it or use it in a batch transform job.
+
 ```python
 # We will need to know the name of the container that we want to use for training. SageMaker provides
 # a nice utility method to construct this for us.
 container = get_image_uri(session.boto_region_name, 'xgboost')
+# VERY IMPORTANT: this is how we choose the type of model
+# We create a container of the type of model we'd like to use:
+# 'xgboost', 'linear-learner', etc.
+# Then, that container is passed to an Estimator
 
 # We now specify the parameters we wish to use for our training job
 training_params = {}
@@ -1807,6 +1817,10 @@ Additionally, the following IMBD mini-project notebook completed:
 
 ### 4.1 Boston Hyperparameter Tuning: High Level API
 
+This section analyzes the following notebook:
+
+`Tutorials / Boston Housing - XGBoost (Hyperparameter Tuning) - High Level.ipynb`.
+
 To perform hyperparameter tuning with the high level API, we follow these steps:
 
 - We create a base estimator with base hyperparameters.
@@ -1816,6 +1830,14 @@ To perform hyperparameter tuning with the high level API, we follow these steps:
 
 Attaching a job to an estimator means in practice taking an existing model we've trained. So it's not exclusive to hyperparameter tuning, i.e., we can look at the training jobs we have and pick one we'd like as an estimator!
 
+Note that the AWS SageMaker web interface has a lot of information on the tuning jobs: Inference > Hyperparameter tuning jobs:
+
+- We can see all the jobs and their states: completed, in progress, etc.
+- We can select each job and get information.
+- We can see the best tuning job and the parameters in it
+- etc.
+
+
 ```python
 ### Prepare and Upload the Data
 ### ... as always
@@ -1824,6 +1846,10 @@ Attaching a job to an estimator means in practice taking an existing model we've
 
 # As stated above, we use this utility method to construct the image name for the training container.
 container = get_image_uri(session.boto_region_name, 'xgboost')
+# VERY IMPORTANT: this is how we choose the type of model
+# We create a container of the type of model we'd like to use:
+# 'xgboost', 'linear-learner', etc.
+# Then, that container is passed to an Estimator
 
 # Now that we know which container to use, we can construct the estimator object.
 # The estimator object is defined as always, but it will be used for hyperparameter tuning,
@@ -1930,12 +1956,424 @@ This section deals with the notebook
 
 It is a mini-project/exercise in which the former section needs to be re-implemented.
 
+Nothing new is really used here; only, the metric is for binary classification.
+
 ### 4.3 Boston Hyperparameter Tuning: Low Level API
 
+This section analyzes the following notebook:
+
+`Tutorials / Boston Housing - XGBoost (Hyperparameter Tuning) - Low Level.ipynb`.
+
+Here, the *low level* API is used for hyperparameter tuning.
+
+The beginning of the notebook is as in the batch transform notebook with the low level API; the differences appear starting in the training job (configuration) definition. We need a base training job from which the tuning jobs are derived. In the base training job we define the `StaticHyperParameters`, i.e., the hyperparameters that we don't want to change. Later, in the tuning job, the variation ranges of the modified hyperparameters will be defined.
+
+```python
+### Data Preparation and Upload to S3
+# ... as always
+
+### Base Training Job
+
+# This is the configuration of the base training job
+# The tuning job is defined below, and it derives training jobs
+# from the base one.
+# In the base training job we define the StaticHyperParameters,
+# i.e., the hyperparameters that we don't want to change.
+# Later, in the tuning job, the variation ranges of thee modified hyperparameters
+# will be defined.
+
+# We will need to know the name of the container that we want to use for training. SageMaker provides
+# a nice utility method to construct this for us.
+container = get_image_uri(session.boto_region_name, 'xgboost')
+# VERY IMPORTANT: this is how we choose the type of model
+# We create a container of the type of model we'd like to use:
+# 'xgboost', 'linear-learner', etc.
+# Then, that container is passed to an Estimator
+
+# We now specify the parameters we wish to use for our training job
+training_params = {}
+
+# We need to specify the permissions that this training job will have. For our purposes we can use
+# the same permissions that our current SageMaker session has.
+training_params['RoleArn'] = role
+
+# Here we describe the algorithm we wish to use. The most important part is the container which
+# contains the training code.
+training_params['AlgorithmSpecification'] = {
+    "TrainingImage": container,
+    "TrainingInputMode": "File"
+}
+
+# We also need to say where we would like the resulting model artifacts stored.
+training_params['OutputDataConfig'] = {
+    "S3OutputPath": "s3://" + session.default_bucket() + "/" + prefix + "/output"
+}
+
+# We also need to set some parameters for the training job itself. Namely we need to describe what sort of
+# compute instance we wish to use along with a stopping condition to handle the case that there is
+# some sort of error and the training script doesn't terminate.
+training_params['ResourceConfig'] = {
+    "InstanceCount": 1,
+    "InstanceType": "ml.m4.xlarge",
+    "VolumeSizeInGB": 5
+}
+    
+training_params['StoppingCondition'] = {
+    "MaxRuntimeInSeconds": 86400
+}
+
+# Next we set the algorithm specific hyperparameters. In this case, since we are setting up
+# a training job which will serve as the base training job for the eventual hyperparameter
+# tuning job, we only specify the _static_ hyperparameters. That is, the hyperparameters that
+# we do _not_ want SageMaker to change.
+training_params['StaticHyperParameters'] = {
+    "gamma": "4",
+    "subsample": "0.8",
+    "objective": "reg:linear",
+    "early_stopping_rounds": "10",
+    "num_round": "200"
+}
+
+# Now we need to tell SageMaker where the data should be retrieved from.
+training_params['InputDataConfig'] = [
+    {
+        "ChannelName": "train",
+        "DataSource": {
+            "S3DataSource": {
+                "S3DataType": "S3Prefix",
+                "S3Uri": train_location,
+                "S3DataDistributionType": "FullyReplicated"
+            }
+        },
+        "ContentType": "csv",
+        "CompressionType": "None"
+    },
+    {
+        "ChannelName": "validation",
+        "DataSource": {
+            "S3DataSource": {
+                "S3DataType": "S3Prefix",
+                "S3Uri": val_location,
+                "S3DataDistributionType": "FullyReplicated"
+            }
+        },
+        "ContentType": "csv",
+        "CompressionType": "None"
+    }
+]
+
+### Tuning Job
+
+# In the tuning job configuration
+# we define how the base training job needs to be derived
+# with varied hyperparameters.
+# The ranges and hyperparameter names are defined
+# as well as the tuning strategy, e.g., Bayesian optimization.
+
+# We need to construct a dictionary which specifies the tuning job we want SageMaker to perform
+tuning_job_config = {
+    # First we specify which hyperparameters we want SageMaker to be able to vary,
+    # and we specify the type and range of the hyperparameters.
+    "ParameterRanges": {
+    "CategoricalParameterRanges": [],
+    "ContinuousParameterRanges": [
+        {
+            "MaxValue": "0.5",
+            "MinValue": "0.05",
+            "Name": "eta"
+        },
+    ],
+    "IntegerParameterRanges": [
+        {
+            "MaxValue": "12",
+            "MinValue": "3",
+            "Name": "max_depth"
+        },
+        {
+            "MaxValue": "8",
+            "MinValue": "2",
+            "Name": "min_child_weight"
+        }
+    ]},
+    # We also need to specify how many models should be fit and how many can be fit in parallel
+    "ResourceLimits": {
+        "MaxNumberOfTrainingJobs": 20,
+        "MaxParallelTrainingJobs": 3
+    },
+    # Here we specify how SageMaker should update the hyperparameters as new models are fit
+    "Strategy": "Bayesian",
+    # And lastly we need to specify how we'd like to determine which models are better or worse
+    "HyperParameterTuningJobObjective": {
+        "MetricName": "validation:rmse",
+        "Type": "Minimize"
+    }
+  }
+
+# First we need to choose a name for the job. This is useful for if we want to recall information about our
+# tuning job at a later date. Note that SageMaker requires a tuning job name and that the name needs to
+# be unique, which we accomplish by appending the current timestamp.
+# In contrast to other object names, which can have 64 characters, the tuning job name
+# is limite to 32 characters, because an identified is appended to. it based on the parameters that are used
+# in each of the training jobs derived from it.
+tuning_job_name = "tuning-job" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# And now we ask SageMaker to create (and execute) the training job
+session.sagemaker_client.create_hyper_parameter_tuning_job(HyperParameterTuningJobName = tuning_job_name,
+                                                           HyperParameterTuningJobConfig = tuning_job_config,
+                                                           TrainingJobDefinition = training_params)
+
+# We need to call it to get info & know when it's finished
+session.wait_for_tuning_job(tuning_job_name)
+
+### Build the Model
+
+# We need to build the model
+# Recall that in SageMaker the model is the training artifacts + metadata + info about how to use the artifacts
+# The building process creates one such model
+
+# Here, we retrieve the dictionary which has all the tuning job info
+# We see in the output of the wait() command
+# that there is a key BestTrainingJob which has a dictionary with a field TrainingJobName inside!
+# We're going to use that
+tuning_job_info = session.sagemaker_client.describe_hyper_parameter_tuning_job(HyperParameterTuningJobName=tuning_job_name)
+
+# We begin by asking SageMaker to describe for us the results of the best training job. The data
+# structure returned contains a lot more information than we currently need, try checking it out
+# yourself in more detail.
+best_training_job_name = tuning_job_info['BestTrainingJob']['TrainingJobName']
+training_job_info = session.sagemaker_client.describe_training_job(TrainingJobName=best_training_job_name)
+
+model_artifacts = training_job_info['ModelArtifacts']['S3ModelArtifacts']
+
+# Just like when we created a training job, the model name must be unique
+model_name = best_training_job_name + "-model"
+
+# We also need to tell SageMaker which container should be used for inference and where it should
+# retrieve the model artifacts from. In our case, the xgboost container that we used for training
+# can also be used for inference.
+primary_container = {
+    "Image": container,
+    "ModelDataUrl": model_artifacts
+}
+
+# And lastly we construct the SageMaker model
+model_info = session.sagemaker_client.create_model(
+                                ModelName = model_name,
+                                ExecutionRoleArn = role,
+                                PrimaryContainer = primary_container)
+
+## Test the Model: Batch Transform
+
+# Now, we create the batch transform job as before
+
+# Just like in each of the previous steps, we need to make sure to name our job and the name should be unique.
+transform_job_name = 'boston-xgboost-batch-transform-' + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# Now we construct the data structure which will describe the batch transform job.
+transform_request = \
+{
+    "TransformJobName": transform_job_name,
+    
+    # This is the name of the model that we created earlier.
+    "ModelName": model_name,
+    
+    # This describes how many compute instances should be used at once. If you happen to be doing a very large
+    # batch transform job it may be worth running multiple compute instances at once.
+    "MaxConcurrentTransforms": 1,
+    
+    # This says how big each individual request sent to the model should be, at most. One of the things that
+    # SageMaker does in the background is to split our data up into chunks so that each chunks stays under
+    # this size limit.
+    "MaxPayloadInMB": 6,
+    
+    # Sometimes we may want to send only a single sample to our endpoint at a time, however in this case each of
+    # the chunks that we send should contain multiple samples of our input data.
+    "BatchStrategy": "MultiRecord",
+    
+    # This next object describes where the output data should be stored. Some of the more advanced options which
+    # we don't cover here also describe how SageMaker should collect output from various batches.
+    "TransformOutput": {
+        "S3OutputPath": "s3://{}/{}/batch-bransform/".format(session.default_bucket(),prefix)
+    },
+    
+    # Here we describe our input data. Of course, we need to tell SageMaker where on S3 our input data is stored, in
+    # addition we need to detail the characteristics of our input data. In particular, since SageMaker may need to
+    # split our data up into chunks, it needs to know how the individual samples in our data file appear. In our
+    # case each line is its own sample and so we set the split type to 'line'. We also need to tell SageMaker what
+    # type of data is being sent, in this case csv, so that it can properly serialize the data.
+    "TransformInput": {
+        "ContentType": "text/csv",
+        "SplitType": "Line",
+        "DataSource": {
+            "S3DataSource": {
+                "S3DataType": "S3Prefix",
+                "S3Uri": test_location,
+            }
+        }
+    },
+    
+    # And lastly we tell SageMaker what sort of compute instance we would like it to use.
+    "TransformResources": {
+            "InstanceType": "ml.m4.xlarge",
+            "InstanceCount": 1
+    }
+}
+
+transform_response = session.sagemaker_client.create_transform_job(**transform_request)
+
+transform_desc = session.wait_for_transform_job(transform_job_name)
+
+# Fetch the results
+transform_output = "s3://{}/{}/batch-bransform/".format(session.default_bucket(),prefix)
+
+!aws s3 cp --recursive $transform_output $data_dir
+
+Y_pred = pd.read_csv(os.path.join(data_dir, 'test.csv.out'), header=None)
+plt.scatter(Y_test, Y_pred)
+plt.xlabel("Median Price")
+plt.ylabel("Predicted Price")
+plt.title("Median Price vs Predicted Price")
+
+## Clean Up!
+
+# First we will remove all of the files contained in the data_dir directory
+!rm $data_dir/*
+
+# And then we delete the directory itself
+!rmdir $data_dir
+
+```
 
 ## 5. Updating a Model
 
-## 6. Cloud Computing with AWS EC2
+The data assumptions we made for our trained model often change with time; that's the so called **model drift**. In that case, we need to re-train and re-deploy our model. However, we want to do it without shutting down any endpoints; that's a **blue-green deployment**.
+
+A common use case are recommender systems, because user interests change over time.
+
+### 5.1 Updating an Existing Endpoint
+
+This section uses the notebook
+
+`Tutorials / Boston Housing - Updating an Endpoint.ipynb`.
+
+In there, two models are created for the Boston Housing dataset:
+
+- an XGBoost model
+- and a Linear model
+
+The idea is to show we can update an existing endpoint.
+
+Note that a hybrid approach is used in terms of *low level* / *high level* API:
+
+- We do everything until the training (`fit()`, incl.) of the model with the *high level* API.
+- After the training, we start using the *low level* API to
+    - Build the model, i.e., create the AWS SageMaker model that has the training artifacts + metadata + instructions
+    - Create an endpoint and use it.
+
+The *low level* API gives us more control over the endpoints that we create. Basically, the same approach as always is used.
+
+Recall that when we use the *high level* API and train the model with `fit()`, in reality, no SageMaker model is built. With the *high level* API, the model is built when we `deploy()` it or use it in a batch transform job. Therefore, since we're jumping from the *high level* to the *low level* approach after `fit()`, we need to build the model after the training. Recall that building a model in SageMaker means packaging the training artifacts + metadata + instructions into a file, called the model.
+
+#### Model 1: XGBoost
+
+This code snippet summarizes the model building + endpoint creation and utilization.
+
+```python
+### Prepare and Upload the Data to S3
+# ... as always
+### Define model container & estimator
+# ... as always
+
+### Fit the model (high level)
+s3_input_train = sagemaker.TrainingInput(s3_data=train_location, content_type='text/csv')
+s3_input_validation = sagemaker.TrainingInput(s3_data=val_location, content_type='text/csv')
+xgb.fit({'train': s3_input_train, 'validation': s3_input_validation})
+
+### Build the model (low level)
+
+# The high level API doesn't build the model
+# until it's used in a batch transform or deployed as an endpoint
+# Thus, to keep defining the endpoint, first we need to build the trained model
+
+# Remember that a model needs to have a unique name
+xgb_model_name = "boston-update-xgboost-model" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# We also need to tell SageMaker which container should be used for inference and where it should
+# retrieve the model artifacts from. In our case, the xgboost container that we used for training
+# can also be used for inference and the model artifacts come from the previous call to fit.
+xgb_primary_container = {
+    "Image": xgb_container,
+    "ModelDataUrl": xgb.model_data
+}
+
+# And lastly we construct the SageMaker model
+xgb_model_info = session.sagemaker_client.create_model(
+                                ModelName = xgb_model_name,
+                                ExecutionRoleArn = role,
+                                PrimaryContainer = xgb_primary_container)
+
+
+### Endpoint
+
+# As before, we need to give our endpoint configuration a name which should be unique
+xgb_endpoint_config_name = "boston-update-xgboost-endpoint-config-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# And then we ask SageMaker to construct the endpoint configuration
+# Note that we have a single production variant
+xgb_endpoint_config_info = session.sagemaker_client.create_endpoint_config(
+                            EndpointConfigName = xgb_endpoint_config_name,
+                            ProductionVariants = [{
+                                "InstanceType": "ml.m4.xlarge",
+                                "InitialVariantWeight": 1,
+                                "InitialInstanceCount": 1,
+                                "ModelName": xgb_model_name,
+                                "VariantName": "XGB-Model"
+                            }])
+
+# Again, we need a unique name for our endpoint
+endpoint_name = "boston-update-endpoint-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# And then we can deploy our endpoint
+endpoint_info = session.sagemaker_client.create_endpoint(
+                    EndpointName = endpoint_name,
+                    EndpointConfigName = xgb_endpoint_config_name)
+
+### Use the Model/Endpoint
+
+response = session.sagemaker_runtime_client.invoke_endpoint(
+                                                EndpointName = endpoint_name,
+                                                ContentType = 'text/csv',
+                                                Body = ','.join(map(str, X_test.values[0])))
+
+print(response)
+
+result = response['Body'].read().decode("utf-8")
+
+print(result) # 23.51549148559570
+
+Y_test.values[0] # array([23.7])
+
+### Shut Down Endpoint!
+
+session.sagemaker_client.delete_endpoint(EndpointName = endpoint_name)
+
+```
+
+#### Model 2: Linear Model
+
+
+
+
+
+## 6. Practical Notes on AWS and SageMaker
+
+### Summary
+
+### Check Up List
+
+### Tips & Tricks
+
+## 7. Cloud Computing with AWS EC2
 
 We need to perform two tasks:
 
@@ -1944,7 +2382,7 @@ We need to perform two tasks:
 
 Note: I copied this section from my other notes in [`CVND_CloudComputing.md`](https://github.com/mxagar/computer_vision_udacity/blob/main/02_Cloud_Computing/CVND_CloudComputing.md).
 
-### 6.1 Launch EC2 Instances
+### 7.1 Launch EC2 Instances
 
 EC2 = Elastic Compute Cloud. We can launch VM instances.
 
@@ -1995,7 +2433,7 @@ If we don't edit the security group, we won't be able to communicate with the in
 
 We can also set billing alarms.
 
-### 6.2 Connect to an Instance
+### 7.2 Connect to an Instance
 
 Once the instance is created, 
 
@@ -2051,17 +2489,17 @@ jupyter notebook --ip=0.0.0.0 --no-browser
 http://<public-IP>:8888/?token=<token-string>
 ```
 
-### 6.3 Pricing
+### 7.3 Pricing
 
 Always stop & terminate instances that we don't need! Terminate erases any data we have on the instance!
 
 [Amazon EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
 
-## 7. Google Colab
+## 8. Google Colab
 
 See [`Google_Colab_Notes.md`](https://github.com/mxagar/computer_vision_udacity/blob/main/02_Cloud_Computing/Google_Colab_Notes.md).
 
-## 8. Project: Deploying a Sentiment Analysis Model
+## 9. Project: Deploying a Sentiment Analysis Model
 
-See repository: []().
+See repository: [sentiment_rnn_aws_deployment](https://github.com/mxagar/sentiment_rnn_aws_deployment).
 
