@@ -1,4 +1,4 @@
-# Geneartive Adversarial Networks (GAN)
+# Deploying a Model with AWS SageMaker
 
 These are my personal notes taken while following the [Udacity Deep Learning Nanodegree](https://www.udacity.com/course/deep-learning-nanodegree--nd101).
 
@@ -9,7 +9,7 @@ The nanodegree is composed of six modules:
 3. Convolutional Neural Networks (CNN)
 4. Recurrent Neural Networks (RNN)
 5. Generative Adversarial Networks (GAN)
-6. Deploying a Model
+6. Deploying a Model with AWS SageMaker
 
 Each module has a folder with its respective notes. This folder is the one of the **sixth module**: Deployment.
 
@@ -834,6 +834,7 @@ X_test.to_csv(os.path.join(data_dir, 'test.csv'), header=False, index=False)
 
 # Also, for the train and
 # validation data, it is assumed that the first entry in each row is the target variable.
+# BUT NOT for the test dataset split!!
 pd.concat([Y_val, X_val], axis=1).to_csv(os.path.join(data_dir, 'validation.csv'), header=False, index=False)
 pd.concat([Y_train, X_train], axis=1).to_csv(os.path.join(data_dir, 'train.csv'), header=False, index=False)
 
@@ -1787,9 +1788,11 @@ We need to add our API Gateway URL to it, download the `index.html`, open it wit
 
 ## 4. Hyperparameter Tuning
 
-Hyperparameters are parameters that cannot be learned by the model, instead they define the model and its learning. Instead of fixing their value, we want to define ranges of values and let SageMaker find the optimum set applying Bayesian optimization. That's hyperparameter tuning.
+Hyperparameters are parameters that cannot be learned by the model, instead they define the model and its learning. Instead of fixing their value, we want to define ranges of values and let SageMaker find the optimum set. That's hyperparameter tuning.
 
-SageMaker has a `HyperparameterTuner`, similar to `GridSearchCV` in `sklearn`.
+SageMaker has a `HyperparameterTuner`, similar to `GridSearchCV` in `sklearn`; however, by default no grid search is done, but Bayesian optimization is applied. This approach treats hyperparameter tuning as a regression problem in which the metric needs to be optimized based on the hyperparameter values. Training jobs are performed one after the other using the knowledge from previous trainings and explore/exploit strategies. The outcome delivers a training job with the probably best set of hyperparameters.
+
+See: [How Hyperparameter Tuning Works](https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-how-it-works.html).
 
 This section deals with these Boston Housing notebooks from the repository:
 
@@ -1850,6 +1853,10 @@ from sagemaker.tuner import IntegerParameter, ContinuousParameter, Hyperparamete
 # We need to define the metric & split to which it is applied,
 # as well as the maximum number of models we'd like to train and test,
 # and the ranges of the hyperparameter values.
+# Metrics for XGBoost:
+# - regression: validation:rmse, validation:mse
+# - binary classification: validation:error, validation:f1, ...
+# - more: https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost-tuning.html
 xgb_hyperparameter_tuner = HyperparameterTuner(estimator = xgb, # The estimator object to use as the basis for the training jobs.
                                                objective_metric_name = 'validation:rmse', # The metric used to compare trained models.
                                                objective_type = 'Minimize', # Whether we wish to minimize or maximize the metric.

@@ -9,7 +9,7 @@ The nanodegree is composed of six modules:
 3. [Convolutional Neural Networks (CNN)](03_CNN)
 4. [Recurrent Neural Networks (RNN)](04_RNN)
 5. [Generative Adversarial Networks (GAN)](05_GAN)
-6. [Deploying a Model](06_Deployment)
+6. [Deploying a Model with AWS SageMaker](06_Deployment)
 
 Additionally, I have added an extra module/subfolder which I will extend with *new* architectures and applications that appeared post 2018: [Extra](07_Extra).
 
