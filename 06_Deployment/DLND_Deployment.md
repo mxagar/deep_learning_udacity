@@ -11,16 +11,16 @@ The nanodegree is composed of six modules:
 5. Generative Adversarial Networks (GAN)
 6. Deploying a Model
 
-Each module has a folder with its respective notes. This folder is the one of the **fifth module**: Generative Adversarial Networks.
+Each module has a folder with its respective notes. This folder is the one of the **sixth module**: Deployment.
 
 Additionally, note that:
 
-- I made many hand-written notes; check the PDFs.
 - I made many hand-written notes; check the PDFs.
 - I forked the Udacity repositories for the exercises; most the material and notebooks are there:
   - [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch)
   - [DL_PyTorch](https://github.com/mxagar/DL_PyTorch)
   - [sagemaker-deployment](https://github.com/mxagar/sagemer-deployment)
+- If you are interested on my notes on Google Colab, check: [`Google_Colab_Notes.md`](https://github.com/mxagar/computer_vision_udacity/blob/main/02_Cloud_Computing/Google_Colab_Notes.md).
 
 ## Overview of Contents
 
@@ -872,9 +872,9 @@ In order to train a model, we need to create a docker container for that. With t
 - We set the dataset (train and validation splits) to the estimator.
 - We fit the estimator with the high-level command `fit()`.
 
-In reality, we are creating a **training job** which is executed in a container. We can check information related to that training job in the SageMaker dashboard: Training > Training jobs: Click on the job we want + search 'View logs'.
+In reality, we are creating a **training job** which is executed in a container. We can check information related to that training job in the SageMaker dashboard: Training > Training jobs: Click on the job we want + search 'View logs'. That will open **CloudWatch**.
 
-Checking the logs of the training lob is very important for debugging.
+Checking the logs of the training job with CloudWatch is very important for debugging.
 
 Note that the training jobs we create have a unique name, in the high level API, the name of the container followed by a time stamp; in the low level API the unique name is manually given.
 
@@ -1787,6 +1787,143 @@ We need to add our API Gateway URL to it, download the `index.html`, open it wit
 
 ## 4. Hyperparameter Tuning
 
+Hyperparameters are parameters that cannot be learned by the model, instead they define the model and its learning. Instead of fixing their value, we want to define ranges of values and let SageMaker find the optimum set applying Bayesian optimization. That's hyperparameter tuning.
+
+SageMaker has a `HyperparameterTuner`, similar to `GridSearchCV` in `sklearn`.
+
+This section deals with these Boston Housing notebooks from the repository:
+
+- `Tutorials / Boston Housing - XGBoost (Hyperparameter Tuning) - High Level.ipynb`
+- `Tutorials / Boston Housing - XGBoost (Hyperparameter Tuning) - Low Level.ipynb`
+
+The first explains how the *high level* API works, whereas the second deeps dive into the *low level* API.
+
+Additionally, the following IMBD mini-project notebook completed:
+
+`Mini-Projects / IMDB Sentiment Analysis - XGBoost (Hyperparameter Tuning).ipynb`
+
+### 4.1 Boston Hyperparameter Tuning: High Level API
+
+To perform hyperparameter tuning with the high level API, we follow these steps:
+
+- We create a base estimator with base hyperparameters.
+- We define a `HyperparameterTuner` with parameter ranges and total number of sets to test.
+- We get the name of the best training job according to the metric we've defined.
+- We **attach** the best training job to an empty estimator.
+
+Attaching a job to an estimator means in practice taking an existing model we've trained. So it's not exclusive to hyperparameter tuning, i.e., we can look at the training jobs we have and pick one we'd like as an estimator!
+
+```python
+### Prepare and Upload the Data
+### ... as always
+
+### Train the Model / Hyperparameter Tuning
+
+# As stated above, we use this utility method to construct the image name for the training container.
+container = get_image_uri(session.boto_region_name, 'xgboost')
+
+# Now that we know which container to use, we can construct the estimator object.
+# The estimator object is defined as always, but it will be used for hyperparameter tuning,
+# i.e., many models are going to be branched from it
+xgb = sagemaker.estimator.Estimator(container, # The name of the training container
+                                    role,      # The IAM role to use (our current role in this case)
+                                    train_instance_count=1, # The number of instances to use for training
+                                    train_instance_type='ml.m4.xlarge', # The type of instance ot use for training
+                                    output_path='s3://{}/{}/output'.format(session.default_bucket(), prefix),
+                                                                        # Where to save the output (the model artifacts)
+                                    sagemaker_session=session) # The current SageMaker session
+
+# We need to set default values for the hyperparameters, i.e., we define the base model
+# which will be modified varying the hyperparameters
+xgb.set_hyperparameters(max_depth=5,
+                        eta=0.2,
+                        gamma=4,
+                        min_child_weight=6,
+                        subsample=0.8,
+                        objective='reg:linear',
+                        early_stopping_rounds=10,
+                        num_round=200)
+
+from sagemaker.tuner import IntegerParameter, ContinuousParameter, HyperparameterTuner
+# The HyperparameterTuner defines how to change the base model
+# and how to compare them.
+# We need to define the metric & split to which it is applied,
+# as well as the maximum number of models we'd like to train and test,
+# and the ranges of the hyperparameter values.
+xgb_hyperparameter_tuner = HyperparameterTuner(estimator = xgb, # The estimator object to use as the basis for the training jobs.
+                                               objective_metric_name = 'validation:rmse', # The metric used to compare trained models.
+                                               objective_type = 'Minimize', # Whether we wish to minimize or maximize the metric.
+                                               max_jobs = 20, # The total number of models to train in total
+                                               max_parallel_jobs = 3, # The number of models to train in parallel
+                                               hyperparameter_ranges = {
+                                                    'max_depth': IntegerParameter(3, 12),
+                                                    'eta'      : ContinuousParameter(0.05, 0.5),
+                                                    'min_child_weight': IntegerParameter(2, 8),
+                                                    'subsample': ContinuousParameter(0.5, 0.9),
+                                                    'gamma': ContinuousParameter(0, 10),
+                                               })
+
+# This is a wrapper around the location of our train and validation data, to make sure that SageMaker
+# knows our data is in csv format.
+s3_input_train = sagemaker.TrainingInput(s3_data=train_location, content_type='csv')
+s3_input_validation = sagemaker.TrainingInput(s3_data=val_location, content_type='csv')
+
+# We simply call fit() on the HyperparameterTuner
+xgb_hyperparameter_tuner.fit({'train': s3_input_train, 'validation': s3_input_validation})
+
+xgb_hyperparameter_tuner.wait()
+
+# We get the best training job: the model with the best hyperparameters
+# BUT this is only the name of the job
+xgb_hyperparameter_tuner.best_training_job() # 'xgboost-221124-0649-020-157431cc'
+
+# Still, we need to construct the best estimator
+# We can use attach() for that: an estimator is created and the best training job
+# is attached to it.
+# Attach can be used in other cases too:
+# If we have a training job name with the performance we want (e.g., a past traine model)
+# we can simple create an estimator and attach the training job (name) to it!
+xgb_attached = sagemaker.estimator.Estimator.attach(xgb_hyperparameter_tuner.best_training_job())
+
+### Test the Model
+# As always!
+
+# Now, we can use the batch transformer to test the best estimator
+# as always
+xgb_transformer = xgb_attached.transformer(instance_count = 1, instance_type = 'ml.m4.xlarge')
+
+xgb_transformer.transform(test_location, content_type='text/csv', split_type='Line')
+
+xgb_transformer.wait()
+
+# Fetch the results
+!aws s3 cp --recursive $xgb_transformer.output_path $data_dir
+
+Y_pred = pd.read_csv(os.path.join(data_dir, 'test.csv.out'), header=None)
+
+plt.scatter(Y_test, Y_pred)
+plt.xlabel("Median Price")
+plt.ylabel("Predicted Price")
+plt.title("Median Price vs Predicted Price")
+
+### Clean Up!
+
+# First we will remove all of the files contained in the data_dir directory
+!rm $data_dir/*
+
+# And then we delete the directory itself
+!rmdir $data_dir
+```
+
+### 4.2 IMBD Hyperparameter Tuning: High Level API
+
+This section deals with the notebook
+
+`IMDB Sentiment Analysis - XGBoost (Hyperparameter Tuning).ipynb`.
+
+It is a mini-project/exercise in which the former section needs to be re-implemented.
+
+### 4.3 Boston Hyperparameter Tuning: Low Level API
 
 
 ## 5. Updating a Model
@@ -1909,7 +2046,7 @@ http://<public-IP>:8888/?token=<token-string>
 
 ### 6.3 Pricing
 
-Always stop & terminate instances that we don't need! Terminates erases any data we have on the instance!
+Always stop & terminate instances that we don't need! Terminate erases any data we have on the instance!
 
 [Amazon EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
 
