@@ -2361,17 +2361,282 @@ session.sagemaker_client.delete_endpoint(EndpointName = endpoint_name)
 
 #### Model 2: Linear Model
 
+Now we create another model which is trained with the same dataset. In practice, the motivation could be that our previous model is either too slow, difficult to interpret, etc. The used model type is the **linear learner**, which is basically a linear regression model.
+
+After the training, we build the model and deploy it to an endpoint, again with a unique production variant. Finally, we test the endpoint as always.
+
+The code here is very similar to the one in the previous section; only, the model definition is different (i.e., linear learner).
+
+```python
+### Prepare and Upload the Data to S3
+# ... as always
+
+### Define model container & estimator
+
+# Similar to the XGBoost model, we will use the utility method to construct the image name for the training container.
+linear_container = get_image_uri(session.boto_region_name, 'linear-learner')
+
+# Now that we know which container to use, we can construct the estimator object.
+linear = sagemaker.estimator.Estimator(linear_container, # The name of the training container
+                                        role,      # The IAM role to use (our current role in this case)
+                                        train_instance_count=1, # The number of instances to use for training
+                                        train_instance_type='ml.m4.xlarge', # The type of instance ot use for training
+                                        output_path='s3://{}/{}/output'.format(session.default_bucket(), prefix),
+                                                                            # Where to save the output (the model artifacts)
+                                        sagemaker_session=session) # The current SageMaker session
+
+linear.set_hyperparameters(feature_dim=13, # Our data has 13 feature columns
+                           predictor_type='regressor', # We wish to create a regression model
+                           mini_batch_size=200) # Here we set how many samples to look at in each iteration
+
+### Fit the model (high level)
+
+# This is a wrapper around the location of our train and validation data, to make sure that SageMaker
+# knows our data is in csv format.
+s3_input_train = sagemaker.TrainingInput(s3_data=train_location, content_type='text/csv')
+s3_input_validation = sagemaker.TrainingInput(s3_data=val_location, content_type='text/csv')
+
+linear.fit({'train': s3_input_train, 'validation': s3_input_validation})
+
+### Build the model
+
+# First, we create a unique model name
+linear_model_name = "boston-update-linear-model" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# We also need to tell SageMaker which container should be used for inference and where it should
+# retrieve the model artifacts from. In our case, the linear-learner container that we used for training
+# can also be used for inference.
+linear_primary_container = {
+    "Image": linear_container,
+    "ModelDataUrl": linear.model_data
+}
+
+# And lastly we construct the SageMaker model
+linear_model_info = session.sagemaker_client.create_model(
+                                ModelName = linear_model_name,
+                                ExecutionRoleArn = role,
+                                PrimaryContainer = linear_primary_container)
+
+### Endpoint
+
+# As before, we need to give our endpoint configuration a name which should be unique
+linear_endpoint_config_name = "boston-linear-endpoint-config-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# And then we ask SageMaker to construct the endpoint configuration
+linear_endpoint_config_info = session.sagemaker_client.create_endpoint_config(
+                            EndpointConfigName = linear_endpoint_config_name,
+                            ProductionVariants = [{
+                                "InstanceType": "ml.m4.xlarge",
+                                "InitialVariantWeight": 1,
+                                "InitialInstanceCount": 1,
+                                "ModelName": linear_model_name,
+                                "VariantName": "Linear-Model"
+                            }])
+
+# Again, we need a unique name for our endpoint
+endpoint_name = "boston-update-endpoint-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# And then we can deploy our endpoint
+endpoint_info = session.sagemaker_client.create_endpoint(
+                    EndpointName = endpoint_name,
+                    EndpointConfigName = linear_endpoint_config_name)
+
+endpoint_dec = session.wait_for_endpoint(endpoint_name)
+
+### Use the Endpoint
+
+response = session.sagemaker_runtime_client.invoke_endpoint(
+                                                EndpointName = endpoint_name,
+                                                ContentType = 'text/csv',
+                                                Body = ','.join(map(str, X_test.values[0])))
+
+print(response)
+
+result = response['Body'].read().decode("utf-8")
+
+print(result)
+
+Y_test.values[0]
+
+### Shut Down Endpoint
+
+session.sagemaker_client.delete_endpoint(EndpointName = endpoint_name)
+
+```
+
+#### Deploying a Combined Model and Updating It
+
+Deploying a combined model (i.e., models 1 and 2) is a simple as defining an endpoint configuration with several production variants. We assign a weight to each variant to specify the amount of data that will go to each model. For instance, if we have two `ProductionVariants` each with `InitialVariantWeight = 1`, the data will be distributed in half, randomly; i.e., SageMaker randomly sends the data to one or the other models given their weight probability.
+
+A possible use case for that is an A/B test: we perform an experiment to check whether both models yield the same distribution.
+
+Recall that result of the endpoint says which production variant (i.e., model) has been used.
+
+Additionally, it is very easy to change the definition of an endpoint, e.g., if we want to keep only one production variant. It happens seamlessly for the outside world, i.e., the user of the endpoint doesn't notice anything. That is possible because we update an endpoint by setting a new endpoint configuration with the desired definition; the update command creates and runs a new endpoint/model internally, and when it's ready routes all the data to it and shuts down the old one. Therefore, when we run `update()`, it takes some seconds/minute until the endpoint is modified.
+
+```python
+### Prepare and Upload the Data to S3
+# ... as always
+### Define model containers & estimators
+# ... as always
+### Train & build models
+# ... as always
+
+### Endpoint: Combined
+
+# As before, we need to give our endpoint configuration a name which should be unique
+combined_endpoint_config_name = "boston-combined-endpoint-config-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# And then we ask SageMaker to construct the endpoint configuration
+# We assign a weight to each variant to specify the amount of data that will go to each model.
+# For instance, if we have two `ProductionVariants` each with `InitialVariantWeight = 1`,
+# the data will be distributed in half, randomly.
+combined_endpoint_config_info = session.sagemaker_client.create_endpoint_config(
+                            EndpointConfigName = combined_endpoint_config_name,
+                            ProductionVariants = [
+                                { # First we include the linear model
+                                    "InstanceType": "ml.m4.xlarge",
+                                    "InitialVariantWeight": 1,
+                                    "InitialInstanceCount": 1,
+                                    "ModelName": linear_model_name,
+                                    "VariantName": "Linear-Model"
+                                }, { # And next we include the xgb model
+                                    "InstanceType": "ml.m4.xlarge",
+                                    "InitialVariantWeight": 1,
+                                    "InitialInstanceCount": 1,
+                                    "ModelName": xgb_model_name,
+                                    "VariantName": "XGB-Model"
+                                }])
+
+# Again, we need a unique name for our endpoint
+endpoint_name = "boston-update-endpoint-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+# And then we can deploy our endpoint
+endpoint_info = session.sagemaker_client.create_endpoint(
+                    EndpointName = endpoint_name,
+                    EndpointConfigName = combined_endpoint_config_name)
+
+endpoint_dec = session.wait_for_endpoint(endpoint_name)
+
+### Start Endpoint
+
+response = session.sagemaker_runtime_client.invoke_endpoint(
+                                                EndpointName = endpoint_name,
+                                                ContentType = 'text/csv',
+                                                Body = ','.join(map(str, X_test.values[0])))
+print(response)
+
+# We see that each sample is scored by a different model
+# with probability 50% each
+for rec in range(10):
+    response = session.sagemaker_runtime_client.invoke_endpoint(
+                                                EndpointName = endpoint_name,
+                                                ContentType = 'text/csv',
+                                                Body = ','.join(map(str, X_test.values[rec])))
+    pprint(response)
+    result = response['Body'].read().decode("utf-8")
+    print(result)
+    print(Y_test.values[rec])
 
 
+### Update an Endpoint
+
+# Get Information of an Endpoint: We see we have 2 variants
+pprint(session.sagemaker_client.describe_endpoint(EndpointName=endpoint_name))
+
+# We take the endpoint with two variants and update its configuration
+# to be the one of the endpoint with the linear model only
+session.sagemaker_client.update_endpoint(EndpointName=endpoint_name, EndpointConfigName=linear_endpoint_config_name)
+
+# We print the endpoint info: it hasn't changed from two variants to one yet
+# because internally an new enpodint is being launched.
+# After launched, the data will be routed to it and the old endpoint
+# with two variant will be destroyed.
+pprint(session.sagemaker_client.describe_endpoint(EndpointName=endpoint_name))
+
+# Wait until it is updated
+endpoint_dec = session.wait_for_endpoint(endpoint_name)
+
+# Now, we have one variant!
+pprint(session.sagemaker_client.describe_endpoint(EndpointName=endpoint_name))
+
+### Shut Down Endpoint
+
+session.sagemaker_client.delete_endpoint(EndpointName = endpoint_name)
+
+### Clean Up!
+
+# First we will remove all of the files contained in the data_dir directory
+!rm $data_dir/*
+
+# And then we delete the directory itself
+!rmdir $data_dir
+
+```
+
+### 5.2 Mini-Project: IMDB Model Update
+
+This section is based on the notebook
+
+`Mini-Projects / IMDB Sentiment Analysis - XGBoost (Updating a Model).ipynb`.
+
+It is a mini-project we need to complete which deals with the following situation:
+
+> We have a trained model which is working well, but then something changes with the underlying distribution on which our model is based. First we need to take a look at what might be the problem. Then we want to create a new, updated model and replace our old model without taking down the corresponding endpoint.
+
+In practice, no new API calls are tried, therefore, I won't add any code here. However, **it is a very interesting model deployment scenario** in which drift is detected, a new model is trained and deployed to an existing endpoint.
+
+These are the summary steps in the notebook:
+
+- Data is fetched (IMDB reviews), processed, and uploaded to S3.
+- An XGBoost container is defined and trained with the high level API.
+- A batch transform job is run to check the model; it performs nicely.
+- New data is loaded; this data is originally the same as the old, but tokens are replaced with the word 'banana' with 20% probability. This replacement is supposed to be unknown, i.e., it simulates the change in the data distribution, e.g., due to model/data drift.
+- The trained model is tested again with a batch transform, but using the new data; it underperforms.
+- Diagnosis explorations are performed:
+    - The model is deployed to an endpoint and we test samples one by one using a generator.
+    - Sets of old and new vocabularies are subtracted.
+    - The frequencies of the new words are computed: 'banana' appears very often!
+- As a solution, we decide to train a new model with the new data. **This is risky**.
+- We check the new model with a batch transform using the training dataset itself. **In practice, that shouldn't be done! We do it here because we have a baseline performance value from before**.
+- We update the endpoint we have deployed beforehand with the new model:
+    - We create a new endpoint config
+    - We update the existing/running endpoint with the new config/model.
 
 
 ## 6. Practical Notes on AWS and SageMaker
 
 ### Summary
 
-### Check Up List
+> - **Notebook Instances** provide a convenient place to process and explore data in addition to making it very easy to interact with the rest of SageMaker's features.
+> - **Training Jobs** allow us to create model artifacts by fitting various machine learning models to data.
+> - **Hyperparameter Tuning** allow us to create multiple training jobs each with different hyperparameters in order to find the hyperparameters that work best for a given problem.
+> - **Models** are essentially a combination of model artifacts formed during a training job and an associated docker container (code) that is used to perform inference.
+> - **Endpoint Configurations** act as blueprints for endpoints. They describe what sort of resources should be used when an endpoint is constructed along with which models should be used and, if multiple models are to be used, how the incoming data should be split up among the various models.
+> - **Endpoints** are the actual HTTP URLs that are created by SageMaker and which have properties specified by their associated endpoint configurations. **Have you shut down your endpoints?**
+> - **Batch Transform** is the method by which you can perform inference on a whole bunch of data at once. In contrast, setting up an endpoint allows you to perform inference on small amounts of data by sending it do the endpoint bit by bit.
+> - **S3** is a central repository in which to store our data. This included test / training / validation data as well as model artifacts that we created during training.
+> - **Lambda** allows to run functions without needing to manually spin up a VM for that.
+> - **API Gateway** creates public interfaces/endpoints, i.e., visible from outside.
+
+### Cleaning: Check Up List
+
+- Stop all notebook instances.
+- Shut down all endpoints.
+- Clean up S3 buckets: delete the buckets we don't need, otherwise we're charged.
+- Delete Lambda functions; we're charged upon use, but delete them if not used!
+- Remove API Gateways; we're charged upon use, but delete them if not used!
 
 ### Tips & Tricks
+
+- Check CloudWatch logs!
+- Use the AWS web interface extensive, there's plenty of information of what's going on there!
+- ML code barely changes, just configuration parameters, thus copy & paste! BUT understand every single field and be aware of the modifications that are needed!
+- We can usually re-use any object that is persisted in AWS (models, training jobs, etc.). We simply need their names, which are unique. Therefore, be systematic in the naming convention you use and exploit that!
+- The documentation goes sometimes slower than the API updates, we we should check it always:
+    - [Developer documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/whatis.html).
+    - *High level* API: [Python SDK](https://sagemaker.readthedocs.io/en/stable/).
+    - When the documentation is not updated, check the [Codebase on Github](https://github.com/aws/sagemaker-python-sdk). The codebase refers to the *high level* API, but we can check what decisions are taken for us.
 
 ## 7. Cloud Computing with AWS EC2
 
