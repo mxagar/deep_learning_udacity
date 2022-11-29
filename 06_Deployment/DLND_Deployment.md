@@ -97,8 +97,11 @@ Additionally, note that:
     - [7.1 Launch EC2 Instances](#71-launch-ec2-instances)
     - [7.2 Connect to an Instance](#72-connect-to-an-instance)
     - [7.3 Pricing](#73-pricing)
-  - [8. Google Colab](#8-google-colab)
-  - [9. Project: Deploying a Sentiment Analysis Model](#9-project-deploying-a-sentiment-analysis-model)
+  - [8. AWS SageMaker: Notes](#8-aws-sagemaker-notes)
+    - [Differences between AWS SageMaker notebooks \& SageMaker Studio](#differences-between-aws-sagemaker-notebooks--sagemaker-studio)
+    - [Interesting Links](#interesting-links)
+  - [9. Google Colab](#9-google-colab)
+  - [10. Project: Deploying a Sentiment Analysis Model](#10-project-deploying-a-sentiment-analysis-model)
 
 ## 1. Introduction to Deployment
 
@@ -213,7 +216,7 @@ The **service model** examples are:
 
 - Software as a Service (SaaS): Google Docs, GMail; as opposed to *software as a product*, in SaaS the application is on the cloud and we access it via browser. The user has the unique responsibility of the login and the administration of the application and the content.
 - Platform as a Service (PaaS): Heroku; we can use PaaS to e-commerce websites, deploy an app which is reachable via web or a REST API, etc. usually, easy deployments at the application level are done. Obviously, the user that deploys the application has more responsibilities.
-- Infrastructure as a Service (IaaS): AWS; they offer virtual machines on which the user needs to do everything: virtual machine provisioning, networking, app deployment, etc.
+- Infrastructure as a Service (IaaS): AWS EC2; they offer virtual machines on which the user needs to do everything: virtual machine provisioning, networking, app deployment, etc.
 
 The **deployment models** are distinguished by the group for which the service is being provided:
 
@@ -242,7 +245,7 @@ For established companies, cloud computing is not always the way to go, because 
 
 Successful examples:
 
-- [Instagram](https://instagram-engineering.com/migrating-from-aws-to-aws-f4b16a65e13c), which started from scratch at AWS in 2010. They migrated to Facebook serves after their purchas in 2012: [Migrating From AWS to FB](https://instagram-engineering.com/migrating-from-aws-to-fb-86b16f6766e2).
+- [Instagram](https://instagram-engineering.com/migrating-from-aws-to-aws-f4b16a65e13c), which started from scratch at AWS in 2010. They migrated to Facebook serves after their purchase in 2012: [Migrating From AWS to FB](https://instagram-engineering.com/migrating-from-aws-to-fb-86b16f6766e2).
 - [Netflix](https://aws.amazon.com/solutions/case-studies/netflix/) migrated from using its own servers in 2009 to AWS in 2010.
 
 #### Cloud Computing within the Machine Learning Workflow
@@ -257,9 +260,9 @@ Amazon SageMaker allows for having all 3 components on the cloud.
 
 It is also quite common to have only the deployment component on the cloud due to security reasons.
 
-![ML Workflow: All in Cloud vs None](mlworkflow-allornocloud.png)
+![ML Workflow: All in Cloud vs None](./pics/mlworkflow-allornocloud.png)
 
-![ML Workflow: Parts in Cloud](mlworkflow-differentcloudservices.png)
+![ML Workflow: Parts in Cloud](./pics/mlworkflow-differentcloudservices.png)
 
 ### 1.3 Paths to Deployment
 
@@ -290,9 +293,9 @@ We have these parts:
 
 - The users, who input data and get predictions associated with that data.
 - The application, which is the interface to the users and the model; the application is in the **production environment**.
-- The model, which usually is not in the application, but its interfaced by it. The interface between the application and the model happens in the so called **end points**, which get the user data and provide the prediction.
+- The model, which usually is not in the application, but its interfaced by it. The interface between the application and the model happens in the so called **endpoints**, which get the user data and provide the prediction.
 
-Note that instead of the production environment we can have a **test environment** if we are performing tests, i.e., there's no real user, but a tester (person or bot). A **production environment** is characterized by the fact that it's being used by real users.
+Note that instead of the production environment we can have a **test environment** if we are performing tests, i.e., there's no real user, but a tester (person or program). A **production environment** is characterized by the fact that it's being used by real users.
 
 Thus, the **type of environment (test/production)** is determined by who uses the service.
 
@@ -380,7 +383,7 @@ The steps of modeling and deployment have characteristic features that we need t
 
 Modeling requires **hyperparameter tuning**, finding the parameters that cannot be learned from the data.
 
-![ML Workflow: Hyperparameter Tuning](mlworkflow-modeling-hyperparameter.png)
+![ML Workflow: Hyperparameter Tuning](./pics/mlworkflow-modeling-hyperparameter.png)
 
 Deployment requires tracking the model performance; to that end, we need to perform the following tasks:
 
@@ -398,7 +401,7 @@ Additionally, note that model predictions can be
     - large volume, done regularly (e.g., weekly)
     - latency is higher, but it's not an issue
 
-![ML Workflow: Hyperparameter Tuning](mlworkflow-deployment.png)
+![ML Workflow: Hyperparameter Tuning](./pics/mlworkflow-deployment.png)
 
 ### 1.8 Comparing Cloud Providers
 
@@ -653,7 +656,7 @@ Note: ALWAYS see in which region we're!
 
 #### AWS SageMaker Studio
 
-AWS SageMaker Studio Overview is a fully integrated IDE. Instead of using the functionalities mentioned before in different instances, we have everything in an IDE similar to R Studio which integrates everything.
+AWS SageMaker Studio Overview is a fully integrated IDE. Instead of using the functionalities mentioned before in different instances, we have everything in an IDE similar to R Studio which integrates everything. That IDE is basically a Jupyter Lab instance with many plugins developed by AWs.
 
 Everything can be done in there.
 
@@ -668,6 +671,8 @@ Note that
 - The models and all the artifacts product of the training are stored in S3 buckets.
 - Additionally, training code is stored in container images, which are collected in the Elastic Container Registry.
 - The datasets need to be in Amazon S3 buckets, too.
+
+This Udacity module focuses on Jupyter Notebook instances, probably because Studio is a newer product. However, it seems the strategic effort from AWS is leaned towards Studio. It has also some advantages; see [Differences between AWS SageMaker notebooks & SageMaker Studio](#Differences-between-AWS-SageMaker-notebooks-&-SageMaker-Studio).
 
 ### 2.5 Set Up a Notebook Instance and Clone the Exercise Repository
 
@@ -826,8 +831,9 @@ The rest of the module works mainly with 2 examples/projects, which are located 
 
 The IMDB mini-project is actually a small project that needs to be carried out after following the videos related to the Boston Housing example.
 
-This section focuses with the model building and inference using batch transform; the next sections explain:
+The following sections deal selectively with the listed notebooks to show how to perform these tasks:
 
+- Model building and inference using the batch transform, either with the high level (abstracted) API or with the low level one (more flexible but complex).
 - Deployment
 - Hyperparamter Tuning
 - Updating a Model
@@ -840,7 +846,7 @@ Repository: [sagemaker-deployment](https://github.com/mxagar/sagemaker-deploymen
 
 In this section, the notebook `Tutorials / XGBoost (Batch Transform) - High Level.ipynb` is used.
 
-Note that the *high level* label refers to the SageMaker API, which is more high level than the *low level* API. In the section []() the *low level* API is explained; it is interesting to understand what's going on under the hood, which is necessary when we debug the any level API code.
+Note that the *high level* label refers to the SageMaker API, which is more high level than the *low level* API. In the section [2.9 Example: Boston Housing: XGBoost Model Batch Transform - Low Level / In Depth](#2.9-Example:-Boston-Housing:-XGBoost-Model-Batch-Transform---Low-Level-/-In-Depth) the *low level* API is explained; it is important to understand what's going on under the hood, which is necessary when we debug the any level API code.
 
 We can select among several kernels; note that the ones with `amazonei` have GPU acceleration; we need to pay for that.
 
@@ -848,8 +854,8 @@ We can select among several kernels; note that the ones with `amazonei` have GPU
 
 There are some specific cells in the notebook that are related to SageMaker:
 
-- Session: special object that allows you to do things like manage data in S3 and create and train any machine learning models.
-- Role: the IAM role we used for the notebook instance generation.
+- **Session**: special object that allows you to do things like manage data in S3 and create and train any machine learning models.
+- **Role**: the IAM role we used for the notebook instance generation.
 
 We need to create these `session` and `role` objects for training. We can create them now or later.
 
@@ -859,13 +865,13 @@ from sagemaker import get_execution_role
 from sagemaker.amazon.amazon_estimator import get_image_uri
 from sagemaker.predictor import csv_serializer
 
-# This is an object that represents the SageMaker session that we are currently operating in. This
-# object contains some useful information that we will need to access later such as our region.
+# This is an object that represents the SageMaker session that we are currently operating in. 
+# This object contains some useful information that we will need to access later such as our region.
 session = sagemaker.Session()
 
-# This is an object that represents the IAM role that we are currently assigned. When we construct
-# and launch the training job later we will need to tell it what IAM role it should have. Since our
-# use case is relatively simple we will simply assign the training job the role we currently have.
+# This is an object that represents the IAM role that we are currently assigned.
+# When we construct and launch the training job later we will need to tell it what IAM role it should have.
+# Since our use case is relatively simple we will simply assign the training job the role we currently have.
 role = get_execution_role()
 print(role)
 ```
@@ -889,7 +895,7 @@ X_train, X_test, Y_train, Y_test = sklearn.model_selection.train_test_split(X_bo
 X_train, X_val, Y_train, Y_val = sklearn.model_selection.train_test_split(X_train, Y_train, test_size=0.33)
 
 # Local directory in notebook VM
-We need to make sure that it exists.
+# We need to make sure that it exists.
 data_dir = '../data/boston'
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
@@ -1290,7 +1296,7 @@ plt.xlabel("Median Price")
 plt.ylabel("Predicted Price")
 plt.title("Median Price vs Predicted Price")
 
-### clean up
+### Clean up
 
 # First we will remove all of the files contained in the data_dir directory
 !rm $data_dir/*
@@ -2827,11 +2833,27 @@ Always stop & terminate instances that we don't need! Terminate erases any data 
 
 [Amazon EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
 
-## 8. Google Colab
+## 8. AWS SageMaker: Notes
 
-See [`Google_Colab_Notes.md`](https://github.com/mxagar/computer_vision_udacity/blob/main/02_Cloud_Computing/Google_Colab_Notes.md).
+### Differences between AWS SageMaker notebooks & SageMaker Studio
 
-## 9. Project: Deploying a Sentiment Analysis Model
+- Studio is a Jupyter Lab notebook with plugins and extensions which resembles an IDE.
+- We can connect to our AWS SM Studio with a simple link using any authentication; AWS SM Notebooks require connecting to them via the AWS web interface/console
+- In SM Notebooks, we create a VM instance which is running the notebook and we pay for it; in SM Studio, no VM is created in our account, and we don't pay for having a Studio instance open! Instead, the notebook is running somewhere, but we pay when we spin up containers! Additionally, in Studio, we can start several instances that support our work (training, etc.); we need to carefully control them (left menu) to not have idle instances which produce unnecessary costs.
+- In SM Notebooks, we have a limited storage in the VM instance, which we can increase upon payment, but the storage is isolated into the notebook VM. In SM Studio, the storage is a plugged in service EFS (Elastic File Storage/Service), which can be flexibly modified. We need to pay for that EFS, too, but it has a low cost and we can share the files across instances, i.e., the data is not isolated! Thus, it scales much easily.
+- The strategic bet of AWS is Studio, not Notebooks: many things come first for Studio.
+- Notebooks with Jupyter Lab has plugins, but the ones available in Studio are better, or at least curated and adapted for use in Studio. The Amazon SM team develops plugins for SM Studio, many and very useful ones.
+
+### Interesting Links
+
+- [SageMaker STUDIO vs SageMaker NOTEBOOKS](https://www.youtube.com/watch?v=RxofqeoNqM0)
+- [AWS Machine Learning Specialization Course by Mike Chambers](https://learn.mikegchambers.com/p/aws-machine-learning-specialty-certification-course)
+- [What is Amazon SageMaker?](https://www.youtube.com/watch?v=CK_xC4T1blk&t=694s)
+
+## 9. Google Colab
+
+See[`Google_Colab_Notes.md`](https://github.com/mxagar/computer_vision_udacity/blob/main/02_Cloud_Computing/Google_Colab_Notes.md).
+## 10. Project: Deploying a Sentiment Analysis Model
 
 See repository: [sentiment_rnn_aws_deployment](https://github.com/mxagar/sentiment_rnn_aws_deployment).
 
