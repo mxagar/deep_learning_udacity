@@ -90,18 +90,16 @@ Additionally, note that:
       - [Deploying a Combined Model and Updating It](#deploying-a-combined-model-and-updating-it)
     - [5.2 Mini-Project: IMDB Model Update](#52-mini-project-imdb-model-update)
   - [6. Practical Notes on AWS and SageMaker](#6-practical-notes-on-aws-and-sagemaker)
-    - [Summary](#summary)
+    - [Summary of AWS SageMaker Elements](#summary-of-aws-sagemaker-elements)
     - [Cleaning: Check Up List](#cleaning-check-up-list)
     - [Tips \& Tricks](#tips--tricks)
+    - [Differences between AWS SageMaker notebooks \& SageMaker Studio](#differences-between-aws-sagemaker-notebooks--sagemaker-studio)
+    - [Interesting Links](#interesting-links)
   - [7. Cloud Computing with AWS EC2](#7-cloud-computing-with-aws-ec2)
     - [7.1 Launch EC2 Instances](#71-launch-ec2-instances)
     - [7.2 Connect to an Instance](#72-connect-to-an-instance)
     - [7.3 Pricing](#73-pricing)
-  - [8. AWS SageMaker: Notes](#8-aws-sagemaker-notes)
-    - [Differences between AWS SageMaker notebooks \& SageMaker Studio](#differences-between-aws-sagemaker-notebooks--sagemaker-studio)
-    - [Interesting Links](#interesting-links)
-  - [9. Google Colab](#9-google-colab)
-  - [10. Project: Deploying a Sentiment Analysis Model](#10-project-deploying-a-sentiment-analysis-model)
+  - [8. Google Colab](#8-google-colab)
 
 ## 1. Introduction to Deployment
 
@@ -2679,7 +2677,11 @@ These are the summary steps in the notebook:
 
 ## 6. Practical Notes on AWS and SageMaker
 
-### Summary
+**VERY IMPORTANT**: hae alook at the code example summary and its associated workflow diagram: [`sagemaker_examples.py`](sagemaker_examples.py)
+
+![SageMaker Examples Workflow](./sagemaker_examples_workflow.png)
+
+### Summary of AWS SageMaker Elements
 
 > - **Notebook Instances** provide a convenient place to process and explore data in addition to making it very easy to interact with the rest of SageMaker's features.
 > - **Training Jobs** allow us to create model artifacts by fitting various machine learning models to data.
@@ -2710,6 +2712,21 @@ These are the summary steps in the notebook:
     - [Developer documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/whatis.html).
     - *High level* API: [Python SDK](https://sagemaker.readthedocs.io/en/stable/).
     - When the documentation is not updated, check the [Codebase on Github](https://github.com/aws/sagemaker-python-sdk). The codebase refers to the *high level* API, but we can check what decisions are taken for us.
+
+### Differences between AWS SageMaker notebooks & SageMaker Studio
+
+- Studio is a Jupyter Lab notebook with plugins and extensions which resembles an IDE.
+- We can connect to our AWS SM Studio with a simple link using any authentication; AWS SM Notebooks require connecting to them via the AWS web interface/console
+- In SM Notebooks, we create a VM instance which is running the notebook and we pay for it; in SM Studio, no VM is created in our account, and we don't pay for having a Studio instance open! Instead, the notebook is running somewhere, but we pay when we spin up containers! Additionally, in Studio, we can start several instances that support our work (training, etc.); we need to carefully control them (left menu) to not have idle instances which produce unnecessary costs.
+- In SM Notebooks, we have a limited storage in the VM instance, which we can increase upon payment, but the storage is isolated into the notebook VM. In SM Studio, the storage is a plugged in service EFS (Elastic File Storage/Service), which can be flexibly modified. We need to pay for that EFS, too, but it has a low cost and we can share the files across instances, i.e., the data is not isolated! Thus, it scales much easily.
+- The strategic bet of AWS is Studio, not Notebooks: many things come first for Studio.
+- Notebooks with Jupyter Lab has plugins, but the ones available in Studio are better, or at least curated and adapted for use in Studio. The Amazon SM team develops plugins for SM Studio, many and very useful ones.
+
+### Interesting Links
+
+- [SageMaker STUDIO vs SageMaker NOTEBOOKS](https://www.youtube.com/watch?v=RxofqeoNqM0)
+- [AWS Machine Learning Specialization Course by Mike Chambers](https://learn.mikegchambers.com/p/aws-machine-learning-specialty-certification-course)
+- [What is Amazon SageMaker?](https://www.youtube.com/watch?v=CK_xC4T1blk&t=694s)
 
 ## 7. Cloud Computing with AWS EC2
 
@@ -2833,27 +2850,10 @@ Always stop & terminate instances that we don't need! Terminate erases any data 
 
 [Amazon EC2 On-Demand Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
 
-## 8. AWS SageMaker: Notes
-
-### Differences between AWS SageMaker notebooks & SageMaker Studio
-
-- Studio is a Jupyter Lab notebook with plugins and extensions which resembles an IDE.
-- We can connect to our AWS SM Studio with a simple link using any authentication; AWS SM Notebooks require connecting to them via the AWS web interface/console
-- In SM Notebooks, we create a VM instance which is running the notebook and we pay for it; in SM Studio, no VM is created in our account, and we don't pay for having a Studio instance open! Instead, the notebook is running somewhere, but we pay when we spin up containers! Additionally, in Studio, we can start several instances that support our work (training, etc.); we need to carefully control them (left menu) to not have idle instances which produce unnecessary costs.
-- In SM Notebooks, we have a limited storage in the VM instance, which we can increase upon payment, but the storage is isolated into the notebook VM. In SM Studio, the storage is a plugged in service EFS (Elastic File Storage/Service), which can be flexibly modified. We need to pay for that EFS, too, but it has a low cost and we can share the files across instances, i.e., the data is not isolated! Thus, it scales much easily.
-- The strategic bet of AWS is Studio, not Notebooks: many things come first for Studio.
-- Notebooks with Jupyter Lab has plugins, but the ones available in Studio are better, or at least curated and adapted for use in Studio. The Amazon SM team develops plugins for SM Studio, many and very useful ones.
-
-### Interesting Links
-
-- [SageMaker STUDIO vs SageMaker NOTEBOOKS](https://www.youtube.com/watch?v=RxofqeoNqM0)
-- [AWS Machine Learning Specialization Course by Mike Chambers](https://learn.mikegchambers.com/p/aws-machine-learning-specialty-certification-course)
-- [What is Amazon SageMaker?](https://www.youtube.com/watch?v=CK_xC4T1blk&t=694s)
-
-## 9. Google Colab
+## 8. Google Colab
 
 See[`Google_Colab_Notes.md`](https://github.com/mxagar/computer_vision_udacity/blob/main/02_Cloud_Computing/Google_Colab_Notes.md).
-## 10. Project: Deploying a Sentiment Analysis Model
+. Project: Deploying a Sentiment Analysis Model
 
 See repository: [sentiment_rnn_aws_deployment](https://github.com/mxagar/sentiment_rnn_aws_deployment).
 
