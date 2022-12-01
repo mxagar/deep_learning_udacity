@@ -61,6 +61,7 @@ Additionally, note that:
       - [Upload Dataset to S3](#upload-dataset-to-s3)
       - [Create Training Container and Train Model](#create-training-container-and-train-model)
       - [Test Trained Model: Batch Transform](#test-trained-model-batch-transform)
+      - [Custom Training Containers: Pytorch](#custom-training-containers-pytorch)
     - [2.8 Mini-Project: IMDB Sentiment: XGBoost Model Batch Transform - High Level](#28-mini-project-imdb-sentiment-xgboost-model-batch-transform---high-level)
     - [2.9 Example: Boston Housing: XGBoost Model Batch Transform - Low Level / In Depth](#29-example-boston-housing-xgboost-model-batch-transform---low-level--in-depth)
       - [Set Up: Session and Role](#set-up-session-and-role-1)
@@ -69,6 +70,7 @@ Additionally, note that:
       - [Test Trained Model: Batch Transform](#test-trained-model-batch-transform-1)
   - [3. Deploying and Using a Model](#3-deploying-and-using-a-model)
     - [3.1 Example: Boston Housing: XGBoost Model Deploy - High Level](#31-example-boston-housing-xgboost-model-deploy---high-level)
+      - [Deployment of Custom Model Containers: Pytorch](#deployment-of-custom-model-containers-pytorch)
     - [3.2 Example: Boston Housing: XGBoost Model Deploy - Low Level / In Depth](#32-example-boston-housing-xgboost-model-deploy---low-level--in-depth)
     - [3.3 Mini-Project: IMDB Sentiment Analysis: XGBoost Deploy - Web App](#33-mini-project-imdb-sentiment-analysis-xgboost-deploy---web-app)
       - [Test the Endpoint](#test-the-endpoint)
@@ -100,6 +102,7 @@ Additionally, note that:
     - [7.2 Connect to an Instance](#72-connect-to-an-instance)
     - [7.3 Pricing](#73-pricing)
   - [8. Google Colab](#8-google-colab)
+  - [9. Project: Deploying a Sentiment Analysis Model](#9-project-deploying-a-sentiment-analysis-model)
 
 ## 1. Introduction to Deployment
 
@@ -1044,6 +1047,109 @@ plt.title("Median Price vs Predicted Price")
 !rmdir $data_dir
 ```
 
+#### Custom Training Containers: Pytorch
+
+Instead of using pre-defined containers (e.g., XGBoost), we can create custom training containers. For instance, we can create a Pytorch model container and pass to it the model definition as well as the training function.
+
+This approach is used in the module project [sentiment_rnn_aws_deployment](https://github.com/mxagar/sentiment_rnn_aws_deployment), but I describe it in this section.
+
+In order to create a custom container (i.e., for Pytorch models), we need to have a folder (e.g., `train/`) with the following files:
+
+- `train/model.py`: the model class definition derived from `nn.Module`.
+- `train/train.py`: a file with a `__main__` which runs the complete training, as well as a `model_fn()` which loads the trained model for inference.
+- `train/requirements`: any pip requirements installed by the container.
+
+Additionally:
+
+- We need to upload the training dataset to S3, as always.
+- The uploaded dataset folder can contain further tools/objects used by `train.py`, for instance a vocabulary pickle file.
+
+The `train/train.py` is the **entry point** script for the training job container. In other words, we define in it the training function we'd like to have. Note, additionally:
+
+- The training must be called in the `__main__` function of `train.py`.
+- We can pass hyperparameters to the script via CLI arguments, which are parsed in `__main__`.
+- The `train.py` must have a function `model_fn()` which is imported during the *default* deployment; this function loads and returns the trained model, ready to be used for prediction/inference. The *default* deployment is the one which uses a model that receives and scores the data with no further processing -- usually that's not the case, i.e., we need to perform some transformations to the data. To that end, a **custom** deployment can be done. See section 3.1, [Deployment of Custom Model Containers: Pytorch](#Deployment-of-Custom-Model-Containers:-Pytorch).
+- More files used by `train.py` can be co-located in the `train/` folder passed to the custom estimator.
+
+When everything is set up, the training call in the SageMake notebook is very similar to the one with pre-defined container:
+
+```python
+
+##
+## Create dataset folder with
+## - dataset file
+## - necessary tools/objects, e.g., vocabulary, which can be used by train.py
+
+data_dir = '../data/pytorch'
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+
+with open(os.path.join(data_dir, 'word_dict.pkl'), "wb") as f:
+    pickle.dump(word_dict, f)
+    
+pd.concat([pd.DataFrame(train_y), pd.DataFrame(train_X_len), pd.DataFrame(train_X)], axis=1) \
+        .to_csv(os.path.join(data_dir, 'train.csv'), header=False, index=False)
+
+##
+## Upload dataset + tools to S3
+
+import sagemaker
+
+sagemaker_session = sagemaker.Session()
+
+bucket = sagemaker_session.default_bucket()
+prefix = 'sagemaker/sentiment_rnn'
+
+role = sagemaker.get_execution_role()
+
+# Note: complete folder is uploaded
+# The file train.py accesses to buckets and picks the required files: word_dict.pkl, train.csv
+# Keep in mind that train.py needs to create a data loader and a train() function to fit the model
+input_data = sagemaker_session.upload_data(path=data_dir, bucket=bucket, key_prefix=prefix)
+
+##
+## Create custom training container
+
+from sagemaker.pytorch import PyTorch
+
+# The hyperparameters are passed as CLI arguments to train.py
+# Thus, train.py must have a __main__ which parses those arguments
+estimator = PyTorch(entry_point="train.py", # training script
+                    source_dir="train", # folder: it contains train.py, requirements.txt, + all files used by train.py
+                    role=role,
+                    framework_version='0.4.0',
+                    py_version="py3", # https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/sagemaker.pytorch.html
+                    #train_instance_count=1,
+                    #train_instance_type='ml.g4dn.xlarge',
+                    instance_count=1,
+                    #instance_type='ml.g4dn.xlarge',                    
+                    instance_type='ml.m4.xlarge', # My account is limited      
+                    hyperparameters={
+                        'epochs': 10,
+                        'hidden_dim': 200,
+                    })
+
+# Note: we pass the complete S3 bucket for training
+# The train.py file is in charge 
+estimator.fit({'training': input_data})
+
+##
+## Default deployment
+
+# model_fn() from train.py entry point is imported and used to load the model
+# then, the estimator_predictor is ready to perform inferences
+predictor = estimator.deploy(initial_instance_count=1, instance_type='ml.m4.xlarge')
+
+# NOTE: batch_test_X must be a correctly formatted batch of test data
+# For a valid example, see
+# https://github.com/mxagar/sentiment_rnn_aws_deployment
+y_pred = predictor.predict(batch_test_X)
+
+# VERY IMPORTANT: the deployed model is running on a virtual machine!
+# We need to stop it when not needed, otherwise we need to pay!
+predictor.delete_endpoint()
+```
+
 ### 2.8 Mini-Project: IMDB Sentiment: XGBoost Model Batch Transform - High Level
 
 This section deals with the *IMDB Sentiment Analysis* mini-project in which a model is built using XGBoost.
@@ -1369,6 +1475,63 @@ xgb_predictor.delete_endpoint()
 
 # And then we delete the directory itself
 !rmdir $data_dir
+```
+
+#### Deployment of Custom Model Containers: Pytorch
+
+Instead of using pre-defined containers (e.g., XGBoost), we can create custom training containers. For instance, we can create a Pytorch model container and pass to it the model definition as well as the training function. The section [Custom Training Containers: Pytorch](#Custom-Training-Containers:-Pytorch) explains how to create and run such containers. Additionally, the *default* deployment of those is shown. However, *default* deployments pass the data directly to the model for scoring, without any transformations. Here, I explain how to perform a **custom** deployment, which can transform the data passed to the endpoint before scoring it with the model.
+
+This approach is used in the module project [sentiment_rnn_aws_deployment](https://github.com/mxagar/sentiment_rnn_aws_deployment), but I describe it in this section.
+
+In order to generate custom inference code, we create a folder, e,g., `serve/` which contains the following files:
+
+- `model.py`: the model class definition derived from `nn.Module`; the same as in `train/` for the custom model training. 
+- `utils.py`: any utility functions/code necessary to transform the data before sending it to the model.
+- `requirements.txt`: any pip requirements installed by the container.
+- `predict.py`: entry point for the deployed model inference; it contains some expected function definitions used for the inference.
+
+The `predict.py` file should define the following functions:
+
+- `model_fn`: same as in `train/train.py` for the custom model training.
+- `input_fn`: this function receives the raw serialized input that has been sent to the model's endpoint and its job is to de-serialize and make the input available for the inference code.
+- `output_fn`: this function takes the output of the inference code and its job is to serialize this output and return it to the caller of the model's endpoint.
+- `predict_fn`: where the actual prediction is done; be use the transformation functions in `utils.py` to transform the de-serialized data and score it with the model.
+
+Once those files and functions have been defined in `serve/`, we can create a `PyTorchModel` in the SageMaker notebook, assign the model data we created when training, the `serve/` folder content, and deploy it as an endpoint.
+
+:warning: However, note that there's an issue with the content type / serialization / de-serialization. The newest SageMaker versions seem not to work with the aforementioned framework? In any case, I need to `!pip install sagemaker==1.72.0` in order to run the code below.
+
+```python
+from sagemaker.predictor import RealTimePredictor
+from sagemaker.pytorch import PyTorchModel
+
+# The default behaviour for a deployed PyTorch model is to assume
+# that any input passed to the predictor is a numpy array.
+# In our case we want to send a string so we need to construct a simple wrapper
+# around the RealTimePredictor class to accomodate simple strings.
+# In a more complicated situation you may want to provide a serialization object,
+# for example if you wanted to sent image data.
+class StringPredictor(RealTimePredictor):
+    def __init__(self, endpoint_name, sagemaker_session):
+        super(StringPredictor, self).__init__(endpoint_name, sagemaker_session, content_type='text/plain')
+        #super(StringPredictor, self).__init__(endpoint_name, sagemaker_session)#, content_type='text/plain')
+        #super(StringPredictor, self).__init__(endpoint_name, sagemaker_session, content_type=sagemaker.serializers.CSVSerializer())
+
+# We need to construct a new PyTorchModel object which points to the model artifacts
+# created during training and also points to the inference code that we wish to use.
+# The model_data points to the model artifact; if we stopped the notebook after training
+# we need to get the model data location on S3 (we can either print before closing notebook or check on AWS console)
+#model_data = estimator.model_data
+model_data='s3://sagemaker-us-east-1-077073585279/sagemaker-pytorch-2022-11-30-14-27-54-736/output/model.tar.gz'
+model = PyTorchModel(model_data=model_data,
+                     role = role,
+                     framework_version='0.4.0',
+                     #py_version="py3", # https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/sagemaker.pytorch.html
+                     entry_point='predict.py',
+                     source_dir='serve',
+                     predictor_cls=StringPredictor)
+# Deploy!
+predictor = model.deploy(initial_instance_count=1, instance_type='ml.m4.xlarge')
 ```
 
 ### 3.2 Example: Boston Housing: XGBoost Model Deploy - Low Level / In Depth
@@ -2727,6 +2890,7 @@ These are the summary steps in the notebook:
 - [SageMaker STUDIO vs SageMaker NOTEBOOKS](https://www.youtube.com/watch?v=RxofqeoNqM0)
 - [AWS Machine Learning Specialization Course by Mike Chambers](https://learn.mikegchambers.com/p/aws-machine-learning-specialty-certification-course)
 - [What is Amazon SageMaker?](https://www.youtube.com/watch?v=CK_xC4T1blk&t=694s)
+- [Using Docker containers with SageMaker](https://docs.aws.amazon.com/sagemaker/latest/dg/docker-containers.html)
 
 ## 7. Cloud Computing with AWS EC2
 
@@ -2853,7 +3017,8 @@ Always stop & terminate instances that we don't need! Terminate erases any data 
 ## 8. Google Colab
 
 See[`Google_Colab_Notes.md`](https://github.com/mxagar/computer_vision_udacity/blob/main/02_Cloud_Computing/Google_Colab_Notes.md).
-. Project: Deploying a Sentiment Analysis Model
+
+## 9. Project: Deploying a Sentiment Analysis Model
 
 See repository: [sentiment_rnn_aws_deployment](https://github.com/mxagar/sentiment_rnn_aws_deployment).
 
