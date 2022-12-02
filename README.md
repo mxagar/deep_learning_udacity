@@ -34,8 +34,9 @@ Udacity requires the submission of a project for each module; these are the repo
 1. Predicting Bike Sharing Patterns with Neural Networks Written from Scratch with Numpy: [project-bikesharing](https://github.com/mxagar/deep-learning-v2-pytorch/tree/master/project-bikesharing).
 2. Dog Breed Classification with Convolutional Neural Networks (CNNs) and Transfer Learning: [project-dog-classification](https://github.com/mxagar/deep-learning-v2-pytorch/tree/master/project-dog-classification).
 3. Text Generation: TV Script Creation with a Recurrent Neural Network (RNN): [text_generator](https://github.com/mxagar/text_generator).
-4. Face Generation.
-5. Deployment of a Sentiment Analysis Model.
+4. Face Generation with a Convolutional Generative Adversarial Network (GAN): [face_generator_gan](https://github.com/mxagar/face_generator_gan).
+5. Sentiment Analysis RNN Deployed Using AWS SageMaker: [sentiment_rnn_aws_deployment](https://github.com/mxagar/sentiment_rnn_aws_deployment). 
+
 
 ## Practical Installation Notes
 
