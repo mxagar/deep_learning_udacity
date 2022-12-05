@@ -22,8 +22,12 @@ No guarantees.
   - [1. Introduction: Basics](#1-introduction-basics)
     - [1.1 Dropout as Regularization](#11-dropout-as-regularization)
     - [1.2 Early Stopping (as Regularization)](#12-early-stopping-as-regularization)
-    - [1.3 Best Practices and Insights](#13-best-practices-and-insights)
-    - [1.4 Tensorboard](#14-tensorboard)
+    - [1.3 Tensorboard](#13-tensorboard)
+    - [1.4 Notes and Best Practices](#14-notes-and-best-practices)
+  - [2. Convolutional Neural Networks (CNNs)](#2-convolutional-neural-networks-cnns)
+  - [3. Recurrent Neural Networks (RNNs)](#3-recurrent-neural-networks-rnns)
+  - [4. Autoencoders](#4-autoencoders)
+  - [5. Generative Adversarial Networks (GANs)](#5-generative-adversarial-networks-gans)
 
 ## 1. Introduction: Basics
 
@@ -240,12 +244,151 @@ model.fit(x=X_train,
           )
 ```
 
-### 1.3 Best Practices and Insights
+### 1.3 Tensorboard
 
-- Use a validation split and to plot the learning curves.
-- We should also vary the used optimizer, the learning rate, activation functions, etc.
+Tensorboard is a dashboard that visualizes how the network is trained, eg., the weight values along the epochs are displayed, etc.
+
+Official tutorial: [tensorboard/get_started](https://www.tensorflow.org/tensorboard/get_started).
+
+**Install**: `pip/3 install tensorboard`
+
+**Usage**:
+
+1. We instantiate a TensorBoard callback and pass it to `model.fit()`; the callback logs can save many different data.
+2. Then, we launch tensorboard in the terminal: `tensorboard --logdir=path_to_your_logs`.
+3. We open the tensorboard dashboard with browser at: [http://localhost:6006/](http://localhost:6006/).
+
+**Arguments to instantiate `TensorBoard` (from the help docstring)**:
+
+- `log_dir`: directory of log files used by TensorBoard
+- `histogram_freq`: frequency (in epochs) at which to compute activation and
+weight histograms for the layers of the model. If set to 0, histograms
+won't be computed. Validation data (or split) must be specified for
+histogram visualizations.
+- `write_graph`: whether to visualize the graph in TensorBoard. The log file
+can become quite large when write_graph is set to True.
+write_images: whether to write model weights to visualize as image in
+TensorBoard.
+- `update_freq`: `'batch'` or `'epoch'` or integer. When using `'batch'`,
+writes the losses and metrics to TensorBoard after each batch. The same
+applies for `'epoch'`. If using an integer, let's say `1000`, the
+callback will write the metrics and losses to TensorBoard every 1000
+samples. Note that writing too frequently to TensorBoard can slow down
+your training.
+- `profile_batch`: Profile the batch to sample compute characteristics. By
+default, it will profile the second batch. Set `profile_batch=0` to
+disable profiling. Must run in TensorFlow eager mode.
+- `embeddings_freq`: frequency (in epochs) at which embedding layers will
+be visualized. If set to 0, embeddings won't be visualized
+
+Notes:
+
+- Loss is plotted (smoothed or not) for train & validation splits.
+- Images (activation maps?) can be visualized in different stages of the network -- it makes sense for CNNs processing images.
+- The graph of the model is visualized.
+- Weight (& bias) ranges during epochs visualized.
+- Histograms of weights (& biases) during epochs visualized.
+- Projector: Really cool data visualization (high-dim data projected).
+
+```python
+from datetime import datetime
+
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Activation, Dropout
+
+from tensorflow.keras.callbacks import EarlyStopping, TensorBoard
+
+## Early Stopping Callback
+
+early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=25)
+
+## Tensorboard Callback
+
+timestamp = datetime.now().strftime("%Y-%m-%d--%H%M")
+
+# WINDOWS: Use "logs\\fit"
+# MACOS/LINUX: Use "logs/fit"
+# Path where log files are stored needs to be specified
+# Log files are necessary for the visualizations done in tensorboard
+# Always use `logs/fit` and then what you want (eg, a timestamp) 
+log_directory = 'logs/fit/'+ timestamp
+# Later, when we launch tensorboard in the Terminal:
+# --logdir=logs/fit/<timestamp>
+
+board = TensorBoard(
+    log_dir=log_directory,
+    histogram_freq=1,
+    write_graph=True,
+    write_images=True,
+    update_freq='epoch',
+    profile_batch=2,
+    embeddings_freq=1)
+
+## Model Definition
+
+model = Sequential()
+model.add(Dense(units=30,activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(units=15,activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(units=1,activation='sigmoid'))
+model.compile(loss='binary_crossentropy', optimizer='adam')
+
+## Training: We pass th early stop and the (tensor-)board as callbacks
+
+model.fit(x=X_train, 
+          y=y_train, 
+          epochs=600,
+          validation_data=(X_test, y_test),
+          verbose=1,
+          callbacks=[early_stop,board]
+          )
+
+## Open Tensorboard
+# 1) In Terminal, start server
+# cd <path/to/our/project>
+# tensorboard --logdir=<path/to/your/logs>
+# tensorboard --logdir=logs/fit/<timestamp>
+# 2) In browser, open dashboard
+# http://localhost:6006/
+```
+
+### 1.4 Notes and Best Practices
+
 - Neural networks are not the best option for tabular data. Random forests and gradient boosting methods (e.g., XGBoost) often outperform neural networks for tabular data.
 - Neural networks require large datasets (many rows).
+- Use a validation split and plot the learning curves.
+- We should also vary the used optimizer, the learning rate, activation functions, etc.
+- 1 epoch = all samples traversed.
+- Always shuffle samples after one epoch!
+- Common **Gradient Descend** approaches:
+    - Batch gradient descend: all samples (1 epoch) used to compute the loss and one weight update step.
+    - Stochastic GD: one random sample used to compute the loss and one weight weight update step.
+    - Mini-batch: a batch of random samples used to compute the loss and one weight weight update step.
+- **Regularization** techniques or neural networks:
+    - Adding weight penalty to loss function.
+    - **Dropout**.
+    - Early stopping.
+    - Stochastic GD or mini-batch GD regularize the training, too, because we don't fit the dataset perfectly.
+- **Loss functions**:
+    - MSE
+    - 
+- Common **Optimizers** (from less to most advanced):
+    - Gradient descend with **learning rate**.
+    - Gradient descend with **momentum**: use running average of the previous steps; momentum is the factor that scales the influence of all previous steps. Common value: `eta = 0.9`. Often times, the learning rate is chosen as `alpha = 1 - eta`. The effect of using momentum is that we smooth out the steps, as compared to stochastic/gradient descend.
+    - Gradient descend with **Nesterov momentum**: momentum alone can overshoot the optimum solution. Nesterov momentum controls that overshooting. The effect is that the steps are even more smooth.
+    - **AdaGrad**: Frequently updated weights are updated less. We track the value `G`, sum of previous gradients, which increases every iteration and divide each learning rate with it. Effect: as we get closer to the solution, the learning rate is smaller, so we avoid overshooting.
+    - **RMSProp**: Root mean square propagation. Similar to AdaGrad, but more efficient. It tracks `G`, but older gradients have a smaller weight; the effect is that newer gradients have more impact.
+    - **Adam**: Momentum and RMSProp combined. We have two parameters to tune, which have these default values:
+        - `beta1 = 0.9`
+        - `beta2 = 0.999`
+    - Which one should we use? Adam and RMSProp are very popular and work very well: they're fast. However, if we have convergence issues, we should try simple optimizers, like stochastic gradient descend.
 
-### 1.4 Tensorboard
+## 2. Convolutional Neural Networks (CNNs)
 
+## 3. Recurrent Neural Networks (RNNs)
+
+## 4. Autoencoders
+
+## 5. Generative Adversarial Networks (GANs)
