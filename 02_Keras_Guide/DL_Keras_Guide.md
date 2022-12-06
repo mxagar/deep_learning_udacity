@@ -31,8 +31,12 @@ No guarantees.
     - [2.4 Custom Datasets](#24-custom-datasets)
     - [2.5 Popular CNN Architectures](#25-popular-cnn-architectures)
   - [3. Recurrent Neural Networks (RNNs)](#3-recurrent-neural-networks-rnns)
-  - [4. Autoencoders](#4-autoencoders)
-  - [5. Generative Adversarial Networks (GANs)](#5-generative-adversarial-networks-gans)
+    - [3.1 Simple RNN](#31-simple-rnn)
+    - [3.2 Time Series](#32-time-series)
+    - [3.3 LSTMs](#33-lstms)
+  - [4. Other Architectures](#4-other-architectures)
+    - [Autoencoders](#autoencoders)
+    - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
 
 ## 1. Introduction: Basics
 
@@ -830,6 +834,10 @@ The following example shows how to:
 - Fit the model with generator/iterators.
 - Load an image without the generators/iterators and perform inference with it.
 
+Th original code can be found here:
+
+[`08_3_Keras_Custom_Datasets.ipynb`](https://github.com/mxagar/machine_learning_ibm/blob/main/05_Deep_Learning/lab/08_3_Keras_Custom_Datasets.ipynb)
+
 ```python
 import matplotlib.pyplot as plt
 import cv2
@@ -1083,8 +1091,180 @@ output_class=class_names[np.argmax(pred)]
 
 ## 3. Recurrent Neural Networks (RNNs)
 
+Recurrent Neural Networks (RNN) deal with sequential data. They capture the context information or the structural properties of the sequence by storing a memory or hidden state, which is passed from the previous step to the next as the elements of the sequence are fed step by step. The less sophisticated layers (`SimpleRNN()`) suffer from the vanishing gradient problem, thus, not very long sequences can be handled. The more sophisticated layers (e.g., `LSTM()`) alleviate that issue.
+
+RNNs can be used for:
+
+- Language modeling: sentiment analysis, predict next word, etc.
+- Time series forecasting.
+- etc.
+
+### 3.1 Simple RNN
+
+Model of a simple RNN:
+
+![Simple RNN](./pics/SimpleRNN.png)
+
+Note that the output of the cell is double: the output and the memory/previous hidden state. That memory state is passed automatically from step to step.
+
+If we *unroll* it over time it is like having `N` consecutive layers, where `N` is the sequence length:
+
+![Unrolled RNN](./pics/unrolled_rnn.jpg)
+
+Notation equivalence between both pictures:
+
+    x_t = w_i: word/vector at position t/i in sequence
+    s_t = s_i: state at position t/i in sequence
+    y_t = o_i: output at position t/i in sequence
+    W_x = U: core RNN, dense layer applied to input
+    W_s = W: core RNN, dense layer applied to previous state
+    W_y = V: final dense layer (in Keras, we need to do it manually afterwards)
+
+Dimensions:
+
+    r = dimension or input vector
+    s = dimension of hidden state
+    t = dimension of output
+
+    U: r x s -> initialized with kernel_initializer
+    W: s x s -> initialized with recurrent_initializer
+    V: s x t (in Keras, we need to do it manually afterwards)
+
+Notes:
+
+- The weight matrices `U, W, V` are the same across all steps/positions!
+- We usually only care about the last output!
+- The backpropagation is done *through time*, thus, the vanishing gradient problem becomes more patent. Therefore, we can't work with very long sequences. A solution to that length limitation are **Long Short-Term Memory (LSTM)** cells (see below).
+- We usually **pad** and **truncate** sequences to make them of a fixed length.
+- Training is performed with vectors and batches, thus, the input has the shape of `(batch_size, seq_len, vector_size)`.
+- If we use words, these are converted to integers using a dictionary and then an **embedding layer** is defined. The embedding layer converts the integers to word vectors in an embedding space of a fixed dimension. The embedding layer conversion is learnt during training. If desired, we can train the embedding to transform similar words to similar vectors (e.g., as measured by their cosine similarity).
+- **IMPORTANT REMARK**: in Keras, apparently, the mapping `V = W_y` is not done automatically inside the `SimpleRNN`, we need to do it manually with a `Dense()` layer, if desired.
+
+The following example shows how to:
+
+1. Imports
+2. Load dataset. process, define parameters
+3. Define RNN model
+4. Train and evaluate RNN model
+
+Th original code can be found here:
+
+[`05g_DEMO_RNN.ipynb`](https://github.com/mxagar/machine_learning_ibm/blob/main/05_Deep_Learning/lab/05g_DEMO_RNN.ipynb)
+
+```python
+###
+# 1. Imports
+##
+
+#from tensorflow import keras
+#from tensorflow.keras.preprocessing import sequence
+#from tensorflow.keras.models import Sequential
+#from tensorflow.keras.layers import Dense, Embedding
+#from tensorflow.keras.layers import SimpleRNN
+#from tensorflow.keras.datasets import imdb
+#from tensorflow.keras import initializers
+import keras
+from keras.preprocessing import sequence
+from keras.models import Sequential
+from keras.layers import Dense, Embedding
+from keras.layers import SimpleRNN
+from keras.datasets import imdb
+from keras import initializers
+
+###
+# 2. Load dataset. process, define parameters
+##
+
+max_features = 20000  # This is used in loading the data, picks the most common (max_features) words
+maxlen = 30  # maximum length of a sequence - truncate after this
+batch_size = 32
+
+# Load in the data.
+# The function automatically tokenizes the text into distinct integers
+(x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=max_features)
+print(len(x_train), 'train sequences')
+print(len(x_test), 'test sequences')
+# 25000 train sequences
+# 25000 test sequences
+
+# This pads (or truncates) the sequences so that they are of the maximum length
+# The length of the sequence is very important:
+# - if too short, we might fail to capture context correctly
+# - if too long, the memory cannot store all the information
+x_train = sequence.pad_sequences(x_train, maxlen=maxlen)
+x_test = sequence.pad_sequences(x_test, maxlen=maxlen)
+print('x_train shape:', x_train.shape)
+print('x_test shape:', x_test.shape)
+
+x_train[123,:]  #Here's what an example sequence looks like
+# array([  219,   141,    35,   221,   956,    54,    13,    16,    11,
+#         2714,    61,   322,   423,    12,    38,    76,    59,  1803,
+#           72,     8, 10508,    23,     5,   967,    12,    38,    85,
+#           62,   358,    99], dtype=int32)
+
+###
+# 3. Define RNN model
+##
+
+rnn_hidden_dim = 5 # dim of hidden state = dim of the output
+word_embedding_dim = 50 # dim of word vectors
+model_rnn = Sequential()
+# Embedding: This layer takes each integer in the sequence
+# and embeds it in a 50-dimensional vector
+model_rnn.add(Embedding(input_dim=max_features, # vocabulary size
+                        output_dim=word_embedding_dim)) # word vector size
+# A SimpleRNN is the recurrent layer model with the mappings U, W, V = W_x, W_s, W_y
+# The hidden state is passed automatically after each step in the sequence
+# The size of the output is the size of the hidden state
+# Usually the last output is taken only
+# The kernel (U = W_x) and recurrent (W = W_s) mappings can be controlled
+# independently for initialization and regularization
+# IMPORTANT REMARK: in Keras, apparently, the mapping V = W_y is not done automatically,
+# we need to do it manually with a Dense() layer
+model_rnn.add(SimpleRNN(units=rnn_hidden_dim, # output size = hidden state size
+                    # U = W_x: input weights: (word_embedding_dim, rnn_hidden_dim) = (50, 5)
+                    kernel_initializer=initializers.RandomNormal(stddev=0.001),
+                    # W = W_s: hidden state weights: (s, s) = (5, 5)
+                    recurrent_initializer=initializers.Identity(gain=1.0),
+                    activation='relu', # also frequent: tanh
+                    input_shape=x_train.shape[1:]))
+
+# Sentiment analysis: sentiment score
+model_rnn.add(Dense(units=1, activation='sigmoid'))
+
+# Note that most of the parameters come from the embedding layer
+model_rnn.summary()
+
+rmsprop = keras.optimizers.RMSprop(lr = .0001)
+
+model_rnn.compile(loss='binary_crossentropy',
+              optimizer=rmsprop,
+              metrics=['accuracy'])
+
+###
+# 4. Train and evaluate RNN model
+##
+
+model_rnn.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=10,
+          validation_data=(x_test, y_test))
+
+score, acc = model_rnn.evaluate(x_test, y_test,
+                            batch_size=batch_size)
+print('Test score:', score) # 0.4531511457252502
+print('Test accuracy:', acc) # 0.7853999733924866
+
+```
+
+### 3.2 Time Series
+
+### 3.3 LSTMs
+
+## 4. Other Architectures
 
 
-## 4. Autoencoders
 
-## 5. Generative Adversarial Networks (GANs)
+### Autoencoders
+
+### Generative Adversarial Networks (GANs)
