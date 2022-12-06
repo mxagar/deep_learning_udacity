@@ -1261,6 +1261,8 @@ print('Test accuracy:', acc) # 0.7853999733924866
 
 ### 3.3 LSTMs
 
+![LSTMs](./pics/LSTMs.png)
+
 ## 4. Other Architectures
 
 
