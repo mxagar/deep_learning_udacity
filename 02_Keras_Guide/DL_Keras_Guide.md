@@ -32,10 +32,15 @@ No guarantees.
     - [2.5 Popular CNN Architectures](#25-popular-cnn-architectures)
   - [3. Recurrent Neural Networks (RNNs)](#3-recurrent-neural-networks-rnns)
     - [3.1 Simple RNN](#31-simple-rnn)
-    - [3.2 Time Series](#32-time-series)
-    - [3.3 LSTMs](#33-lstms)
-  - [4. Other Architectures](#4-other-architectures)
-    - [Autoencoders](#autoencoders)
+    - [3.2 LSTMs](#32-lstms)
+      - [Gated Recurrent Units (GRUs)](#gated-recurrent-units-grus)
+    - [3.3 Time Series](#33-time-series)
+    - [3.4 RNN Architectures](#34-rnn-architectures)
+      - [Sequence to Sequence Models: Seq2Seq](#sequence-to-sequence-models-seq2seq)
+  - [4. Other Topics](#4-other-topics)
+    - [Autoencoders and Functional API](#autoencoders-and-functional-api)
+      - [Example 1: Compression of MNIST and Functional API](#example-1-compression-of-mnist-and-functional-api)
+      - [Example 2: De-noising MNIST](#example-2-de-noising-mnist)
     - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
 
 ## 1. Introduction: Basics
@@ -1257,16 +1262,542 @@ print('Test accuracy:', acc) # 0.7853999733924866
 
 ```
 
-### 3.2 Time Series
+### 3.2 LSTMs
 
-### 3.3 LSTMs
+Simple RNN layers suffer from the vanishing gradient problem, so we cannot handle very long sequences. Schmidhuber published in 1997 the **Long Short-Term Memory** units, which alleviate that issue and are still used nowadays.
 
-![LSTMs](./pics/LSTMs.png)
+The LSTM cells have several gates that decide which information to forget and to remember, and their memory has two parts: short-term memory and long-term memory.
 
-## 4. Other Architectures
+The math is in reality not very complex: we apply several sensible operations to the vectors:
 
+- Linear mappings
+- Concatenation
+- Element-wise multiplication
+- Activation with `tanh` and `sigmoid`
+- etc.
 
+However, the key aspects of how LSTMs work are summarized by the following picture/model:
 
-### Autoencoders
+![LSTM Unit](./pics/LSTMs.png)
+
+More information can be found in my DL notes: [deep_learning_udacity](https://github.com/mxagar/deep_learning_udacity)
+
+In practice, we can easily interchange the `SimpleRNN()` and the `LSTM()` layers, because for the user the have a very similar API:
+
+```python
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense,SimpleRNN,LSTM
+
+### SimpleRNN
+
+n_features = 1 # size of a vector; in this case the vector is a scalar
+length = 50 # length of vector sequence
+
+model = Sequential()
+model.add(SimpleRNN(units=100, input_shape=(length,n_features)))
+model.add(Dense(n_features)) # Unique vector output
+
+model.compile(optimizer='adam',loss='mse')
+
+### LSTM
+
+n_features = 1 # size of a vector; in this case the vector is a scalar
+length = 50 # length of vector sequence
+
+model = Sequential()
+model.add(LSTM(units=100, input_shape=(length,n_features)))
+model.add(Dense(n_features)) # Unique vector output
+
+model.compile(optimizer='adam',loss='mse')
+
+```
+
+#### Gated Recurrent Units (GRUs)
+
+They appeared in 2014. They are a simplification of the LSTM cell which is maybe less accurate but requires less memory and are faster.
+
+We can easily interchange them both; maybe LSTMs are able to learn more complex patterns and GRUs are suited for smaller datasets.
+
+### 3.3 Time Series
+
+Time series can be performed with a *many-to-one* architecture, but several aspects should be taken into account:
+
+- The sequence length must capture the trend and the seasonality, i.e., the low and high frequency components of the series.
+- We should apply early stopping.
+- Dates need to be converted to `datetime`, probably.
+- The class `TimeseriesGenerator` is very helpful to generate sequences from a time series.
+
+The following example is from the notebook
+
+[`19_07_2_RNN_Example_1_Sales.ipynb`](https://github.com/mxagar/machine_learning_ibm/blob/main/05_Deep_Learning/lab/19_07_2_RNN_Example_1_Sales.ipynb)
+
+which originally comes from J.M. Portilla's course on Tensforlow 2. The example works on a time series downloaded from the FRED website: [Retail Sales: Clothing and Clothing Accessory Stores (Not Seasonally Adjusted)](https://fred.stlouisfed.org/series/RSCCASN). It consists of 334 entries of monthly date-sales pairs. It is a very simple dataset, but the example shows how to deal with a time series in general.
+
+These steps are carried out:
+
+1. Imports
+2. Load dataset and prepare
+3. Generator
+4. Define the model
+5. Train the model
+6. Forecasting: Test Split + Future (New Timestamps)
+
+```python
+###
+# 1. Imports
+###
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+
+###
+# 2. Load dataset and prepare
+###
+
+# We load the dataset
+# We convert the date string to datetime type on the fly
+# and be set that column to be the index
+# If we have datetime values, we can use
+# - parse_dates=True, or
+# - infer_datetime_format=True
+df = pd.read_csv('./RSCCASN.csv', parse_dates=True, index_col='DATE')
+df.shape # (334, 1)
+
+# We change the name of the column so that it's easier to remember
+# Note that it contains sales in millions by day
+df.columns = ['Sales']
+
+# We can see that a year (12 months or data points) y a cycle or period
+# which contains the major trend and a seasonality components.
+# Thus, we need to take that time span into consideration for splitting
+df.plot(figsize=(16,6))
+
+# Train/Test Split
+# Due to the observation above,
+# we split in the last 1.5 years = 18 months
+test_size = 18
+test_ind = len(df) - test_size
+train = df.iloc[:test_ind]
+test = df.iloc[test_ind:]
+
+# Scaling
+scaler = MinMaxScaler()
+scaler.fit(train)
+scaled_train = scaler.transform(train)
+scaled_test = scaler.transform(test)
+
+###
+# 3. Generator
+###
+
+# Time series generator
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+
+# The length of the input series must be smaller than the length of the test split
+# if we do early-stopping validation
+length = 12
+batch_size = 1
+generator = TimeseriesGenerator(data=scaled_train,
+                                targets=scaled_train,
+                                length=length,
+                                batch_size=batch_size)
+
+# We check the first (X,y) pair of the generator
+X,y = generator[0]
+X.shape # (1, 12, 1)
+y.shape # (1, 1)
+
+###
+# 4. Define the model
+###
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, SimpleRNN, LSTM
+
+n_features = 1
+model = Sequential()
+#model.add(SimpleRNN(units=100, input_shape=(length,n_features)))
+# We explicitly use the ReLu activation
+model.add(LSTM(units=100, activation='relu', input_shape=(length,n_features)))
+model.add(Dense(n_features))
+model.compile(optimizer='adam', loss='mse')
+
+# Early Stopping
+from tensorflow.keras.callbacks import EarlyStopping
+
+early_stop = EarlyStopping(monitor='val_loss', patience=5)
+# We need to create a validation generator
+# The length is the same as before,
+# taking into account that it must be shorter than the length of the validation split
+validation_generator = TimeseriesGenerator(scaled_test,
+                                          scaled_test,
+                                          length=length,
+                                          batch_size=1)
+
+###
+# 5. Train the model
+###
+
+# We train with an early stop callback
+model.fit_generator(generator,
+                    epochs=20,
+                    validation_data=validation_generator,
+                    callbacks=[early_stop])
+
+# We get the loss values and plot them
+losses = pd.DataFrame(model.history.history)
+losses.plot()
+
+###
+# 6. Forecasting
+###
+
+### 6.1 Test Split
+
+# We forecast one by one all the values in the test split
+# For that, the batch previous to the test split is taken
+# a prediction done for it, and then,
+# the batch is moved in time to contain predicted values
+test_predictions = []
+current_batch = scaled_train[-length:].reshape((1,length,n_features))
+for i in range(len(test)):
+    predicted = model.predict(current_batch)[0]
+    test_predictions.append(predicted)
+    current_batch = np.append(current_batch[:,1:,:],[[predicted]],axis=1)
+
+true_predictions = scaler.inverse_transform(test_predictions)
+test['LSTM Predictions'] = true_predictions
+
+test.plot(figsize=(10,5))
+
+# Compute the RMSE
+from sklearn.metrics import mean_squared_error
+
+np.sqrt(mean_squared_error(test['Sales'],test['LSTM Predictions']))
+
+### 6.2 Future: New Timestamps
+
+scaled_full_data = scaler.transform(df)
+
+forecast = []
+periods_into_future = 24
+current_batch = scaled_full_data[-length:].reshape((1,length,n_features))
+for i in range(periods_into_future):
+    predicted = model.predict(current_batch)[0]
+    forecast.append(predicted)
+    current_batch = np.append(current_batch[:,1:,:],[[predicted]],axis=1)
+
+# We inverse the scaling
+forecast = scaler.inverse_transform(forecast)
+
+# Pick last date: 2019-10-01
+df.tail()
+
+# Since we finish on 2019-10-01 with stapsize of 1 month in our full dataset
+# we take the next day as start day and the frequency tring 'MS' for monthly data
+# More on freq strings: google("pandas frequency strings")
+# https://stackoverflow.com/questions/35339139/what-values-are-valid-in-pandas-freq-tags
+forecast_index = pd.date_range(start='2019-11-01',
+                               periods=periods_into_future,
+                               freq='MS')
+
+# Create a dataframe
+forecast_df = pd.DataFrame(forecast,index=forecast_index)
+forecast_df.columns = ['Sales']
+
+# Plot
+ax = df.plot(figsize=(16,6))
+forecast_df.plot(ax=ax)
+# We can zooom in if desired
+plt.xlim('2018-01-01','2021-02-01')
+```
+
+### 3.4 RNN Architectures
+
+We can arrange RNN cells in different ways:
+
+- **Sequence-to-vector** (aka. *many to one*): we pass a sequence and expect an element. For example, we can use that architecture to generate text or forecast the next value. The *one* element is in general a vector, but if that vector is of size `1`, it's a scalar; e.g., in price forecasting we predict one price value.
+- **Vector-to-sequence** (aka. *one to many*): for instance, given a word, predict the next 5. That *one* vector can be a scalar, too, as before.
+- **Sequence-to-sequence** (aka. *many to many*): we pass a sequence and expect a sequence. For example, we could train a chatbot with Q-A sequences or perform machine translation.
+
+#### Sequence to Sequence Models: Seq2Seq
+
+Sequence to sequence models can be used for instance in machine translation. They have an **encoder-decoder** architecture:
+
+- The encoder can be an RNN: we pass a sequence of words (sentence) which finishes with special token `<EOS>` (i.e., *end of sentence*).
+- We take the last hidden state: it contains information of the complete sequence we introduced.
+- We pass to the decoder the last hidden state of the encoder as the initial state and the initial special token `<SOS>` (i.e., *start of sentence*).
+- The decoder starts outputting a sequence of words/tokens step by step and we collect them.
+- We input the last token in the next step.
+- The sequence ends when the decoder outputs `<EOS>`.
+
+![Sequence to sequence models](./pics/seq2seq.jpg)
+
+However, the explained approach can be improved:
+
+- We can use **beam search**: the decoder outputs in each step probabilities for all possible words; thus, we can consider several branches of possible sentences, instead of taking one word at a time (aka. *greedy search#*). Since the selected word conditions the next output, it is important which word we select. Beam search consists in performing a more complex selection that considers several options, which lead to several sentences.
+- Instead of passing the final hidden state from the encoder, we can pass all the intermediate hidden states and apply **attention**. Attention consists in inputing the hidden state which is most similar to the last output. That is achieved, e.g., by measuring the cosine similarity. This is useful in language translation, since the word order in different languages is not the same.
+
+## 4. Other Topics
+
+In the following, some short code snippets and links to other architectures are provided. These architectures build up in the previously explained ones: MLP, CNN, RNN. This guide should be a catalogue of building DL blocks with Keras, not a guide on deep learning.
+
+### Autoencoders and Functional API
+
+PCA can find compressed representations of data, e.g., images. We can use those representations to detect anomalies/defects, reduce noise, remove background, etc.
+
+However, PCA is a **linear** combination of principal elements/components which capture the vectors with maximum variance. In contrast, we might have non-linear relationships between basic components. That can be accomplished with autoencoders.
+
+Autoencoders have these parts:
+
+- Encoder: layers that compress the dimensionality of the input vector to a **compressed** or **latent representation**, also known as **bottleneck**.
+- Decoder: layers that upscale the compressed or latent representation to a vector of the dimension as the input.
+
+For training, the loss is defined as the difference between the input and output vectors; then, the gradient of that loss is propagated through the entire network (encoder + decoder).
+
+Applications of autoencoders:
+
+- Compress data, dimensionality reduction
+- Noise reduction in data, e.g., images
+- Sharpening of images/data
+- Identifying key components
+- Anomaly detection
+- Similarity: we can find similar images by checking their compressed representation vectors, e.g., with cosine similarity.
+- Machine translation: we reduce dimensionality and improve the translation process (machine translation has typically a high dimensionality).
+- Generation of data, e.g., images. However, typically **variational autoencoders** are used and often **GANs** are superior.
+- Neural inpainting: if we remove a part from an image, we can reconstruct it (e.g., remove watermarks).
+
+A type of autoencoders are **Variational autoencoders**, which work the same way as regular autoencoders, except the latent space contains normal distributions instead of scalar values, i.e., the parameters (mean and std. deviation) of distributions are obtained. Then, the decoder samples those distributions and upscales them.
+
+The main application of variational autoencoders is **image generation**. This is the workflow:
+
+- We compress an image to latent vectors: `mu = [m1, m2, ...]` and `sigma = [s1, s2, ...]`.
+- We create a latent representation with noise as follows: `x = mu + sigma*noise`; `noise = N(0,1)`
+- We feed `x` to the decoder, which upscales it to be an image.
+
+The loss function has two terms which are summed:
+
+- Reconstruction loss: Pixel-wise difference between input and output vectors/images. Binary crossentropy can be used (as done with regular autoencoders).
+- Penalty for generating `mu` and `sigma` vectors which are different from `0` and `1`, i.e., we penalize deviations form the **standard distribution**; the  **Kullback-Leibler (KL)-divergence** formula is used.
+
+#### Example 1: Compression of MNIST and Functional API
+
+The notebook
+
+[`05h_LAB_Autoencoders.ipynb`](https://github.com/mxagar/machine_learning_ibm/blob/main/05_Deep_Learning/lab/05h_LAB_Autoencoders.ipynb)
+
+shows shows how the following topics/concepts are implemented:
+
+- Compression/Reconstruction performance of PCA applied on MNIST. Reconstruction performance is measured comparing original and reconstructed images with MSE.
+- Compression/Reconstruction efficacy of Autoencoders applied on MNIST: Number of layers and units are changed to compare different models.
+- Compression/Reconstruction efficacy of Variational Autoencoders applied on MNIST: Number of layers and units are changed to compare different models.
+- The decoder of the Variational Autoencoder is used to generate new MNIST images: the two sigma values are varied and images are reconstructed.
+
+One very interesting thing about the noteboook is that we learn how to use the **functional API** from Keras. That API goes beyond the `Sequential()` models; we can define layers as functions and specify operations with them (e.g., addition, concatenation), as required in more complex models (e.g., ResNets).
+
+Example of how to build an Autoencoder and a Variational Autoencoder using the functional API:
+
+```python
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+import tensorflow as tf
+
+from keras.layers import Lambda, Input, Dense
+from keras.models import Model
+from keras.losses import mse, binary_crossentropy
+from keras.utils import plot_model
+from keras import backend as K
+from keras.datasets import mnist
+
+from sklearn.preprocessing import MinMaxScaler
+
+###
+# Load and prepare dataset
+###
+
+# 60k in train, 10k in test
+(x_train, y_train), (x_test, y_test) = mnist.load_data();
+# Convert to float and scale to [0,1]
+x_train = x_train.astype('float32') / 255.
+x_test = x_test.astype('float32') / 255.
+# Reshape to 1D, i.e., rows of pixels
+x_train_flat = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
+x_test_flat = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
+print(x_train_flat.shape) # (60000, 784)
+print(x_test_flat.shape) # (10000, 784)
+
+# Pixel values scaled again?
+s = MinMaxScaler().fit(x_train_flat)
+x_train_scaled = s.transform(x_train_flat)
+x_test_scaled = s.transform(x_test_flat)
+
+def mse_reconstruction(true, reconstructed):
+    return np.sum(np.power(true - reconstructed, 2) / true.shape[1])
+
+###
+# Autoencoder
+###
+
+# Here the functional API from keras is introduced
+# which helps building more complex architectures, e.g., where
+# layers outputs are summed or concatenated (e.g., ResNets), going
+# beyond the Sequential() API.
+# However, for such simple models as the current,
+# we could use Sequential().
+# In the functional API:
+# - We need to define the Input vector
+# - We need to define all layers as if they are functions with their outputs
+# - We collect first Input instance and last output in Model
+#
+# We need to define 3 models altogether:
+# - full_model
+# - encoder
+# - decoder
+
+ENCODING_DIM = 64
+HIDDEN_DIM = 256
+
+## Encoder model
+inputs = Input(shape=(784,)) # input vector
+# Functional API: layers are like functions that take arguments
+encoder_hidden = Dense(HIDDEN_DIM, activation="relu")(inputs)
+encoded = Dense(ENCODING_DIM, activation="sigmoid")(encoder_hidden)
+# Model: we collect first Input instance and last output in Model
+encoder_model = Model(inputs, encoded, name='encoder')
+
+## Decoder model
+encoded_inputs = Input(shape=(ENCODING_DIM,), name='encoding')
+decoder_hidden = Dense(HIDDEN_DIM, activation="relu")(encoded_inputs)
+reconstruction = Dense(784, activation="sigmoid")(decoder_hidden)
+decoder_model = Model(encoded_inputs, reconstruction, name='decoder')
+
+## Full model as the combination of the two
+outputs = decoder_model(encoder_model(inputs))
+full_model = Model(inputs, outputs, name='full_ae')
+
+full_model.summary()
+
+# We use the BINARY cross-entropy loss
+# because we want to know whether the input and output images are equivalent
+full_model.compile(optimizer='rmsprop',
+                 loss='binary_crossentropy',
+                 metrics=['accuracy'])
+
+## Train
+history = full_model.fit(x_train_scaled,
+                         x_train_scaled,
+                         shuffle=True,
+                         epochs=2,
+                         batch_size=32)
+
+## Evaluate
+decoded_images = full_model.predict(x_test_scaled)
+mse_reconstruction(x_test_flat, decoded_images)
+
+###
+# Variational Autoencoder
+###
+
+def sampling(args):
+    """
+    Transforms parameters defining the latent space into a normal distribution.
+    """
+    # Need to unpack arguments like this because of the way the Keras "Lambda" function works.
+    mu, log_sigma = args
+    # by default, random_normal has mean=0 and std=1.0
+    epsilon = K.random_normal(shape=tf.shape(mu))
+    sigma = K.exp(log_sigma)
+    #return mu + K.exp(0.5 * sigma) * epsilon
+    return mu + sigma*epsilon
+
+hidden_dim = 256
+batch_size = 128
+# this is the dimension of each of the vectors representing the two parameters
+# that will get transformed into a normal distribution
+latent_dim = 2 
+epochs = 1
+
+## VAE model = encoder + decoder
+
+## Encoder model
+inputs = Input(shape=(784, ), name='encoder_input')
+x = Dense(hidden_dim, activation='relu')(inputs)
+# We pass x to two layers in parallel
+z_mean = Dense(latent_dim, name='z_mean')(x)
+z_log_var = Dense(latent_dim, name='z_log_var')(x) # 2D vectors
+
+# We can pass to Lambda our own created function
+z = Lambda(sampling, name='z')([z_mean, z_log_var]) # args unpacked in sampling()
+# z is now one n dimensional vector representing the inputs
+# We'll have the encoder_model output z_mean, z_log_var, and z
+# so we can plot the images as a function of these later
+encoder_model = Model(inputs, [z_mean, z_log_var, z], name='encoder')
+
+## Decoder model
+latent_inputs = Input(shape=(latent_dim,),)
+x = Dense(hidden_dim, activation='relu')(latent_inputs)
+outputs = Dense(784, activation='sigmoid')(x)
+decoder_model = Model(latent_inputs, outputs, name='decoder')
+
+## Instantiate VAE model
+outputs = decoder_model(encoder_model(inputs)[2]) # we take only z!
+vae_model = Model(inputs, outputs, name='vae_mlp')
+
+## Examine layers
+
+for i, layer in enumerate(vae_model.layers):
+    print("Layer", i+1)
+    print("Name", layer.name)
+    print("Input shape", layer.input_shape)
+    print("Output shape", layer.output_shape)
+    if not layer.weights:
+        print("No weights for this layer")
+        continue
+    for i, weight in enumerate(layer.weights):
+        print("Weights", i+1)
+        print("Name", weight.name)
+        print("Weights shape:", weight.shape.as_list())
+
+## Loss function
+
+# Reconstruction
+reconstruction_loss = binary_crossentropy(inputs, outputs)
+reconstruction_loss *= 784
+
+# KL-Divergence
+kl_loss = 0.5 * (K.exp(z_log_var) - (1 + z_log_var) + K.square(z_mean))
+kl_loss = K.sum(kl_loss, axis=-1)
+total_vae_loss = K.mean(reconstruction_loss + kl_loss)
+
+# We can pass our custom loss function with add_loss()
+vae_model.add_loss(total_vae_loss)
+
+vae_model.compile(optimizer='rmsprop',
+                  metrics=['accuracy'])
+    
+vae_model.summary()
+
+## Train
+vae_model.fit(x_train_scaled,
+        epochs=epochs,
+        batch_size=batch_size)
+
+## Evaluate: Generate reconstructed images and compare to original ones
+decoded_images = vae_model.predict(x_test_scaled)
+mse_reconstruction(x_test_scaled, decoded_images)
+
+```
+
+#### Example 2: De-noising MNIST
+
+Another nice example on autoencoders is given in the notebook:
+
+[`19_09_2_Keras_Autoencoders_Image_Denoising_MNIST.ipynb`](https://github.com/mxagar/machine_learning_ibm/blob/main/05_Deep_Learning/lab/19_09_2_Keras_Autoencoders_Image_Denoising_MNIST.ipynb)
+
+In it, an autoencoder is built to de-noise MNIST images. The notebook comes originally from J.M. Portilla's course on Tensorflow 2.
 
 ### Generative Adversarial Networks (GANs)
