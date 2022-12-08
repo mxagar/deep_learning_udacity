@@ -161,6 +161,9 @@ model.compile(optimizer=SGD(lr = .003),
 # The fit function returns the run history:
 # it contains 'val_loss', 'val_accuracy', 'loss', 'accuracy'
 # Always shuffle!
+# NOTE: passing teh test split as validation_data is a bad practice
+# We should either create a validdation split from the train split
+# or use the validation_split parameter!
 run_hist = model.fit(X_train_norm,
                          y_train,
                          validation_data=(X_test_norm, y_test),
@@ -209,6 +212,9 @@ losses.plot()
 
 # We can further train it!
 # That's sensible if curves are descending
+# NOTE: passing teh test split as validation_data is a bad practice
+# We should either create a validdation split from the train split
+# or use the validation_split parameter!
 run_hist_ = model.fit(X_train_norm, y_train, validation_data=(X_test_norm, y_test), epochs=1000)
 
 # Also: evaluate
@@ -254,6 +260,9 @@ Early stopping can be done by defining it as a callback; we need to pass the val
 # - patience: number of epochs with no improvement after which training will be stopped
 early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=25)
 
+# NOTE: passing teh test split as validation_data is a bad practice
+# We should either create a validdation split from the train split
+# or use the validation_split parameter!
 model.fit(x=X_train, 
           y=y_train, 
           epochs=600,
@@ -356,6 +365,9 @@ model.compile(loss='binary_crossentropy', optimizer='adam')
 
 ## Training: We pass th early stop and the (tensor-)board as callbacks
 
+# NOTE: passing teh test split as validation_data is a bad practice
+# We should either create a validdation split from the train split
+# or use the validation_split parameter!
 model.fit(x=X_train, 
           y=y_train, 
           epochs=600,
@@ -593,6 +605,9 @@ model.compile(loss='categorical_crossentropy',
               optimizer=opt,
               metrics=['accuracy'])
 
+# NOTE: passing teh test split as validation_data is a bad practice
+# We should either create a validdation split from the train split
+# or use the validation_split parameter!
 model.fit(x_train, y_train,
               batch_size=batch_size,
               epochs=5,
@@ -716,6 +731,9 @@ def train_model(model, train, test, num_classes):
                   metrics=['accuracy'])
     # Measure time
     t = now()
+    # NOTE: passing teh test split as validation_data is a bad practice
+    # We should either create a validdation split from the train split
+    # or use the validation_split parameter!
     model.fit(x_train, y_train,
               batch_size=batch_size,
               epochs=epochs,
@@ -936,6 +954,9 @@ model.summary()
 # epoch: steps_per_epoch x batch_size images, not all of them
 # We can also pass the validation/test split here to check/prevent overfitting
 # Very low values are used here to get a fast training; if done seriously, use higher commented values
+# NOTE: passing teh test split as validation_data is a bad practice
+# We should either create a validdation split from the train split
+# or use the validation_split parameter!
 results = model.fit_generator(train_image_gen,
                     epochs=150, # 150
                     steps_per_epoch=1, # 1000
@@ -1019,6 +1040,9 @@ classnames = ['A', 'B', 'C', 'D', 'E']
 
 # Create training and validation image iterators
 # NOTE: another option would be ImageDataGenerator, show in previous section 2.4
+# NOTE: passing teh test split as validation_data is a bad practice
+# We should either create a validdation split from the train split
+# or use the validation_split parameter!
 img_height,img_width=180,180
 batch_size=32
 train_ds = tf.keras.preprocessing.image_dataset_from_directory(
@@ -1250,6 +1274,9 @@ model_rnn.compile(loss='binary_crossentropy',
 # 4. Train and evaluate RNN model
 ##
 
+# NOTE: passing teh test split as validation_data is a bad practice
+# We should either create a validdation split from the train split
+# or use the validation_split parameter!
 model_rnn.fit(x_train, y_train,
           batch_size=batch_size,
           epochs=10,
