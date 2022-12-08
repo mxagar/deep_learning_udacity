@@ -1801,3 +1801,10 @@ Another nice example on autoencoders is given in the notebook:
 In it, an autoencoder is built to de-noise MNIST images. The notebook comes originally from J.M. Portilla's course on Tensorflow 2.
 
 ### Generative Adversarial Networks (GANs)
+
+Two notebooks in which a GAN and a DCGAN are implemented on the MNIST dataset:
+
+- [`19_10_1_Keras_GANs_Intro_MNIST.ipynb`](https://github.com/mxagar/machine_learning_ibm/blob/main/05_Deep_Learning/lab/19_10_1_Keras_GANs_Intro_MNIST.ipynb)
+- [`19_10_2_Keras_GANs_DCGAN_MNIST.ipynb`](https://github.com/mxagar/machine_learning_ibm/blob/main/05_Deep_Learning/lab/19_10_2_Keras_GANs_DCGAN_MNIST.ipynb)
+
+The notebooks come originally from J.M. Portilla's course on Tensorflow 2.
