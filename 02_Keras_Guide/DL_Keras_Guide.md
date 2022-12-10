@@ -30,6 +30,7 @@ No guarantees.
     - [2.3 Transfer Learning](#23-transfer-learning)
     - [2.4 Custom Datasets](#24-custom-datasets)
     - [2.5 Popular CNN Architectures](#25-popular-cnn-architectures)
+      - [Transfer Learning with ResNet50](#transfer-learning-with-resnet50)
   - [3. Recurrent Neural Networks (RNNs)](#3-recurrent-neural-networks-rnns)
     - [3.1 Simple RNN](#31-simple-rnn)
     - [3.2 LSTMs](#32-lstms)
@@ -42,6 +43,7 @@ No guarantees.
       - [Example 1: Compression of MNIST and Functional API](#example-1-compression-of-mnist-and-functional-api)
       - [Example 2: De-noising MNIST](#example-2-de-noising-mnist)
     - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
+    - [Tips \& Tricks](#tips--tricks)
 
 ## 1. Introduction: Basics
 
@@ -77,7 +79,7 @@ from sklearn.metrics import confusion_matrix, precision_recall_curve, roc_auc_sc
 
 # Import Keras objects for Deep Learning
 from tensorflow.keras.models  import Sequential
-from tensorflow.keras.layers import Input, Dense, Flatten, Dropout, BatchNormalization
+from tensorflow.keras.layers import Input, Dense, Flatten, Dropout, BatchNormalization, Reshape, Conv2DTranspose
 from tensorflow.keras.optimizers import Adam, SGD, RMSprop
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import EarlyStopping
@@ -1021,7 +1023,9 @@ result = model.predict(img) # [[1.]]
 
 All these architectures are available at: [Keras Applications: Pre-trained Architectures](https://keras.io/api/applications/).
 
-We can import the architectures with pre-trained weights and apply transfer learning with them.
+#### Transfer Learning with ResNet50
+
+We can import the architectures with pre-trained weights and apply **transfer learning** with them.
 
 ```python
 import matplotlib.pyplot as plt
@@ -1029,7 +1033,9 @@ import numpy as np
 import PIL
 
 import tensorflow as tf
-from tensorflow.keras import layers,Dense,Flatten
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.applications.resnet50 import preprocess_input
+from tensorflow.keras import layers, Dense, Flatten
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 
@@ -1037,6 +1043,7 @@ from tensorflow.keras.optimizers import Adam
 # Let's suppose a dataset arranged as explained in the previous section
 # with 5 classes
 classnames = ['A', 'B', 'C', 'D', 'E']
+data_dir = "/path/to/data"
 
 # Create training and validation image iterators
 # NOTE: another option would be ImageDataGenerator, show in previous section 2.4
@@ -1061,6 +1068,11 @@ val_ds = tf.keras.preprocessing.image_dataset_from_directory(
   image_size=(img_height, img_width),
   batch_size=batch_size)
 
+# Plot one image
+images, _ = next(iter(train_ds.take(1)))
+image = images[0]
+plt.imshow(image.numpy())
+
 # Plot some images
 plt.figure(figsize=(10, 10))
 for images, labels in train_ds.take(1):
@@ -1068,7 +1080,26 @@ for images, labels in train_ds.take(1):
     ax = plt.subplot(3, 3, i + 1)
     plt.imshow(images[i].numpy().astype("uint8"))
     plt.title(classnames[labels[i]])
-    plt.axis("off")*
+    plt.axis("off")
+
+# Apply ResNet50 specific preprocessing
+def preprocess(images, labels):
+  return preprocess_input(images), labels
+
+train_ds = train_ds.map(preprocess)
+val_ds = val_ds.map(preprocess)
+# Alternative, if we have loaded the image tensors manually
+#
+# img = image.load_img(img_path, target_size=(size, size)) # PIL
+# x = image.img_to_array(img) # numpy
+# x = np.expand_dims(x, axis=0) # tensor
+# x = x.astype('float32')/255 # scalte to [0,1]
+# ...
+# 
+# def preprocess(images, labels):
+#     return preprocess_input(images), labels
+# 
+# x_train_res, y_train = preprocess(x_train, y_train)
 
 #####
 ## Transfer Learning
@@ -1081,7 +1112,7 @@ resnet_model = Sequential()
 # If we specify include_top=False, the original input/output layers
 # are not imported.
 # Note that we can specify our desired the input and output layer sizes!
-pretrained_model= tf.keras.applications.ResNet50(include_top=False,
+pretrained_model= ResNet50(include_top=False,
                    input_shape=(180,180,3),
                    pooling='avg',
                    classes=5,
@@ -1835,3 +1866,7 @@ Two notebooks in which a GAN and a DCGAN are implemented on the MNIST dataset:
 - [`19_10_2_Keras_GANs_DCGAN_MNIST.ipynb`](https://github.com/mxagar/machine_learning_ibm/blob/main/05_Deep_Learning/lab/19_10_2_Keras_GANs_DCGAN_MNIST.ipynb)
 
 The notebooks come originally from J.M. Portilla's course on Tensorflow 2.
+
+### Tips & Tricks
+
+- Use either `keras.<module>` or `tensorflow.keras.<module>`, but don't mix them!
