@@ -43,6 +43,8 @@ No guarantees.
       - [Example 1: Compression of MNIST and Functional API](#example-1-compression-of-mnist-and-functional-api)
       - [Example 2: De-noising MNIST](#example-2-de-noising-mnist)
     - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
+    - [Other Examples](#other-examples)
+      - [Recommender Systems with ANNs](#recommender-systems-with-anns)
     - [Tips \& Tricks](#tips--tricks)
 
 ## 1. Introduction: Basics
@@ -151,7 +153,11 @@ model.compile(optimizer=SGD(lr = .003),
 # opt = keras.optimizers.SGD(learning_rate=0.01)
 # opt = keras.optimizers.RMSprop(learning_rate=0.01)
 # ...
-# model.compile(..., optimizer=opt)
+# from tensorflow.keras.metrics import RootMeanSquaredError
+# from tensorflow.keras.losses import MeanSquaredError
+# model.compile(optimizer=opt,
+#               loss=MeanSquaredError(), 
+#               metric=RootMeanSquaredError())
 
 #####
 ## 4. Train model
@@ -182,12 +188,12 @@ model.metrics_names
 # Two kinds of predictions
 # One is a hard decision,
 # the other is a probabilitistic score.
-y_pred_class_nn_1 = model.predict_classes(X_test_norm) # {0, 1}
-y_pred_prob_nn_1 = model.predict(X_test_norm) # [0, 1]
+y_pred_class_nn = model.predict_classes(X_test_norm) # {0, 1}
+y_pred_prob_nn = model.predict(X_test_norm) # [0, 1]
 
 # Print model performance and plot the roc curve
-print('accuracy is {:.3f}'.format(accuracy_score(y_test,y_pred_class_nn_1))) # 0.755
-print('roc-auc is {:.3f}'.format(roc_auc_score(y_test,y_pred_prob_nn_1))) # 0.798
+print('accuracy is {:.3f}'.format(accuracy_score(y_test,y_pred_class_nn))) # 0.755
+print('roc-auc is {:.3f}'.format(roc_auc_score(y_test,y_pred_prob_nn))) # 0.798
 
 # Plot ROC
 def plot_roc(y_test, y_pred, model_name):
@@ -199,13 +205,13 @@ def plot_roc(y_test, y_pred, model_name):
     ax.set(title='ROC Curve for {} on PIMA diabetes problem'.format(model_name),
            xlim=[-0.01, 1.01], ylim=[-0.01, 1.01])
 
-plot_roc(y_test, y_pred_prob_nn_1, 'NN')
+plot_roc(y_test, y_pred_prob_nn, 'NN')
 
 # Learning curves
-run_hist_1.history.keys() # ['val_loss', 'val_accuracy', 'loss', 'accuracy']
+run_hist.history.keys() # ['val_loss', 'val_accuracy', 'loss', 'accuracy']
 fig, ax = plt.subplots()
-ax.plot(run_hist_1.history["loss"],'r', marker='.', label="Train Loss")
-ax.plot(run_hist_1.history["val_loss"],'b', marker='.', label="Validation Loss")
+ax.plot(run_hist.history["loss"],'r', marker='.', label="Train Loss")
+ax.plot(run_hist.history["val_loss"],'b', marker='.', label="Validation Loss")
 ax.legend()
 
 # Learning curves: Another option
@@ -217,7 +223,7 @@ losses.plot()
 # NOTE: passing teh test split as validation_data is a bad practice
 # We should either create a validdation split from the train split
 # or use the validation_split parameter!
-run_hist_ = model.fit(X_train_norm, y_train, validation_data=(X_test_norm, y_test), epochs=1000)
+run_hist = model.fit(X_train_norm, y_train, validation_data=(X_test_norm, y_test), epochs=1000)
 
 # Also: evaluate
 # Evaluate the model: Compute the average loss for a new dataset = the test split
@@ -227,7 +233,7 @@ model.evaluate(X_test_norm,y_test)
 ## 6. Save and Load
 #####
 
-model.save('my_model.h5')
+model.save('my_model.h5') # Only Sequential models can be saved like this
 later_model = load_model('my_model.h5')
 later_model.predict(X_test_norm.iloc[101, :])
 ```
@@ -1867,6 +1873,21 @@ Two notebooks in which a GAN and a DCGAN are implemented on the MNIST dataset:
 
 The notebooks come originally from J.M. Portilla's course on Tensorflow 2.
 
+### Other Examples
+
+#### Recommender Systems with ANNs
+
+- [`lab_jupyter_cf_ann.ipynb`](https://github.com/mxagar/machine_learning_ibm/blob/main/06_Capstone_Project/lab/lab_jupyter_cf_ann.ipynb)
+- [`05_Collaborative_RecSys_ANN.ipynb`](https://github.com/mxagar/course_recommender_streamlit/blob/main/notebooks/05_Collaborative_RecSys_ANN.ipynb)
+
+In those notebooks, some interesting methods are employed:
+
+- Using `tensorflow.keras.Model` to create DL models with Object Oriented style.
+- Getting layer tensors with `model.get_layer('user_embedding_layer').get_weights()`.
+- Tabular dataset processing.
+- Manual tabular dataset scaling and splitting.
+
 ### Tips & Tricks
 
 - Use either `keras.<module>` or `tensorflow.keras.<module>`, but don't mix them!
+- Get layer tensors (e.g., interesting with embeddings): `user_latent_features = model.get_layer('user_embedding_layer').get_weights()[0]`.
