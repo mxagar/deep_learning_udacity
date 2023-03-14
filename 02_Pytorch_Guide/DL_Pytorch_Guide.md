@@ -97,6 +97,8 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - [Improving the Training: Learning Rate Scheduler and Optimization Algorithms](#improving-the-training-learning-rate-scheduler-and-optimization-algorithms)
     - [Print Memory Usage During Training](#print-memory-usage-during-training)
     - [Show / Plot Mini-Batch Image Grid](#show--plot-mini-batch-image-grid)
+    - [Windows: Run Pytorch with CUDA](#windows-run-pytorch-with-cuda)
+    - [Single Image Inference](#single-image-inference)
   - [Appendix: Lab - Example Projects](#appendix-lab---example-projects)
   - [Appendix: Important Links](#appendix-important-links)
 
@@ -151,7 +153,7 @@ def test_network(net, trainloader):
     optimizer = optim.Adam(net.parameters(), lr=0.001)
 
     dataiter = iter(trainloader)
-    images, labels = dataiter.next()
+    images, labels = dataiter.next() # use better next(dataiter)
 
     # Create Variables for the inputs and targets
     inputs = Variable(images)
@@ -593,7 +595,7 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
 ### -- 2. Inspect the images
 
 dataiter = iter(trainloader) # create an interator that yields next batch of images+labels
-images, labels = dataiter.next() # get next batch
+images, labels = dataiter.next() # use better next(dataiter)
 print(type(images)) # <class 'torch.Tensor'> 
 print(images.shape) # torch.Size([64, 1, 28, 28]): batch_size, channels, rows, columns
 print(labels.shape) # torch.Size([64])
@@ -725,7 +727,7 @@ model.fc1.weight.data.normal_(std=0.01)
 
 # Grab data 
 dataiter = iter(trainloader)
-images, labels = dataiter.next()
+images, labels = dataiter.next() # use better next(dataiter)
 
 # Resize images into a 1D vector, new shape is:
 # (batch size, color channels, image pixels) 
@@ -1236,7 +1238,7 @@ import helper
 model.eval()
 
 dataiter = iter(testloader)
-images, labels = dataiter.next()
+images, labels = dataiter.next() # use better next(dataiter)
 img = images[0]
 # Flatten: Convert 2D image to 1D vector
 img = img.view(1, 784)
@@ -1774,7 +1776,7 @@ model.eval() # set evaluation/inference mode (no dropout, etc.)
 
 # Get next batch aand transfer it to device
 dataiter = iter(testloader)
-images, labels = dataiter.next()
+images, labels = dataiter.next() # use better next(dataiter)
 images, labels = images.to(device, dtype=torch.float), labels.to(device, dtype=torch.float)
 
 # Calculate the class probabilities (log softmax)
@@ -3143,7 +3145,7 @@ def imshow(img):
 # get some images from the data loader
 dataiter = iter(dataloader)
 # the "_" is a placeholder for no labels
-images, _ = dataiter.next()
+images, _ = dataiter.next() # use better next(dataiter)
 
 # show images
 fig = plt.figure(figsize=(12, 10))
@@ -3151,6 +3153,53 @@ imshow(torchvision.utils.make_grid(images, nrow=4))
 # remove all ticks & labels
 plt.tick_params(left = False, right = False , labelleft = False ,
                 labelbottom = False, bottom = False)
+```
+
+### Windows: Run Pytorch with CUDA
+
+Source: [Torch compiled with CUDA](https://stackoverflow.com/questions/57814535/assertionerror-torch-not-compiled-with-cuda-enabled-in-spite-upgrading-to-cud)
+
+- Check your CUDA version: `nvidia-smi.exe`
+- Install the matching version to the desired environment: [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/)
+- Check:
+
+  ```python
+  import torch
+  torch.cuda.is_available() # True
+  ```
+- Note: at the time I'm writing this I have CUDA 12.0 installed, but there is no Pytorch package for that version yet, so I cannot check whether this approach works...
+
+### Single Image Inference
+
+```python
+# Load one example
+image_filename = "my_image.jpg"
+image_org = cv2.imread(image_filename)
+image_rgb = cv2.cvtColor(image_org, cv2.COLOR_BGR2RGB)
+plt.imshow(image_rgb)
+
+# Inference function
+def infer_image(model, image_filename, class_names, device):
+    model.to(device)
+    image_org = cv2.imread(image_filename)
+    image_rgb = cv2.cvtColor(image_org, cv2.COLOR_BGR2RGB)
+    # Convert to PIL, because Pytorch expects it so!
+    image = Image.fromarray(image_rgb)
+    with torch.no_grad():
+        # Use the transformations required in the test split
+        transform = transforms.Compose([transforms.Resize(66),
+                                        transforms.CenterCrop(64),
+                                        transforms.ToTensor(), 
+                                        transforms.Normalize((0.5,), (0.5,))])
+        image_tensor = transform(image).unsqueeze(0)
+        image_tensor = image_tensor.to(image_tensor)
+        output = model(image_tensor)
+        _, predicted = torch.max(output.data, dim=1)
+
+# Single predicted value
+pred = predicted.cpu().numpy()[0]
+
+    return class_names[pred]
 ```
 
 ## Appendix: Lab - Example Projects
