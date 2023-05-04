@@ -97,6 +97,7 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - [Improving the Training: Learning Rate Scheduler and Optimization Algorithms](#improving-the-training-learning-rate-scheduler-and-optimization-algorithms)
     - [Print Memory Usage During Training](#print-memory-usage-during-training)
     - [Show / Plot Mini-Batch Image Grid](#show--plot-mini-batch-image-grid)
+    - [Setting Up the NVIDIA GeForce RTX 3060 with the eGPU Razor Core X](#setting-up-the-nvidia-geforce-rtx-3060-with-the-egpu-razor-core-x)
     - [Windows: Run Pytorch with CUDA](#windows-run-pytorch-with-cuda)
     - [Single Image Inference](#single-image-inference)
   - [Appendix: Lab - Example Projects](#appendix-lab---example-projects)
@@ -3155,20 +3156,112 @@ plt.tick_params(left = False, right = False , labelleft = False ,
                 labelbottom = False, bottom = False)
 ```
 
+### Setting Up the NVIDIA GeForce RTX 3060 with the eGPU Razor Core X
+
+Source: [Set up the Razer Core X with an NVIDIA GeForce RTX 3036](https://mysupport.razer.com/app/answers/detail/a_id/1873/~/how-to-set-up-the-razer-core)
+
+1. Mount GPU on Razer correctly
+2. Download and install the software drivers for the graphics card you installed in the Razer Core. Depending on the model, you may have an NVIDIA or AMD graphics card.
+
+    [https://www.nvidia.com/Download/index.aspx](https://www.nvidia.com/Download/index.aspx)
+
+3. Ensure that the Razer Core and the graphics card are properly connected to your computer before installing the drivers.
+4. Launch Razer Synapse on your laptop and log in with your account. Wait until Razer Synapse has finished downloading the drivers for the Razer Core.
+5. Restart your system if prompted.
+
+Force Windows to use eGPU for specific applications
+
+	Settings > Display > Graphics
+		Select app: browse and choose bin/exe
+		Options: Specific GPU: NVIDIA GeForce RTX 3036
+
+	List of apps
+
+		HDevelop
+		MVTec Deep Learning Tool
+
+Check the GPU usage: RAM and GPU processors
+	
+	Shell:
+		(once)
+		nvidia-smi.exe
+		(everz 10 seconds)
+		nvidia-smi.exe -l 10
+
+	Notebook:
+		!nvidia-smi
+
 ### Windows: Run Pytorch with CUDA
 
-Source: [Torch compiled with CUDA](https://stackoverflow.com/questions/57814535/assertionerror-torch-not-compiled-with-cuda-enabled-in-spite-upgrading-to-cud)
+Sources:
+
+- [Torch compiled with CUDA](https://stackoverflow.com/questions/57814535/assertionerror-torch-not-compiled-with-cuda-enabled-in-spite-upgrading-to-cud)
+- [Selecting GPUs in PyTorch](https://amytabb.com/til/2021/04/14/selecting-gpus-pytorch/)
+
+Important steps:
 
 - Check your CUDA version: `nvidia-smi.exe`
-- Install the matching version to the desired environment: [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/)
-- Check:
+- Install the matching version to the desired environment: [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/); usually, a CUDA version higher than the supported by Pytorch should have backward compatibility. For instance, installed CUDA 12.1 and Pytorch CUDA 11.7.
+- Select device in application and check everthing works.
 
-  ```python
-  import torch
-  torch.cuda.is_available() # True
-  ```
-- Note: at the time I'm writing this I have CUDA 12.0 installed, but there is no Pytorch package for that version yet, so I cannot check whether this approach works...
+Installation of Pytorch with CUDA:
 
+```bash
+# Crate env: requirements in conda.yaml, co-located
+conda env create -f conda.yaml
+conda activate cv
+
+# Pytorch: Windows + CUDA 11.7
+# Update your NVIDIA drivers: https://www.nvidia.com/Download/index.aspx
+# I have version 12.1, but it works with older versions, e.g. 11.7
+# Check your CUDA version with: nvidia-smi.exe
+conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+
+# Dump installed libraries in pip format
+python -m pip list --format=freeze > requirements.txt
+```
+
+Selecting device and testing everything in a notebook:
+
+```python
+import os
+import torch
+
+torch.__version__
+# '2.0.0'
+
+# Get info of all GPU devices
+!nvidia-smi
+
+# Set environment variable with possible device ids
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+print(os.environ["CUDA_VISIBLE_DEVICES"])
+# Set device: 0 or 1
+# NOTE: indices are not necessarily the ones shown by nvidia-smi
+# We need to try them with the cell below
+torch.cuda.set_device("cuda:0")
+
+# Check that the selected device is the desired one
+print("Is cuda available?", torch.cuda.is_available())
+print("Is cuDNN version:", torch.backends.cudnn.version())
+print("cuDNN enabled? ", torch.backends.cudnn.enabled)
+print("Device count?", torch.cuda.device_count())
+print("Current device?", torch.cuda.current_device())
+print("Device name? ", torch.cuda.get_device_name(torch.cuda.current_device()))
+x = torch.rand(5, 3)
+print(x)
+# Is cuda available? True
+# Is cuDNN version: 8500
+# cuDNN enabled?  True
+# Device count? 2
+# Current device? 0
+# Device name?  NVIDIA GeForce RTX 3060
+# tensor([[0.2121, 0.7982, 0.6093],
+#         [0.3610, 0.8549, 0.1980],
+#         [0.4176, 0.3557, 0.2099],
+#         [0.1893, 0.4797, 0.3056],
+#         [0.6929, 0.5847, 0.8372]])
+```
 ### Single Image Inference
 
 ```python
