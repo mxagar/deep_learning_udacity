@@ -3215,7 +3215,15 @@ conda activate cv
 # Update your NVIDIA drivers: https://www.nvidia.com/Download/index.aspx
 # I have version 12.1, but it works with older versions, e.g. 11.7
 # Check your CUDA version with: nvidia-smi.exe
-conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+# In case of any runtime errors, check vrsion compatibility tables:
+# https://github.com/pytorch/vision#installation
+# The default conda installation command DID NOT WORK
+conda install pytorch=1.12 torchvision=0.13 torchtext=0.13 torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+# But the following pip install comman DID WORK
+python -m pip install torch==1.13+cu117 torchvision==0.14+cu117 torchaudio torchtext==0.14 --index-url https://download.pytorch.org/whl/cu117
+
+# Pytorch: Mac / Windows CPU (not tested)
+python -m pip install torch torchvision torchaudio
 
 # Dump installed libraries in pip format
 python -m pip list --format=freeze > requirements.txt
@@ -3226,6 +3234,7 @@ Selecting device and testing everything in a notebook:
 ```python
 import os
 import torch
+import torchvision
 
 torch.__version__
 # '2.0.0'
@@ -3242,6 +3251,8 @@ print(os.environ["CUDA_VISIBLE_DEVICES"])
 torch.cuda.set_device("cuda:0")
 
 # Check that the selected device is the desired one
+print("Torch version?", torch.__version__)
+print("Torchvision version?", torchvision.__version__)
 print("Is cuda available?", torch.cuda.is_available())
 print("Is cuDNN version:", torch.backends.cudnn.version())
 print("cuDNN enabled? ", torch.backends.cudnn.enabled)
@@ -3250,6 +3261,8 @@ print("Current device?", torch.cuda.current_device())
 print("Device name? ", torch.cuda.get_device_name(torch.cuda.current_device()))
 x = torch.rand(5, 3)
 print(x)
+# Torch version? 1.13.0+cu117
+# Torchvision version? 0.14.0+cu117
 # Is cuda available? True
 # Is cuDNN version: 8500
 # cuDNN enabled?  True
@@ -3262,6 +3275,7 @@ print(x)
 #         [0.1893, 0.4797, 0.3056],
 #         [0.6929, 0.5847, 0.8372]])
 ```
+
 ### Single Image Inference
 
 ```python
