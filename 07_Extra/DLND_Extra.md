@@ -20,10 +20,10 @@ However, **the present module/folder contains my personal notes on *new* archite
   - [Transformers](#transformers)
   - [Diffusion Models](#diffusion-models)
   - [NERFs](#nerfs)
-  - [GPT and Large Language Models](#gpt-and-large-language-models)
   - [Whisper](#whisper)
-  - [BERT](#bert)
-  - [GPT](#gpt)
+  - [Large Language Models](#large-language-models)
+    - [BERT](#bert)
+    - [GPT](#gpt)
 
 ## Transformers
 
@@ -49,19 +49,20 @@ However, **the present module/folder contains my personal notes on *new* archite
 - [NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis](https://arxiv.org/abs/2003.08934)
 - [Jon Barron - Understanding and Extending Neural Radiance Fields](https://www.youtube.com/watch?v=HfJpQCBTqZs)
 
-## GPT and Large Language Models
-
-:construction:
-
 ## Whisper
 
 :construction:
 
-## BERT
+## Large Language Models
 
 :construction:
 
-## GPT
+### BERT
 
 :construction:
+
+### GPT
+
+:construction:
+
 
