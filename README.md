@@ -11,7 +11,10 @@ The nanodegree is composed of six modules:
 5. [Generative Adversarial Networks (GAN)](05_GAN)
 6. [Deploying a Model with AWS SageMaker](06_Deployment)
 
-Additionally, I have added an extra module/subfolder which I will extend with *new* architectures and applications that appeared post 2018: [Extra](07_Extra).
+Additionally:
+
+- I have added an extra module/subfolder which I will extend with *new* architectures and applications that appeared post 2018: [Extra](07_Extra).
+- I have compiled notes on how to allow interchangeability between frameworks using ONNX and hardware deployment using OpenVINO: [Production](08_Production).
 
 Each module has a folder with its respective notes; **you need to go to each module folder and follow the Markdown file in them**.
 
@@ -20,6 +23,7 @@ Finally, note that:
 - I have also notes on the [Udacity Computer Vision Nanodegree](https://www.udacity.com/course/computer-vision-nanodegree--nd891) in my repository [computer_vision_udacity](https://github.com/mxagar/computer_vision_udacity); that MOOC is strongly related and has complementary material.
 - In addition to the [Pytorch guide](02_Pytorch_Guide), I have a [Keras guide](02_Keras_Guide); both condense the most important features of both frameworks. Currently, the Pytorch guide is more detailed.
 - I have many hand-written notes you can check, too (see the PDFs).
+- I have a specific repository for **object detection** and **semantic segmentation**, where additionally **labeling** tools are covered: [detection_segmentation_pytorch](https://github.com/mxagar/detection_segmentation_pytorch).
 - The exercises are commented in the Markdown files and linked to their location; most of the exercises are located in other repositories, originally forked from Udacity and extended/completed by me:
 	- [deep-learning-v2-pytorch](https://github.com/mxagar/deep-learning-v2-pytorch)
 	- [CVND_Exercises](https://github.com/mxagar/CVND_Exercises)
