@@ -3237,7 +3237,7 @@ import torch
 import torchvision
 
 torch.__version__
-# '2.0.0'
+# '1.13.0+cu117'
 
 # Get info of all GPU devices
 !nvidia-smi

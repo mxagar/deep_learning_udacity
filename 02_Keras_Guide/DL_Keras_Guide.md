@@ -38,14 +38,17 @@ No guarantees.
     - [3.3 Time Series](#33-time-series)
     - [3.4 RNN Architectures](#34-rnn-architectures)
       - [Sequence to Sequence Models: Seq2Seq](#sequence-to-sequence-models-seq2seq)
-  - [4. Other Topics](#4-other-topics)
+  - [4. Other Networks](#4-other-networks)
     - [Autoencoders and Functional API](#autoencoders-and-functional-api)
       - [Example 1: Compression of MNIST and Functional API](#example-1-compression-of-mnist-and-functional-api)
       - [Example 2: De-noising MNIST](#example-2-de-noising-mnist)
     - [Generative Adversarial Networks (GANs)](#generative-adversarial-networks-gans)
     - [Other Examples](#other-examples)
       - [Recommender Systems with ANNs](#recommender-systems-with-anns)
-    - [Tips \& Tricks](#tips--tricks)
+  - [Appendix: Tips \& Tricks](#appendix-tips--tricks)
+    - [General Notes](#general-notes)
+    - [Setting Up the NVIDIA GeForce RTX 3060 with the eGPU Razor Core X](#setting-up-the-nvidia-geforce-rtx-3060-with-the-egpu-razor-core-x)
+    - [Windows: Run Tensorflow/Keras with CUDA](#windows-run-tensorflowkeras-with-cuda)
 
 ## 1. Introduction: Basics
 
@@ -1604,7 +1607,7 @@ However, the explained approach can be improved:
 - We can use **beam search**: the decoder outputs in each step probabilities for all possible words; thus, we can consider several branches of possible sentences, instead of taking one word at a time (aka. *greedy search#*). Since the selected word conditions the next output, it is important which word we select. Beam search consists in performing a more complex selection that considers several options, which lead to several sentences.
 - Instead of passing the final hidden state from the encoder, we can pass all the intermediate hidden states and apply **attention**. Attention consists in inputing the hidden state which is most similar to the last output. That is achieved, e.g., by measuring the cosine similarity. This is useful in language translation, since the word order in different languages is not the same.
 
-## 4. Other Topics
+## 4. Other Networks
 
 In the following, some short code snippets and links to other architectures are provided. These architectures build up in the previously explained ones: MLP, CNN, RNN. This guide should be a catalogue of building DL blocks with Keras, not a guide on deep learning.
 
@@ -1887,7 +1890,124 @@ In those notebooks, some interesting methods are employed:
 - Tabular dataset processing.
 - Manual tabular dataset scaling and splitting.
 
-### Tips & Tricks
+## Appendix: Tips & Tricks
+
+### General Notes
 
 - Use either `keras.<module>` or `tensorflow.keras.<module>`, but don't mix them!
 - Get layer tensors (e.g., interesting with embeddings): `user_latent_features = model.get_layer('user_embedding_layer').get_weights()[0]`.
+
+### Setting Up the NVIDIA GeForce RTX 3060 with the eGPU Razor Core X
+
+Source: [Set up the Razer Core X with an NVIDIA GeForce RTX 3036](https://mysupport.razer.com/app/answers/detail/a_id/1873/~/how-to-set-up-the-razer-core)
+
+1. Mount GPU on Razer correctly
+2. Download and install the software drivers for the graphics card you installed in the Razer Core. Depending on the model, you may have an NVIDIA or AMD graphics card.
+
+    [https://www.nvidia.com/Download/index.aspx](https://www.nvidia.com/Download/index.aspx)
+
+3. Ensure that the Razer Core and the graphics card are properly connected to your computer before installing the drivers.
+4. Launch Razer Synapse on your laptop and log in with your account. Wait until Razer Synapse has finished downloading the drivers for the Razer Core.
+5. Restart your system if prompted.
+
+Force Windows to use eGPU for specific applications
+
+	Settings > Display > Graphics
+		Select app: browse and choose bin/exe
+		Options: Specific GPU: NVIDIA GeForce RTX 3036
+
+	List of apps
+
+		HDevelop
+		MVTec Deep Learning Tool
+
+Check the GPU usage: RAM and GPU processors
+	
+	Shell:
+		(once)
+		nvidia-smi.exe
+		(everz 10 seconds)
+		nvidia-smi.exe -l 10
+
+	Notebook:
+		!nvidia-smi
+
+### Windows: Run Tensorflow/Keras with CUDA
+
+**I have not tried this approach, because I fear it causes conflicts with the current CUDA version installed on my machine to use Pytorch with CUDA.**
+
+Source: [How to Finally Install TensorFlow 2 GPU on Windows 10](https://towardsdatascience.com/how-to-finally-install-tensorflow-gpu-on-windows-10-63527910f255)
+
+**Step 1** - Create a basic environment:
+
+```bash
+# Crate env: requirements in conda.yaml, co-located
+conda env create -f conda.yaml
+conda activate cv
+```
+
+**Step 2** - Install other dependencies:
+
+- Install Microsoft Visual Studio with Python support
+
+**Step 3** - Install Tensorflow with CUDA support
+
+- Check the version of cuDNN and CUDA we need for a given Tensorflow version: 
+[https://www.tensorflow.org/install/source_windows](https://www.tensorflow.org/install/source_windows)
+  - For instance, I selected:
+    - Tensorflow 2.10: `tensorflow_gpu-2.10.0`
+    - Python: 3.7-3.10
+    - cuDNN: 8.1
+    - CUDA: 11.2
+
+Then, option 1:
+
+- Download and install the the [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit-archive): Select the required OS and version; e.g., 11.2 in my case.
+  - Maybe, we need to sign in to the NVIDIA Developers program.
+- Download and install the the [cuDNN](https://developer.nvidia.com/rdp/cudnn-archive); e.g., 8.1 in my case.
+  - Maybe, we need to sign in to the NVIDIA Developers program.
+- Set environment paths
+
+Option 2, via the CLI:
+
+```bash
+# NOTE:
+# TensorFlow 2.10 was the last TensorFlow release that supported GPU on native-Windows.
+# Starting with TensorFlow 2.11, you will need to install TensorFlow in WSL2, or install tensorflow or tensorflow-cpu
+# See
+# https://www.tensorflow.org/install/pip#windows-native
+conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0
+# Anything above 2.10 is not supported on the GPU on Windows Native
+python -m pip install "tensorflow<2.11"
+# Verify install:
+python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+```
+
+**Step 4** - Check installation:
+
+```python
+import tensorflow as tf
+from tensorflow.python.client import device_lib
+
+print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+device_lib.list_local_devices()
+```
+
+**Step 5** - Set desired GPU device:
+
+To tell TensorFlow to use a specific GPU on your system, you can utilize the `CUDA_VISIBLE_DEVICES` environment variable. This variable allows you to control which GPUs are visible to the TensorFlow process.
+
+- In the terminal:
+  ```
+  CUDA_VISIBLE_DEVICES=<gpu_index> python your_script.py
+  ```
+
+- In Python:
+  ```python
+  import os
+  os.environ['CUDA_VISIBLE_DEVICES'] = '<gpu_index>'
+  ```
+
+Replace `<gpu_index>` with the index or ID of the desired GPU. For example, if you want to use GPU 0, set `<gpu_index>` to `0`.
+
+By setting `CUDA_VISIBLE_DEVICES`, TensorFlow will only see and utilize the specified GPU. All other GPUs will be masked and not accessible to TensorFlow.
