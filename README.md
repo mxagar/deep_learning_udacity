@@ -11,10 +11,7 @@ The nanodegree is composed of six modules:
 5. [Generative Adversarial Networks (GAN)](05_GAN)
 6. [Deploying a Model with AWS SageMaker](06_Deployment)
 
-Additionally:
-
-- I have added an extra module/subfolder which I will extend with *new* architectures and applications that appeared post 2018: [Extra](07_Extra).
-- I have compiled notes on how to allow interchangeability between frameworks using ONNX and hardware deployment using OpenVINO: [Production](08_Production).
+Additionally, I have added an extra module/subfolder which I will extend with *new* architectures, applications and tools that appeared post 2018: [Extra](07_Extra).
 
 Each module has a folder with its respective notes; **you need to go to each module folder and follow the Markdown file in them**.
 
