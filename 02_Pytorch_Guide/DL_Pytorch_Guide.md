@@ -85,6 +85,8 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - [17.2 Connect to an Instance](#172-connect-to-an-instance)
     - [17.3 Pricing](#173-pricing)
   - [18. Beyond Classification: Object Detection and Semantic Segmentation](#18-beyond-classification-object-detection-and-semantic-segmentation)
+  - [19. Siamese Networks and Contrastive Learning](#19-siamese-networks-and-contrastive-learning)
+  - [20. Pytorch Lightning](#20-pytorch-lightning)
   - [Appendix: Tips and Tricks](#appendix-tips-and-tricks)
     - [Number of Model Parameters](#number-of-model-parameters)
     - [Torch Summary](#torch-summary)
@@ -3004,6 +3006,15 @@ The Udacity Computer Vision Nanodegree covers in the 3rd module the topics of Ob
 
 See also [detection_segmentation_pytorch](https://github.com/mxagar/detection_segmentation_pytorch).
 
+## 19. Siamese Networks and Contrastive Learning
+
+See my compilation in [pyimagesearch_tutorials/siamese_networks](https://github.com/mxagar/pyimagesearch_tutorials/tree/main/siamese_networks) and the [SimCLR](https://arxiv.org/abs/2002.05709) implementation in [simclr_pytorch_flowers](https://github.com/mxagar/simclr_pytorch_flowers).
+
+## 20. Pytorch Lightning
+
+TBD.
+
+:construction:
 
 ## Appendix: Tips and Tricks
 
