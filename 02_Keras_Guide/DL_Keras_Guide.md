@@ -49,6 +49,7 @@ No guarantees.
     - [General Notes](#general-notes)
     - [Setting Up the NVIDIA GeForce RTX 3060 with the eGPU Razor Core X](#setting-up-the-nvidia-geforce-rtx-3060-with-the-egpu-razor-core-x)
     - [Windows: Run Tensorflow/Keras with CUDA](#windows-run-tensorflowkeras-with-cuda)
+    - [Sequential vs Functional API](#sequential-vs-functional-api)
 
 ## 1. Introduction: Basics
 
@@ -2011,3 +2012,52 @@ To tell TensorFlow to use a specific GPU on your system, you can utilize the `CU
 Replace `<gpu_index>` with the index or ID of the desired GPU. For example, if you want to use GPU 0, set `<gpu_index>` to `0`.
 
 By setting `CUDA_VISIBLE_DEVICES`, TensorFlow will only see and utilize the specified GPU. All other GPUs will be masked and not accessible to TensorFlow.
+
+### Sequential vs Functional API
+
+Tensorflow has two main APIs:
+
+1. **Sequential API**: This is a simpler and more straightforward way to create models in TensorFlow. The Sequential API allows you to create models layer-by-layer in a step-by-step manner. It is limited in that it does not allow you to create models that share layers or have multiple inputs or outputs.
+
+2. **Functional API**: This API allows you to create more complex models than the Sequential API. It involves defining a forward pass and adding inputs and outputs to a Model object. With the Functional API, you can create models with non-linear topology, shared layers, and even multiple inputs or outputs.
+
+TensorFlow also provides other APIs like the Subclassing API for more advanced use-cases. The Subclassing API allows you to define custom layers, custom models, and conduct more dynamic architectures.
+
+Examples:
+
+```python
+##### CNN with Sequential API
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(64, 64, 3)),
+    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dense(10, activation='softmax')
+])
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+
+##### CNN with Functional API
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Flatten, Dense
+
+inputs = Input(shape=(64, 64, 3))
+x = Conv2D(32, (3, 3), activation='relu')(inputs)
+x = MaxPooling2D(pool_size=(2, 2))(x)
+x = Conv2D(64, (3, 3), activation='relu')(x)
+x = MaxPooling2D(pool_size=(2, 2))(x)
+x = Flatten()(x)
+x = Dense(128, activation='relu')(x)
+outputs = Dense(10, activation='softmax')(x)
+
+model = Model(inputs=inputs, outputs=outputs)
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+```
