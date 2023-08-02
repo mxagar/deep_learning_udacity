@@ -13,17 +13,58 @@ The nanodegree is composed of six modules:
 
 However, **the present module/folder contains my personal notes on *new* architectures and applications that appeared post 2018**. Currently (2022-11), the field seems to be advancing extremely fast, so I decided to create an extra subfolder with my notes on this journey.
 
+Disclaimers: some topics will be elaborated as I get time for them; some sections will point to other guides.
+
 ## Overview of Contents
 
 - [Extra: New Deep Learning Architectures and Applications](#extra-new-deep-learning-architectures-and-applications)
   - [Overview of Contents](#overview-of-contents)
+  - [Siamese Networks and Contrastive Learning](#siamese-networks-and-contrastive-learning)
+  - [Notes on Specific Vision Models](#notes-on-specific-vision-models)
+  - [Optimization Algorithms](#optimization-algorithms)
+  - [Knowledge Distillation](#knowledge-distillation)
+  - [ONNX](#onnx)
+  - [Quantization](#quantization)
   - [Transformers](#transformers)
   - [Diffusion Models](#diffusion-models)
   - [NERFs](#nerfs)
   - [Whisper](#whisper)
   - [Large Language Models](#large-language-models)
+    - [HuggingFace](#huggingface)
     - [BERT](#bert)
     - [GPT](#gpt)
+    - [Llama](#llama)
+
+## Siamese Networks and Contrastive Learning
+
+See my compilation in [pyimagesearch_tutorials/siamese_networks](https://github.com/mxagar/pyimagesearch_tutorials/tree/main/siamese_networks) and the [SimCLR](https://arxiv.org/abs/2002.05709) implementation in [simclr_pytorch_flowers](https://github.com/mxagar/simclr_pytorch_flowers).
+
+## Notes on Specific Vision Models
+
+:construction:
+
+- EfficientNet
+- RetinaNet
+- DenseNet
+
+## Optimization Algorithms
+
+:construction:
+
+- AdamW
+- ...
+
+## Knowledge Distillation
+
+:construction:
+
+## ONNX
+
+See my guide in [tool_guides/onnx](https://github.com/mxagar/tool_guides/tree/master/onnx).
+
+## Quantization
+
+:construction:
 
 ## Transformers
 
@@ -57,6 +98,10 @@ However, **the present module/folder contains my personal notes on *new* archite
 
 :construction:
 
+### HuggingFace
+
+:construction:
+
 ### BERT
 
 :construction:
@@ -65,4 +110,6 @@ However, **the present module/folder contains my personal notes on *new* archite
 
 :construction:
 
+### Llama
 
+:construction:
