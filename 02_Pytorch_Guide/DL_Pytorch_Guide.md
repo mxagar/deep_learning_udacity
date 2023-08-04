@@ -86,7 +86,8 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
     - [17.3 Pricing](#173-pricing)
   - [18. Beyond Classification: Object Detection and Semantic Segmentation](#18-beyond-classification-object-detection-and-semantic-segmentation)
   - [19. Siamese Networks and Contrastive Learning](#19-siamese-networks-and-contrastive-learning)
-  - [20. Pytorch Lightning](#20-pytorch-lightning)
+  - [20. Pytorch Hooks](#20-pytorch-hooks)
+  - [21. Pytorch Lightning](#21-pytorch-lightning)
   - [Appendix: Tips and Tricks](#appendix-tips-and-tricks)
     - [Number of Model Parameters](#number-of-model-parameters)
     - [Torch Summary](#torch-summary)
@@ -3010,9 +3011,19 @@ See also [detection_segmentation_pytorch](https://github.com/mxagar/detection_se
 
 See my compilation in [pyimagesearch_tutorials/siamese_networks](https://github.com/mxagar/pyimagesearch_tutorials/tree/main/siamese_networks) and the [SimCLR](https://arxiv.org/abs/2002.05709) implementation in [simclr_pytorch_flowers](https://github.com/mxagar/simclr_pytorch_flowers).
 
-## 20. Pytorch Lightning
+## 20. Pytorch Hooks
+
+- [Hooks: the one PyTorch trick you must know](https://www.tivadardanka.com/blog/hooks-the-one-pytorch-trick-you-must-know)
+  - [Hooks](https://github.com/cosmic-cortex/pytorch-hooks-tutorial/blob/master/hooks.ipynb)
+- [Understanding Pytorch hooks](https://www.kaggle.com/code/sironghuang/understanding-pytorch-hooks)
+- [How to Use PyTorch Hooks](https://medium.com/the-dl/how-to-use-pytorch-hooks-5041d777f904)
+
+## 21. Pytorch Lightning
 
 TBD.
+
+- [Lightning Tutorials](https://www.pytorchlightning.ai/tutorials)
+- [PyTorch Lightning Masterclass](https://www.youtube.com/playlist?list=PLaMu-SDt_RB5NUm67hU2pdE75j6KaIOv2)
 
 :construction:
 

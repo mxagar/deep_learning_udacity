@@ -20,15 +20,17 @@ Disclaimers: some topics will be elaborated as I get time for them; some section
 - [Extra: New Deep Learning Architectures and Applications](#extra-new-deep-learning-architectures-and-applications)
   - [Overview of Contents](#overview-of-contents)
   - [Siamese Networks and Contrastive Learning](#siamese-networks-and-contrastive-learning)
+  - [ONNX](#onnx)
+  - [Tensorboard](#tensorboard)
   - [Notes on Specific Vision Models](#notes-on-specific-vision-models)
   - [Optimization Algorithms](#optimization-algorithms)
   - [Knowledge Distillation](#knowledge-distillation)
-  - [ONNX](#onnx)
   - [Quantization](#quantization)
   - [Transformers](#transformers)
   - [Diffusion Models](#diffusion-models)
   - [NERFs](#nerfs)
   - [Whisper](#whisper)
+  - [OpenAI API](#openai-api)
   - [Large Language Models](#large-language-models)
     - [HuggingFace](#huggingface)
     - [BERT](#bert)
@@ -39,6 +41,14 @@ Disclaimers: some topics will be elaborated as I get time for them; some section
 
 See my compilation in [pyimagesearch_tutorials/siamese_networks](https://github.com/mxagar/pyimagesearch_tutorials/tree/main/siamese_networks) and the [SimCLR](https://arxiv.org/abs/2002.05709) implementation in [simclr_pytorch_flowers](https://github.com/mxagar/simclr_pytorch_flowers).
 
+## ONNX
+
+See my guide in [tool_guides/onnx](https://github.com/mxagar/tool_guides/tree/master/onnx).
+
+## Tensorboard
+
+See my guide in [tool_guides/tensorboard](https://github.com/mxagar/tool_guides/tree/master/tensorboard).
+
 ## Notes on Specific Vision Models
 
 :construction:
@@ -46,21 +56,28 @@ See my compilation in [pyimagesearch_tutorials/siamese_networks](https://github.
 - EfficientNet
 - RetinaNet
 - DenseNet
+- ShuffleNet
+- Inception
+- SqueezeNet
+- MobileNet
 
 ## Optimization Algorithms
 
 :construction:
 
+- SGD
+- RMSProp
+- Adam
 - AdamW
-- ...
+- Adagrad
+- Adadelta
+- Nadam
+- RAdam
+- Second order methods?
 
 ## Knowledge Distillation
 
 :construction:
-
-## ONNX
-
-See my guide in [tool_guides/onnx](https://github.com/mxagar/tool_guides/tree/master/onnx).
 
 ## Quantization
 
@@ -91,6 +108,10 @@ See my guide in [tool_guides/onnx](https://github.com/mxagar/tool_guides/tree/ma
 - [Jon Barron - Understanding and Extending Neural Radiance Fields](https://www.youtube.com/watch?v=HfJpQCBTqZs)
 
 ## Whisper
+
+:construction:
+
+## OpenAI API
 
 :construction:
 
