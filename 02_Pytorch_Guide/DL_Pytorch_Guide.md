@@ -3049,6 +3049,8 @@ model = Net()
 summary(model)
 ```
 
+Other approaches: [How to get Model Summary in PyTorch](https://medium.com/the-owl/how-to-get-model-summary-in-pytorch-57db7824d1e3).
+
 ### Running Average Loss
 
 We can either sum the loss and the divide it by the number of batches or compute the running average:
