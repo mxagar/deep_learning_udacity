@@ -83,11 +83,14 @@ See my guide in [tool_guides/tensorboard](https://github.com/mxagar/tool_guides/
 
 :construction:
 
+- [Introduction to Weight Quantization](https://medium.com/towards-data-science/introduction-to-weight-quantization-2494701b9c0c)
+
 ## Transformers
 
 :construction:
 
 -  Transformers & [Vision Transformers](https://iaml-it.github.io/posts/2021-04-28-transformers-in-vision/)
+-  [Vision Transformers vs. Convolutional Neural Networks](https://medium.com/@faheemrustamy/vision-transformers-vs-convolutional-neural-networks-5fe8f9e18efc)
 
 ## Diffusion Models
 
