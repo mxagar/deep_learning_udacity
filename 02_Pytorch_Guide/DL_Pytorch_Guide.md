@@ -3021,12 +3021,7 @@ See my compilation in [pyimagesearch_tutorials/siamese_networks](https://github.
 
 ## 21. Pytorch Lightning
 
-TBD.
-
-- [Lightning Tutorials](https://www.pytorchlightning.ai/tutorials)
-- [PyTorch Lightning Masterclass](https://www.youtube.com/playlist?list=PLaMu-SDt_RB5NUm67hU2pdE75j6KaIOv2)
-
-:construction:
+See my guide in [tool_guides/pytorch_lightning](https://github.com/mxagar/tool_guides/tree/master/pytorch_lightning).
 
 ## 22. Pytorch with Tensorboard
 

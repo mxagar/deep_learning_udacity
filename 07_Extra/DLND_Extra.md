@@ -22,6 +22,7 @@ Disclaimers: some topics will be elaborated as I get time for them; some section
   - [Siamese Networks and Contrastive Learning](#siamese-networks-and-contrastive-learning)
   - [ONNX](#onnx)
   - [Tensorboard](#tensorboard)
+  - [Pytorch Lightning](#pytorch-lightning)
   - [Notes on Specific Vision Models](#notes-on-specific-vision-models)
   - [Optimization Algorithms](#optimization-algorithms)
   - [Knowledge Distillation](#knowledge-distillation)
@@ -48,6 +49,10 @@ See my guide in [tool_guides/onnx](https://github.com/mxagar/tool_guides/tree/ma
 ## Tensorboard
 
 See my guide in [tool_guides/tensorboard](https://github.com/mxagar/tool_guides/tree/master/tensorboard).
+
+## Pytorch Lightning
+
+See my guide in [tool_guides/pytorch_lightning](https://github.com/mxagar/tool_guides/tree/master/pytorch_lightning).
 
 ## Notes on Specific Vision Models
 
