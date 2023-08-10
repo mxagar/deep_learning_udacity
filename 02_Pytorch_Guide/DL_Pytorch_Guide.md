@@ -88,6 +88,7 @@ Please, go to the `./lab` folder are read the `README.md` there to get more info
   - [19. Siamese Networks and Contrastive Learning](#19-siamese-networks-and-contrastive-learning)
   - [20. Pytorch Hooks](#20-pytorch-hooks)
   - [21. Pytorch Lightning](#21-pytorch-lightning)
+  - [22. Pytorch with Tensorboard](#22-pytorch-with-tensorboard)
   - [Appendix: Tips and Tricks](#appendix-tips-and-tricks)
     - [Number of Model Parameters](#number-of-model-parameters)
     - [Torch Summary](#torch-summary)
@@ -3026,6 +3027,10 @@ TBD.
 - [PyTorch Lightning Masterclass](https://www.youtube.com/playlist?list=PLaMu-SDt_RB5NUm67hU2pdE75j6KaIOv2)
 
 :construction:
+
+## 22. Pytorch with Tensorboard
+
+See my guide in [tool_guides/tensorboard](https://github.com/mxagar/tool_guides/tree/master/tensorboard).
 
 ## Appendix: Tips and Tricks
 
