@@ -24,32 +24,33 @@ Additionally, note that:
 
 ## Overview of Contents
 
-2. Neural Networks
-	- Lesson 1: Introduction to Neural Networks
-		- List of concepts
-		- Notebook: `GradientsDescend.ipynb`	
-		- Notebook: `StudentAdmissions.ipynb`
-	- Lesson 2: Implementing Gradient Descend
-		- Gradient Descend in Numpy: Basic Idea
-		- One Perceptron, One Data-Point
-		- One Perceptron, Several Data Points
-		- Multiple Perceptrons (MLP), Several Data Points, One Forward Pass
-		- Backpropagation: One Backward Pass
-		- Implementation of Backpropagation
-		- Notes on Matricial Operations
-		- Interesting Links
-	- Lesson 3: Training Neural Networks
-	- Lesson 4: GPU Workspaces Demo
-	- Lesson 5: Sentiment Analysis
-		- Mini-Project 1: Create a Vocabulary of Words with Associated Sentiment Values
-		- Mini-Project 2: A Vocabulary Is Built + Mappings Word <-> Index + Text Vectorizer
-		- Mini-Project 3: A Neural Network Class for Sentiment Analysis Is Created
-		- Mini-Project 4: Reducing the Noise Fed to the Network by Inpunting Word Detection, not Count
-		- Mini-Project 5: Increasing the Speed by Replacing Matrix Multiplication in the First Layer
-		- Mini-Project 6: Reducing the Noise Input to the Network with a Vocabulary of Significant Words
-		- (Mini-Project 7): Network Analysis
-	- Project: Predicting Bike Sharing Patterns (Lesson 6): [bike_sharing_udacity](https://github.com/mxagar/bike_sharing_udacity)
-	- Lesson 7: Deep Learning with Pytorch: `./03_Pytorch_Guide/DL_Pytorch_Guide.md`
+- [Udacity Deep Learning Nanodegree: Neural Networks](#udacity-deep-learning-nanodegree-neural-networks)
+  - [Overview of Contents](#overview-of-contents)
+- [2. Neural Networks](#2-neural-networks)
+  - [Lesson 1: Introduction to Neural Networks](#lesson-1-introduction-to-neural-networks)
+    - [Notebook: `GradientsDescend.ipynb`](#notebook-gradientsdescendipynb)
+    - [Notebook: `StudentAdmissions.ipynb`](#notebook-studentadmissionsipynb)
+  - [Lesson 2: Implementing Gradient Descend](#lesson-2-implementing-gradient-descend)
+    - [Gradient Descend in Numpy: Basic Idea](#gradient-descend-in-numpy-basic-idea)
+    - [One Perceptron, One Data-Point](#one-perceptron-one-data-point)
+    - [One Perceptron, Several Data Points](#one-perceptron-several-data-points)
+    - [Multiple Perceptrons (MLP), Several Data Points, One Forward Pass](#multiple-perceptrons-mlp-several-data-points-one-forward-pass)
+    - [Backpropagation: One Backward Pass](#backpropagation-one-backward-pass)
+    - [Implementation of Backpropagation](#implementation-of-backpropagation)
+    - [Notes on Matricial Operations](#notes-on-matricial-operations)
+    - [Interesting Links](#interesting-links)
+  - [Lesson 3: Training Neural Networks](#lesson-3-training-neural-networks)
+  - [Lesson 4: GPU Workspaces Demo](#lesson-4-gpu-workspaces-demo)
+  - [Lesson 5: Sentiment Analysis](#lesson-5-sentiment-analysis)
+    - [Mini-Project 1: Create a Vocabulary of Words with Associated Sentiment Values](#mini-project-1-create-a-vocabulary-of-words-with-associated-sentiment-values)
+    - [Mini-Project 2: A Vocabulary Is Built + Mappings Word \<-\> Index + Text Vectorizer](#mini-project-2-a-vocabulary-is-built--mappings-word---index--text-vectorizer)
+    - [Mini-Project 3: A Neural Network Class for Sentiment Analysis Is Created](#mini-project-3-a-neural-network-class-for-sentiment-analysis-is-created)
+    - [Mini-Project 4: Reducing the Noise Fed to the Network by Inpunting Word Detection, not Count](#mini-project-4-reducing-the-noise-fed-to-the-network-by-inpunting-word-detection-not-count)
+    - [Mini-Project 5: Increasing the Speed by Replacing Matrix Multiplication in the First Layer](#mini-project-5-increasing-the-speed-by-replacing-matrix-multiplication-in-the-first-layer)
+    - [Mini-Project 6: Reducing the Noise Input to the Network with a Vocabulary of Significant Words](#mini-project-6-reducing-the-noise-input-to-the-network-with-a-vocabulary-of-significant-words)
+    - [(Mini-Project 7): Network Analysis](#mini-project-7-network-analysis)
+  - [Project: Predicting Bike Sharing Patterns (Lesson 6)](#project-predicting-bike-sharing-patterns-lesson-6)
+  - [Lesson 7: Deep Learning with Pytorch](#lesson-7-deep-learning-with-pytorch)
 
 
 # 2. Neural Networks

@@ -24,15 +24,17 @@ Additionally, note that:
 
 ## Overview of Contents
 
-1. Introduction to Deep Learning
-	- Lesson 4: Anaconda
-	- Lesson 5: Applying Deep Learning
-		- Style Transfer
-		- DeepTraffic by Lex Fridman
-		- Flappy Bird
-		- Books to read
-	- Lesson 6: Jupyter Notebook
-	- Lesson 7: Matrix Math and Numpy Refresher
+- [Udacity Deep Learning Nanodegree: Introduction](#udacity-deep-learning-nanodegree-introduction)
+	- [Overview of Contents](#overview-of-contents)
+- [1. Introduction to Deep Learning](#1-introduction-to-deep-learning)
+	- [Lesson 4: Anaconda](#lesson-4-anaconda)
+	- [Lesson 5: Applying Deep Learning](#lesson-5-applying-deep-learning)
+		- [Style Transfer](#style-transfer)
+		- [DeepTraffic by Lex Fridman](#deeptraffic-by-lex-fridman)
+		- [Flappy Bird](#flappy-bird)
+		- [Books to read](#books-to-read)
+	- [Lesson 6: Jupyter Notebook](#lesson-6-jupyter-notebook)
+	- [Lesson 7: Matrix Math and Numpy Refresher](#lesson-7-matrix-math-and-numpy-refresher)
 
 
 # 1. Introduction to Deep Learning
