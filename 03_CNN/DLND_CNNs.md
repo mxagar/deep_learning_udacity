@@ -38,6 +38,7 @@ Additionally, note that:
     - [1.9 Convolutional Layers in Pytorch](#19-convolutional-layers-in-pytorch)
       - [`Conv2d`](#conv2d)
       - [`MaxPool2d`](#maxpool2d)
+      - [Batch Normalization](#batch-normalization)
       - [Linear Layer and Flattening](#linear-layer-and-flattening)
       - [Example of a Simple Architecture](#example-of-a-simple-architecture)
       - [Summary of Guidelines](#summary-of-guidelines)
@@ -402,6 +403,40 @@ Usually a `MaxPool2d` that halvens the size is chosen, i.e.:
 
 A `MaxPool2d` can be defined once and used several times; it comes after the `relu(Conv2d(x))`.
 
+#### Batch Normalization
+
+(Added later)
+
+Paper: [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift, Ioffe and Szegedy (2015)](https://arxiv.org/abs/1502.03167).
+
+Batch normalization is related to the **exploding gradient** issue. Even though the weights are initialized randomly and have a small initial value, their mean and variance start shifting with time; this is called **covariance shift**. At some point, that shift might yield unstable values (i.e., too larger). Batch normalization addresses this issue by normalizing the signals.
+
+During **training** the `BatchNorm` layer computes the mean and the variance of a batch and normalizes the batch signals with it: `-mean, /std`. Two parameters are learned for each channel: 
+
+- a *scale*, multiplied to the normalized signal,
+- a *shift*, added to the normalized signal.
+
+Additionally, two values are stored, but not learned:
+
+- a moving average
+- and moving variance.
+
+During **inference**, the `BatchNorm` performs the same operation, but using the learned parameters (scale and shift); similarly, the moving average and variance are used to be able to normalize the signals.
+
+`BatchNorm` is used usually
+
+- after dense/linear layers,
+- after convolutional layers,
+- instead of dropout.
+
+Summary of benefits:
+
+- Exploding gradient issue is alleviated.
+- Smoother parameters and gradients.
+- It has been shown to help in the regularization; therefore, some modern architectures avoid Dropout and rely solely on BatchNorm instead.
+
+Pytorch layer: `nn.BatchNorm2d()`.
+
 #### Linear Layer and Flattening
 
 After the convolutional layers, the 3D feature maps need to be reshaped to a 1D feature vector to enter into a linear layer. If padding has been applied so that the size of the feature maps is preserved after each `Conv2d`, we only need to compute the final size taking into account the effects of the applied `MaxPool2d` reductions and the final depth; otherwise, the convolution resizing formmula needs to be applied carefully step by step.
@@ -500,6 +535,8 @@ print(net)
     - In the definition of `Linear()`: we need to compute the final volume of the last feature map set. If we preserved the sized with padding it's easy; if not, we need to apply the formula above step by step.
     - In the `forward()` method: `x = x.view(x.size(0), -1)`; `x.size(0)`is the batch size, `-1` is the rest. 
 - If we use `CrossEntropyLoss()`, we need to return the `relu()` output; if we return the `log_softmax()`, we need to use the `NLLLoss()`. `CrossEntropy() == log_softmax() + NLLLoss()`.
+- `BatchNorm2d` can be used usually after dense/linear or convolutional layers, and often instead of dropout (at least in modern architectures, because it seems to regularize the model).
+
 
 ### 1.10 CIFAR CNN Example
 
@@ -993,7 +1030,7 @@ They achieved a deep network (42 layers) with much less parameters. If ResNets t
 
 The key concepts that made that possible are:
 
-1. Batch normalization: the output of each batch is normalized (-mean, /std) to avoiddd the shifting of weights.
+1. Batch normalization: the output of each batch is normalized (-mean, /std) to avoid the shifting of weights.
 
 2. **Factorization**: they introduced this approach. Larger filters (eg., 5x5) are replaced by smaller ones (eg., 3x3) that work in parallel; then, result is concatenated. This reduces the number of parameters without decreasing the network efficiency.
 
